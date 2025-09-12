@@ -1,0 +1,187 @@
+package config
+
+import (
+	"fmt"
+	"os"
+
+	"go.yaml.in/yaml/v2"
+)
+
+type configType struct {
+	AppName     string `yaml:"appName"`
+	LogLevel    string `yaml:"logLevel"`
+	Timezone    string `yaml:"timezone"`
+	ApiHost     string `yaml:"apiHost"`
+	ApiPort     string `yaml:"apiPort"`
+	ShowVersion bool   `yaml:"showVersion"`
+	CORSStr     string `yaml:"cors_str,omitempty"`
+	Pg          struct {
+		Address  string `yaml:"address"`
+		Port     string `yaml:"port"`
+		User     string `yaml:"user"`
+		Password string `yaml:"password"`
+		Database string `yaml:"database"`
+		SSLMode  string `yaml:"sslMode"`
+	}
+	Redis struct {
+		Address  string `yaml:"address"`
+		User     string `yaml:"user"`
+		Password string `yaml:"password"`
+	}
+	S3 struct {
+		BucketName string `yaml:"bucketName"`
+	} `yaml:"s3"`
+
+	ScanningService struct {
+		Addr string `yaml:"addr"`
+	}
+	RemediationService struct {
+		Addr string `yaml:"addr"`
+	}
+
+	Google struct {
+		ClientID     string `yaml:"clientID"`
+		ClientSecret string `yaml:"clientSecret"`
+	}
+	Auth struct {
+		Type       string `yaml:"type"` // "google_oidc"
+		GoogleOIDC struct {
+			ClientID     string   `yaml:"client_id"`
+			ClientSecret string   `yaml:"client_secret"`
+			RedirectURL  string   `yaml:"redirect_url"`
+			Scopes       []string `yaml:"scopes"`
+			PKCE         bool     `yaml:"pkce"`
+		} `yaml:"google_oidc"`
+	} `yaml:"auth"`
+
+	StartUpMessages  []string `yaml:"startUpMessages"`
+	HomePage         string   `yaml:"homePage"`
+	SessionStoreType string   `yaml:"sessionStoreType"`
+}
+
+var config configType
+var SessionTimeout uint = 3600
+
+func validateConfigPath(path string) error {
+	s, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if s.IsDir() {
+		return fmt.Errorf("'%s' is a directory, not a normal file", path)
+	}
+	return nil
+}
+
+// ParsesConfig the config returns error if fails
+func ParseConfig(configPath string) error {
+	// validate config path before decoding
+	if err := validateConfigPath(configPath); err != nil {
+		return err
+	}
+
+	// open config file
+	file, err := os.Open(configPath)
+	if err != nil {
+		return err
+	}
+	//nolint: errcheck
+	defer file.Close()
+
+	// init new YAML decoder with file
+	d := yaml.NewDecoder(file)
+
+	// start YAML decoding from file
+	if err := d.Decode(&config); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func GetAppName() string {
+	return config.AppName
+}
+
+func GetCORSStr() string {
+	return config.CORSStr
+}
+
+func GetCorsOrigin() string {
+	if config.CORSStr != "" {
+		return config.CORSStr
+	}
+	// Default to localhost:3000 if not configured
+	return "http://localhost:3000"
+}
+
+func GetLogLevel() string {
+	return config.LogLevel
+}
+
+func GetTimezone() string {
+	return config.Timezone
+}
+
+func GetApiHost() string {
+	return config.ApiHost
+}
+
+func GetApiPort() string {
+	return config.ApiPort
+}
+
+func GetSessionStoreType() string {
+	return config.SessionStoreType
+}
+
+// Add getter functions
+func GetAuthType() string {
+	return config.Auth.Type
+}
+
+func GetGoogleOIDCClientID() string {
+	return config.Auth.GoogleOIDC.ClientID
+}
+
+func GetGoogleOIDCClientSecret() string {
+	return config.Auth.GoogleOIDC.ClientSecret
+}
+
+func GetGoogleOIDCRedirectURL() string {
+	return config.Auth.GoogleOIDC.RedirectURL
+}
+
+func GetGoogleOIDCScopes() []string {
+	return config.Auth.GoogleOIDC.Scopes
+}
+
+func GetGoogleOIDCPKCE() bool {
+	return config.Auth.GoogleOIDC.PKCE
+}
+
+func GetPgAddress() string {
+	return fmt.Sprintf("%s:%s@%s:%s/%s", config.Pg.User,
+		config.Pg.Password, config.Pg.Address, config.Pg.Port, config.Pg.Database)
+}
+
+func GetS3BucketName() string {
+	return config.S3.BucketName
+}
+
+func GetScanningServiceAddr() string {
+	return config.ScanningService.Addr
+}
+
+// GetShowVersion returns whether the version should be shown
+func GetShowVersion() bool {
+	return config.ShowVersion
+}
+
+func GetGoogleClientID() string {
+	return config.Google.ClientID
+}
+
+func GetGoogleClientSecret() string {
+	return config.Google.ClientSecret
+}
