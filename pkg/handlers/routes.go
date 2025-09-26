@@ -9,6 +9,7 @@ import (
 	"github.com/opsmx/ai-guardian-api/pkg/controller/integrator"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/project"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/remediation"
+	"github.com/opsmx/ai-guardian-api/pkg/controller/scan"
 	vuln "github.com/opsmx/ai-guardian-api/pkg/controller/vulnerability"
 	"github.com/opsmx/ai-guardian-api/pkg/middleware"
 )
@@ -24,6 +25,7 @@ func SetupRoutes() *mux.Router {
 	vulnController := vuln.NewVulnController()
 	integratorController := integrator.NewIntegratorController()
 	remediationController := remediation.NewRemediationsController()
+	scanController := scan.NewScanController()
 
 	// Public auth routes (no authentication required)
 	authRouter := r.PathPrefix("/auth").Subrouter()
@@ -68,8 +70,6 @@ func SetupRoutes() *mux.Router {
 			hubRouter.HandleFunc("/user/list", hubController.ListHubsByOwner).Methods(http.MethodGet) //working
 		}
 
-		// Scans
-
 		// vulnerabilities
 		vulnerabilityRouter := apiRouter.PathPrefix("/vuln").Subrouter()
 		{
@@ -96,6 +96,12 @@ func SetupRoutes() *mux.Router {
 		{
 			remediationsRouter.HandleFunc("/sast", remediationController.SASTRemediation).Methods(http.MethodPost)
 			remediationsRouter.HandleFunc("/cve", remediationController.CVERemediation).Methods(http.MethodPost)
+		}
+
+		// Scans
+		scansRouter := apiRouter.PathPrefix("/scans").Subrouter()
+		{
+			scansRouter.HandleFunc("/rescan", scanController.Rescan).Methods(http.MethodPost)
 		}
 
 		// Add other protected routes here
