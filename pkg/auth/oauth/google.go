@@ -12,10 +12,10 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/opsmx/ai-gyardian-api/pkg/auth/session"
-	"github.com/opsmx/ai-gyardian-api/pkg/config"
-	"github.com/opsmx/ai-gyardian-api/pkg/models"
-	"github.com/opsmx/ai-gyardian-api/pkg/utils"
+	"github.com/opsmx/ai-guardian-api/pkg/auth/session"
+	"github.com/opsmx/ai-guardian-api/pkg/config"
+	"github.com/opsmx/ai-guardian-api/pkg/models"
+	"github.com/opsmx/ai-guardian-api/pkg/utils"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
@@ -183,16 +183,8 @@ func (g *GoogleOAuth) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Return success response
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"message": "Login successful",
-		"user": map[string]interface{}{
-			"id":    user.ID,
-			"email": user.Email,
-			"name":  user.Name,
-		},
-	})
+	frontendUrl := fmt.Sprintf("https://ai-rem-dev.scanner.opsmx.org/callback?success=true&email=%s", user.Email)
+	http.Redirect(w, r, frontendUrl, http.StatusFound)
 }
 
 func (g *GoogleOAuth) generatePKCE() (*PKCEConfig, error) {

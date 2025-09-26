@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/opsmx/ai-gyardian-api/pkg/auth/oauth"
-	"github.com/opsmx/ai-gyardian-api/pkg/auth/session"
-	"github.com/opsmx/ai-gyardian-api/pkg/utils"
+	"github.com/opsmx/ai-guardian-api/pkg/auth/oauth"
+	"github.com/opsmx/ai-guardian-api/pkg/auth/session"
+	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
 
 type OAuthController struct {

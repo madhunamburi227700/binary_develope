@@ -1,14 +1,18 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/OpsMx/go-app-base/version"
-	"github.com/opsmx/ai-gyardian-api/pkg/config"
-	"github.com/opsmx/ai-gyardian-api/pkg/handlers"
+	"github.com/opsmx/ai-guardian-api/pkg/config"
+	"github.com/opsmx/ai-guardian-api/pkg/database"
+	"github.com/opsmx/ai-guardian-api/pkg/handlers"
 	"github.com/rs/zerolog/log"
 )
 
@@ -45,8 +49,32 @@ func main() {
 		os.Exit(0)
 	}
 
+	// Create main context for the application
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	// Start session manager
+	if err := config.StartSessionManager(ctx); err != nil {
+		log.Fatal().Err(err).Msg("Failed to start session manager")
+	}
+	defer config.StopSessionManager() // Ensure session manager is stopped on exit
+
 	log.Info().Msgf("starting appName %s version %s gitBranch %s gitHash %s buildType %s",
 		config.GetAppName(), version.VersionString(), version.GitBranch(), version.GitHash(), version.BuildType())
+
+	// Initialize database connections
+	pgConnStr := config.GetPgConfig()
+	rdUser, rdPassword, rdAddress := config.GetRedisConfig()
+
+	err = database.InitDatabase(pgConnStr, rdUser, rdPassword, rdAddress)
+	if err != nil {
+		log.Fatal().Err(err).Msg("failed to initialize database")
+	}
+	defer func() {
+		if err := database.Close(); err != nil {
+			log.Error().Err(err).Msg("error closing database connections")
+		}
+	}()
 
 	// Get session Store, default to in-mem
 	err = config.AuthenticatorSessionStore()
@@ -62,10 +90,32 @@ func main() {
 	handler := handlers.ApplyMiddleware(router, middleware...)
 
 	// Start server
-	addr := fmt.Sprintf("%s:%s", config.GetApiHost(), config.GetApiPort())
+	addr := fmt.Sprintf(":%s", config.GetApiPort())
 	log.Info().Msgf("Server starting on %s", addr)
 
-	
+	// Setup graceful shutdown
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+	go func() {
+		<-sigChan
+		log.Info().Msg("Shutdown signal received, stopping services...")
+
+		// Stop session manager
+		config.StopSessionManager()
+
+		// Close database connections
+		if err := database.Close(); err != nil {
+			log.Error().Err(err).Msg("error closing database connections")
+		}
+
+		// Cancel context to stop all background goroutines
+		cancel()
+
+		log.Info().Msg("Graceful shutdown completed")
+		os.Exit(0)
+	}()
+
 	if err := http.ListenAndServe(addr, handler); err != nil {
 		log.Fatal().Err(err).Msg("Failed to start server")
 	}

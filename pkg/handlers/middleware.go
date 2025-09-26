@@ -3,7 +3,7 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/opsmx/ai-gyardian-api/pkg/middleware"
+	"github.com/opsmx/ai-guardian-api/pkg/middleware"
 )
 
 // SetupMiddleware configures all middleware for the HTTP server

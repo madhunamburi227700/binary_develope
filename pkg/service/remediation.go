@@ -1,0 +1,130 @@
+package service
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/opsmx/ai-guardian-api/pkg/client"
+	"github.com/opsmx/ai-guardian-api/pkg/config"
+	"github.com/opsmx/ai-guardian-api/pkg/utils"
+)
+
+type RemediationService struct {
+	SSEClient *client.SSEClient
+	logger    *utils.ErrorLogger
+}
+
+func NewRemediationService() *RemediationService {
+	restConfig := client.RESTClientConfig{
+		BaseURL: config.GetRemediationURL(),
+		Timeout: 0,
+	}
+
+	RESTClient := client.NewRESTClient(restConfig)
+
+	return &RemediationService{
+		SSEClient: client.NewSSEClient(RESTClient),
+		logger:    utils.NewErrorLogger("remediation_service"),
+	}
+}
+
+type SASTRemediationRequest struct {
+	ScanResultID string `json:"scan_result_id"`
+	Platform     string `json:"platform"`
+	Organization string `json:"organization"`
+	Repository   string `json:"repository"`
+	Token        string `json:"token"`
+	Branch       string `json:"branch"`
+	Rule         string `json:"rule"`
+	RuleMessage  string `json:"rule_message"`
+	FilePath     string `json:"file_path"`
+	LineNo       *int   `json:"line_no"`
+}
+
+func (s *RemediationService) ValidateSASTRequest(req *SASTRemediationRequest) error {
+	if req.ScanResultID == "" {
+		return fmt.Errorf("scan_result_id is required")
+	}
+	if req.Platform == "" {
+		return fmt.Errorf("platform is required")
+	}
+	if req.Organization == "" {
+		return fmt.Errorf("organization is required")
+	}
+	if req.Repository == "" {
+		return fmt.Errorf("repository is required")
+	}
+	if req.Branch == "" {
+		return fmt.Errorf("branch is required")
+	}
+	if req.Rule == "" {
+		return fmt.Errorf("rule is required")
+	}
+	if req.RuleMessage == "" {
+		return fmt.Errorf("rule_message is required")
+	}
+	if req.FilePath == "" {
+		return fmt.Errorf("file_path is required")
+	}
+	if req.LineNo == nil {
+		return fmt.Errorf("line_no is required")
+	}
+	return nil
+}
+
+func (s *RemediationService) SAST(ctx context.Context, req *SASTRemediationRequest, headers, queryParams map[string][]string) (*client.SSEResponse, error) {
+	options := client.MakeRequestOptions(headers, queryParams)
+	req.Token = config.GetGithubTokenTemp()
+	return s.SSEClient.SSERequest(ctx, "/sast-remediation/v1/fix", "POST", req, options)
+}
+
+type CVERemediationRequest struct {
+	SessionID    *string `json:"session_id,omitempty"`
+	ScanResultID string  `json:"scan_result_id"`
+	Token        string  `json:"token"`
+	Platform     string  `json:"platform"`
+	Organization string  `json:"organization"`
+	Repository   string  `json:"repository"`
+	CVEID        string  `json:"cve_id"`
+	Package      string  `json:"package"`
+	Branch       *string `json:"branch,omitempty"`
+	MessageType  string  `json:"message_type"`
+	UserMessage  *string `json:"user_message,omitempty"`
+}
+
+func (s *RemediationService) ValidateCVERequest(req *CVERemediationRequest) error {
+	if req.ScanResultID == "" {
+		return fmt.Errorf("scan_result_id is required")
+	}
+	if req.Platform == "" {
+		return fmt.Errorf("platform is required")
+	}
+	if req.Organization == "" {
+		return fmt.Errorf("organization is required")
+	}
+	if req.Repository == "" {
+		return fmt.Errorf("repository is required")
+	}
+	if req.CVEID == "" {
+		return fmt.Errorf("cve_id is required")
+	}
+	if req.Package == "" {
+		return fmt.Errorf("package is required")
+	}
+	if req.MessageType == "" {
+		return fmt.Errorf("message_type is required")
+	}
+	if req.MessageType != "start_generate" && req.MessageType != "start_apply" && req.MessageType != "followup" {
+		return fmt.Errorf("message_type must be one of: start_generate, start_apply, followup")
+	}
+	if req.UserMessage == nil {
+		return fmt.Errorf("user_message is required")
+	}
+	return nil
+}
+
+func (s *RemediationService) CVE(ctx context.Context, req *CVERemediationRequest, headers, queryParams map[string][]string) (*client.SSEResponse, error) {
+	options := client.MakeRequestOptions(headers, queryParams)
+	req.Token = config.GetGithubTokenTemp()
+	return s.SSEClient.SSERequest(ctx, "/cve-remediation/v1/fix", "POST", req, options)
+}

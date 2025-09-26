@@ -11,24 +11,30 @@ import (
 	"errors"
 	"log"
 	"net/http"
+	"sync"
 
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
-	"github.com/opsmx/ai-gyardian-api/pkg/models"
+	"github.com/opsmx/ai-guardian-api/pkg/database"
+	"github.com/opsmx/ai-guardian-api/pkg/models"
 
 	// Redis backend Session Store
 	"github.com/rbcervilla/redisstore/v9"
-	"github.com/redis/go-redis/v9"
 
 	// Posgres backend Session Store
 	"github.com/antonlindstrom/pgstore"
 )
 
-// Temporary HACK: We need to store this in Redis
-// var loggedInUsers []User  // We store the logged in users here.
-var loggedInUsers map[string]bool // We store the logged in users here.
+// Thread-safe map for logged in users
+var (
+	loggedInUsers = make(map[string]bool)
+	usersMutex    sync.RWMutex
+)
+
 func saveUser(username string) {
-	loggedInUsers[username] = true // Save the user as logged in
+	usersMutex.Lock()
+	defer usersMutex.Unlock()
+	loggedInUsers[username] = true
 }
 
 // sessionStore is the actual gorilla/sessions store
@@ -53,16 +59,17 @@ func InitMemSessionsStore(sessionTimeout int) {
 
 	gob.Register(models.AuthUser{})
 	sessionStore = store
+
+	usersMutex.Lock()
 	loggedInUsers = make(map[string]bool)
+	usersMutex.Unlock()
 }
 
 // Initialize the Session Store to DB for Redis backend sessions
 func InitRedisSessionsStore(sessionTimeout int, hostAndPort, username, password string) error {
-	client := redis.NewUniversalClient(&redis.UniversalOptions{
-		Username: username,
-		Password: password,
-		Addrs:    []string{hostAndPort},
-	})
+	// Use the centralized Redis client from database package
+	client := database.GetRedis()
+
 	// Initialize session store
 	store, err := redisstore.NewRedisStore(context.Background(), client)
 	if err != nil {
@@ -70,7 +77,7 @@ func InitRedisSessionsStore(sessionTimeout int, hostAndPort, username, password 
 		return err
 	}
 
-	store.KeyPrefix("ai_gyardian_")
+	store.KeyPrefix("ai_guardian_")
 	store.Options(sessions.Options{
 		Path:     "/", // Changed from "/ai-gyardian" to "/"
 		Domain:   "",  // Changed from "opsmx.com" to "" (empty means current domain)
@@ -81,7 +88,10 @@ func InitRedisSessionsStore(sessionTimeout int, hostAndPort, username, password 
 
 	gob.Register(models.AuthUser{})
 	sessionStore = store
+
+	usersMutex.Lock()
 	loggedInUsers = make(map[string]bool) // Initialize the map
+	usersMutex.Unlock()
 	return nil
 }
 
@@ -93,6 +103,7 @@ func InitPgSessionsStore(sessionTimeout int, dbuser, pass, hostAndPort, dbname, 
 		"/"+dbname+"?sslmode="+sslmode, []byte(generateRand()))
 	if err != nil {
 		log.Printf("error in postgress session store:%v", err)
+		return err
 	}
 
 	store.Options = &sessions.Options{
@@ -105,7 +116,10 @@ func InitPgSessionsStore(sessionTimeout int, dbuser, pass, hostAndPort, dbname, 
 	}
 	gob.Register(models.AuthUser{})
 	sessionStore = store
+
+	usersMutex.Lock()
 	loggedInUsers = make(map[string]bool) // Initialize the map
+	usersMutex.Unlock()
 	return nil
 }
 
@@ -206,7 +220,9 @@ func DeleteSession(w http.ResponseWriter, r *http.Request) {
 	// Get username before clearing session
 	user := GetSessionExists(r)
 	if user != nil {
+		usersMutex.Lock()
 		delete(loggedInUsers, user.Username)
+		usersMutex.Unlock()
 	}
 
 	session.Values["user"] = models.AuthUser{}
@@ -227,11 +243,15 @@ func GetCurrentSessionStore() sessions.Store {
 
 // Check if a user is currently logged in
 func IsUserLoggedIn(username string) bool {
+	usersMutex.RLock()
+	defer usersMutex.RUnlock()
 	return loggedInUsers[username]
 }
 
 // Get all currently logged in users
 func GetLoggedInUsers() []string {
+	usersMutex.RLock()
+	defer usersMutex.RUnlock()
 	users := make([]string, 0, len(loggedInUsers))
 	for username := range loggedInUsers {
 		users = append(users, username)
@@ -241,6 +261,8 @@ func GetLoggedInUsers() []string {
 
 // Get count of logged in users
 func GetLoggedInUserCount() int {
+	usersMutex.RLock()
+	defer usersMutex.RUnlock()
 	return len(loggedInUsers)
 }
 

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/opsmx/ai-gyardian-api/pkg/auth/session"
+	"github.com/opsmx/ai-guardian-api/pkg/auth/session"
 )
 
 // Login Session Store: Cookie store is the default, we can use redis on postres (oes-db)

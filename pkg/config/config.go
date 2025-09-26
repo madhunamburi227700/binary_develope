@@ -14,8 +14,10 @@ type configType struct {
 	ApiHost     string `yaml:"apiHost"`
 	ApiPort     string `yaml:"apiPort"`
 	ShowVersion bool   `yaml:"showVersion"`
-	CORSStr     string `yaml:"cors_str,omitempty"`
-	Pg          struct {
+	// TODO: Remove
+	Token   string `yaml:"githubToken"`
+	CORSStr string `yaml:"cors_str,omitempty"`
+	Pg      struct {
 		Address  string `yaml:"address"`
 		Port     string `yaml:"port"`
 		User     string `yaml:"user"`
@@ -27,6 +29,13 @@ type configType struct {
 		Address  string `yaml:"address"`
 		User     string `yaml:"user"`
 		Password string `yaml:"password"`
+		Database string `yaml:"database"`
+	}
+	SSD struct {
+		BaseURL  string `yaml:"baseURL"`
+		UserName string `yaml:"userName"`
+		Password string `yaml:"password"`
+		OrgID    string `yaml:"orgID"`
 	}
 	S3 struct {
 		BucketName string `yaml:"bucketName"`
@@ -37,7 +46,7 @@ type configType struct {
 	}
 	RemediationService struct {
 		Addr string `yaml:"addr"`
-	}
+	} `yaml:"remediation_service"`
 
 	Google struct {
 		ClientID     string `yaml:"clientID"`
@@ -184,4 +193,51 @@ func GetGoogleClientID() string {
 
 func GetGoogleClientSecret() string {
 	return config.Google.ClientSecret
+}
+
+func GetPgConfig() string {
+	return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=%s", config.Pg.User,
+		config.Pg.Password, config.Pg.Address, config.Pg.Port, config.Pg.Database, config.Pg.SSLMode)
+}
+
+// GetRedisConfig returns the Redis configuration
+func GetRedisConfig() (string, string, string) {
+	return config.Redis.User, config.Redis.Password, config.Redis.Address
+}
+
+func GetSSDBaseURL() string {
+	return config.SSD.BaseURL
+}
+
+// GetSSDConfig returns the complete SSD configuration
+func GetSSDConfig() string {
+	return config.SSD.BaseURL
+}
+
+func GetUserOrgID() string {
+	return config.SSD.OrgID
+}
+
+func GetUserOrgName() string {
+	fmt.Println("config.SSD.UserName", config.SSD.UserName)
+	return config.SSD.UserName
+}
+
+func GetUserOrgPassword() string {
+	fmt.Println("config.SSD.Password", config.SSD.Password)
+	return config.SSD.Password
+}
+
+func GetRemediationURL() string {
+	fmt.Println("config.RemediationService.Addr", config.RemediationService.Addr)
+	return config.RemediationService.Addr
+}
+
+// TODO: Remove later on
+func GetGithubTokenTemp() string {
+	if config.Token == "" {
+		fmt.Println("Token is empty")
+	}
+
+	return config.Token
 }
