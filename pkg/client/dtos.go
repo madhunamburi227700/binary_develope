@@ -332,3 +332,16 @@ type SummaryResult struct {
 	Failure          int `json:"failure"`
 	TypeUnsupported  int `json:"type-unsupported"`
 }
+
+// Rescan Request
+type RescanRequest struct {
+	ProjectID   string `json:"projectId"`
+	ProjectName string `json:"projectName"`
+	Platform    string `json:"platform"`
+	ScanID      string `json:"scanId"`
+	ScanType    string `json:"scanType"`
+}
+
+type RescanResponse struct {
+	Message string `json:"message"`
+}
