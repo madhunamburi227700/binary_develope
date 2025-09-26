@@ -64,3 +64,24 @@ func (c *IntegratorController) ValidateGitHubIntegration(w http.ResponseWriter, 
 		"data":    validation,
 	})
 }
+
+func (c *IntegratorController) InstallGitHubAppIntegration(w http.ResponseWriter, r *http.Request) {
+
+	installationUrl, err := c.integratorService.GetGithubAppInstallationURL(r.Context())
+	if err != nil {
+		c.logger.LogError(err, "Failed to get GitHub app install url", nil)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	redirectionURL := struct {
+		Url string `json:"url"`
+	}{
+		Url: installationUrl,
+	}
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    redirectionURL,
+	})
+}

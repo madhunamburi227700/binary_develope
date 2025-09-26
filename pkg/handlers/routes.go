@@ -87,6 +87,8 @@ func SetupRoutes() *mux.Router {
 			integrationsRouter.HandleFunc("/github/create", integratorController.CreateGitHubIntegration).Methods(http.MethodPost)
 			// validate integration
 			integrationsRouter.HandleFunc("/github/validate", integratorController.ValidateGitHubIntegration).Methods(http.MethodPost)
+			// install github app integrator
+			integrationsRouter.HandleFunc("/github/install", integratorController.InstallGitHubAppIntegration).Methods(http.MethodGet)
 		}
 
 		// remediations

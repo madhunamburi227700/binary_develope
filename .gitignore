@@ -17,3 +17,4 @@ local-config
 public-key
 ssd-token
 AESEncryptionKey
+token
