@@ -75,7 +75,18 @@ func NewHubController() *HubController {
 // 	return req, nil
 // }
 
-// CreateHub handles POST /api/v1/hubs
+// CreateHub creates a new hub
+// @Summary Create a new hub
+// @Description Creates a new hub with the provided details
+// @Tags Hubs
+// @Accept  json
+// @Produce  json
+// @Param   request body service.CreateHubRequest true "Hub creation details"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/hubs [post]
 func (c *HubController) CreateHub(w http.ResponseWriter, r *http.Request) {
 
 	var req service.CreateHubRequest
@@ -109,7 +120,18 @@ type ListHubsByOwnerRequest struct {
 	Email string `json:"email"`
 }
 
-// ListHubs handles GET /api/v1/hubs
+// ListHubsByOwner returns a list of hubs owned by the specified user
+// @Summary List hubs by owner
+// @Description Returns a list of hubs owned by the specified user
+// @Tags Hubs
+// @Accept  json
+// @Produce  json
+// @Param   email query string true "Email of the hub owner"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Missing or invalid email parameter"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/hubs/user/list [get]
 func (c *HubController) ListHubsByOwner(w http.ResponseWriter, r *http.Request) {
 	// Get email filter from query parameter
 	email := r.URL.Query().Get("email")
@@ -138,7 +160,19 @@ func (c *HubController) ListHubsByOwner(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
-// GetHub handles GET /api/v1/hubs/{id}
+// GetHub retrieves a hub by its ID
+// @Summary Get hub by ID
+// @Description Returns the hub with the specified ID
+// @Tags Hubs
+// @Accept  json
+// @Produce  json
+// @Param   id path string true "Hub ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid hub ID"
+// @Failure 404 {object} map[string]string "Hub not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/hubs/{id} [get]
 func (c *HubController) GetHub(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	hubIDStr, ok := vars["id"]

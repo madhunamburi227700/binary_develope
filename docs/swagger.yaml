@@ -1,0 +1,644 @@
+basePath: /api/v1
+definitions:
+  client.CVERemediationRequest:
+    properties:
+      environment:
+        type: string
+      findings:
+        items:
+          type: string
+        type: array
+      project_id:
+        type: string
+      scan_id:
+        type: string
+      team_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  service.CreateGitHubIntegrationRequest:
+    properties:
+      name:
+        type: string
+      team_ids:
+        items:
+          type: string
+        type: array
+      token:
+        type: string
+    type: object
+  service.CreateHubRequest:
+    properties:
+      email:
+        type: string
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      tag:
+        type: string
+    required:
+    - email
+    - name
+    type: object
+  service.InstallGitHubAppRequest:
+    properties:
+      installation_id:
+        type: integer
+      team_ids:
+        items:
+          type: string
+        type: array
+    type: object
+  service.SASTRemediationRequest:
+    properties:
+      branch:
+        type: string
+      file_path:
+        type: string
+      line_no:
+        type: integer
+      organization:
+        type: string
+      platform:
+        type: string
+      repository:
+        type: string
+      rule:
+        type: string
+      rule_message:
+        type: string
+      scan_result_id:
+        type: string
+      token:
+        type: string
+    type: object
+  service.ValidateGitHubIntegrationRequest:
+    properties:
+      name:
+        type: string
+      team_ids:
+        items:
+          type: string
+        type: array
+      token:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: AI Guardian API Service
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  termsOfService: http://swagger.io/terms/
+  title: AI Guardian API
+  version: "1.0"
+paths:
+  /api/v1/hubs:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new hub with the provided details
+      parameters:
+      - description: Hub creation details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateHubRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new hub
+      tags:
+      - Hubs
+  /api/v1/hubs/{hub_id}/projects/summaries:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of project summaries for the specified hub
+      parameters:
+      - description: Hub ID
+        in: path
+        name: hub_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid hub ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get project summaries for hub
+      tags:
+      - Projects
+  /api/v1/hubs/{id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns the hub with the specified ID
+      parameters:
+      - description: Hub ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid hub ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Hub not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get hub by ID
+      tags:
+      - Hubs
+  /api/v1/hubs/user/list:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of hubs owned by the specified user
+      parameters:
+      - description: Email of the hub owner
+        in: query
+        name: email
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing or invalid email parameter
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: List hubs by owner
+      tags:
+      - Hubs
+  /api/v1/integrations/github:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new GitHub integration with the provided details
+      parameters:
+      - description: GitHub integration details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateGitHubIntegrationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Create GitHub integration
+      tags:
+      - Integrations
+  /api/v1/integrations/github/app/install:
+    post:
+      consumes:
+      - application/json
+      description: Installs the GitHub App integration with the provided installation
+        ID
+      parameters:
+      - description: GitHub App installation details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.InstallGitHubAppRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Install GitHub App
+      tags:
+      - Integrations
+  /api/v1/integrations/github/validate:
+    post:
+      consumes:
+      - application/json
+      description: Validates the provided GitHub integration credentials
+      parameters:
+      - description: GitHub integration credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.ValidateGitHubIntegrationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Validate GitHub integration
+      tags:
+      - Integrations
+  /api/v1/projects/summaries/count:
+    get:
+      consumes:
+      - application/json
+      description: Returns the count of project summaries based on filters
+      parameters:
+      - description: Filter by team ID
+        in: query
+        name: team_id
+        type: string
+      - description: Filter by hub ID
+        in: query
+        name: hub_id
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get project summary count
+      tags:
+      - Projects
+  /api/v1/remediation/cve:
+    post:
+      consumes:
+      - application/json
+      description: Processes CVE findings and provides remediation suggestions
+      parameters:
+      - description: CVE findings data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/client.CVERemediationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Process CVE remediation
+      tags:
+      - Remediation
+  /api/v1/remediation/sast:
+    post:
+      consumes:
+      - application/json
+      description: Processes SAST findings and provides remediation suggestions
+      parameters:
+      - description: SAST findings data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.SASTRemediationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Process SAST remediation
+      tags:
+      - Remediation
+  /api/v1/vulnerabilities/sast:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of SAST vulnerabilities for the specified repository,
+        branch, and project
+      parameters:
+      - description: Project ID
+        in: query
+        name: projectId
+        required: true
+        type: string
+      - description: Hub ID
+        in: query
+        name: hubId
+        required: true
+        type: string
+      - description: Repository name
+        in: query
+        name: repository
+        required: true
+        type: string
+      - description: Branch name
+        in: query
+        name: branch
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing required parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get SAST vulnerabilities
+      tags:
+      - Vulnerabilities
+  /auth/google/callback:
+    get:
+      consumes:
+      - application/json
+      description: Handles the OAuth 2.0 callback from Google
+      parameters:
+      - description: OAuth authorization code
+        in: query
+        name: code
+        required: true
+        type: string
+      - description: OAuth state parameter
+        in: query
+        name: state
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Authentication failed
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Handle Google OAuth callback
+      tags:
+      - Authentication
+  /auth/google/login:
+    get:
+      consumes:
+      - application/json
+      description: Starts the OAuth 2.0 flow for Google authentication
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Initiate Google OAuth login
+      tags:
+      - Authentication
+  /auth/logout:
+    post:
+      consumes:
+      - application/json
+      description: Invalidates the current user's session
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Logout successful
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Logout user
+      tags:
+      - Authentication
+  /auth/profile:
+    get:
+      consumes:
+      - application/json
+      description: Returns the profile of the currently authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get user profile
+      tags:
+      - Users
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

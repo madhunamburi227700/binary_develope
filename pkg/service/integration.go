@@ -36,6 +36,11 @@ type ValidateGitHubIntegrationRequest struct {
 	TeamIDs []string `json:"team_ids"`
 }
 
+type InstallGitHubAppRequest struct {
+	InstallationID int64    `json:"installation_id"`
+	TeamIDs        []string `json:"team_ids"`
+}
+
 // GetIntegrationsByType retrieves integrations by type
 func (s *IntegrationService) GetIntegrationsByType(ctx context.Context, integratorType string, teamIDs []string) ([]client.Integration, error) {
 	ssdClient := client.NewSSDClient()
