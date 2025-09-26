@@ -552,6 +552,27 @@ func (c *SSDClient) GetVulnerabilityData(ctx context.Context, req *Vulnerability
 	}, nil
 }
 
+func (c *SSDClient) Rescan(ctx context.Context, req *RescanRequest) (*RescanResponse, error) {
+
+	endpoint := "/gate/ssdservice/v1/rescan"
+
+	resp, err := c.restClient.Post(ctx, endpoint, req, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to trigger rescan API: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result RescanResponse
+	if err := resp.ParseJSON(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse rescan response: %w", err)
+	}
+
+	return &result, nil
+}
+
 // SCA API
 // GetVulnerabilityList retrieves vulnerability list data with pagination and filtering
 func (c *SSDClient) GetVulnerabilityList(ctx context.Context, req *VulnerabilityListRequest) (*VulnerabilityListResponse, error) {

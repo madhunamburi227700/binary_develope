@@ -1,1 +1,53 @@
 package scan
+
+import (
+	"encoding/json"
+	"io"
+	"net/http"
+
+	"github.com/opsmx/ai-guardian-api/pkg/service"
+	"github.com/opsmx/ai-guardian-api/pkg/utils"
+)
+
+type ScanController struct {
+	scanService service.ScanService
+	logger      *utils.ErrorLogger
+}
+
+func NewScanController() *ScanController {
+	return &ScanController{
+		scanService: *service.NewScanService(),
+		logger:      utils.NewErrorLogger("scan_controller"),
+	}
+}
+
+func (c *ScanController) Rescan(w http.ResponseWriter, r *http.Request) {
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	var payload service.RescanRequest
+	if err := json.Unmarshal(body, &payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if err := c.scanService.ValidateRescanRequest(&payload); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	resp, err := c.scanService.Rescan(r.Context(), &payload)
+	if err != nil {
+		c.logger.LogError(err, err.Error(), nil)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(resp)
+}

@@ -335,6 +335,19 @@ type SummaryResult struct {
 	TypeUnsupported  int `json:"type-unsupported"`
 }
 
+// Rescan Request
+type RescanRequest struct {
+	ProjectID   string `json:"projectId"`
+	ProjectName string `json:"projectName"`
+	Platform    string `json:"platform"`
+	ScanID      string `json:"scanId"`
+	ScanType    string `json:"scanType"`
+}
+
+type RescanResponse struct {
+	Message string `json:"message"`
+}
+
 // SCA
 // VulnerabilityListRequest represents the request for getting vulnerability list
 type VulnerabilityListRequest struct {

@@ -150,7 +150,6 @@ func (s *SSDService) GetProjectSummaryCount(ctx context.Context, hubIDs []string
 	return result, nil
 }
 
-
 func (s *SSDService) GetVulnerabilityData(ctx context.Context, req *client.VulnerabilityDataRequest, body interface{}) (*client.VulnerabilityDataResponse, error) {
 	ssdClient := client.NewSSDClient()
 
@@ -166,6 +165,28 @@ func (s *SSDService) GetScanResultData(ctx context.Context, req *client.ScanResu
 	}
 
 	return result, nil
+}
+
+func (s *SSDService) Rescan(ctx context.Context, req *RescanRequest) (*RescanResponse, error) {
+	ssdClient := client.NewSSDClient()
+
+	rescanReq := client.RescanRequest{
+		ProjectID:   req.ProjectID,
+		ProjectName: req.ProjectName,
+		Platform:    req.Platform,
+		ScanID:      req.ScanID,
+		ScanType:    req.ScanType,
+	}
+
+	resp, err := ssdClient.Rescan(ctx, &rescanReq)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RescanResponse{
+		Message: resp.Message,
+	}, nil
+
 }
 
 func (s *SSDService) GetVulnerabilityList(ctx context.Context, req *client.VulnerabilityListRequest) (*client.VulnerabilityListResponse, error) {
