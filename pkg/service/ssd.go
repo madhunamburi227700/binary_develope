@@ -167,3 +167,9 @@ func (s *SSDService) GetScanResultData(ctx context.Context, req *client.ScanResu
 
 	return result, nil
 }
+
+func (s *SSDService) GetVulnerabilityList(ctx context.Context, req *client.VulnerabilityListRequest) (*client.VulnerabilityListResponse, error) {
+	ssdClient := client.NewSSDClient()
+
+	return ssdClient.GetVulnerabilityList(ctx, req)
+}

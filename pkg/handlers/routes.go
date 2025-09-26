@@ -77,7 +77,7 @@ func SetupRoutes() *mux.Router {
 			vulnerabilityRouter.HandleFunc("/list/sast", vulnController.GetSastVulnerabilities).Methods(http.MethodGet)
 
 			// list vulnerabilities by scan for sca ?hubname ?project name SCA
-			vulnerabilityRouter.HandleFunc("/list/sca", vulnController.GetSastVulnerabilities).Methods(http.MethodGet)
+			vulnerabilityRouter.HandleFunc("/list/sca", vulnController.GetSCAVulnerabilityList).Methods(http.MethodGet)
 		}
 
 		// integrations

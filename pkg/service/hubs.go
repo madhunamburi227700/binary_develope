@@ -146,10 +146,6 @@ func (s *HubService) List(ctx context.Context, email string) (*HubListResponse, 
 		Total: len(hubs),
 	}
 
-	s.logger.LogInfo("Hubs listed successfully", map[string]interface{}{
-		"hub_count": len(hubs),
-	})
-
 	return response, nil
 }
 

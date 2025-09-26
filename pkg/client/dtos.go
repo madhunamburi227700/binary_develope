@@ -288,7 +288,9 @@ type VulnerabilityDataRequest struct {
 
 // VulnerabilityDataResponse represents the response for vulnerability data
 type VulnerabilityDataResponse struct {
-	Results []VulnerabilityScanResult `json:"results"`
+	Results  []VulnerabilityScanResult `json:"results"`
+	ScanID   string                    `json:"scanId"`
+	Platform string                    `json:"platform"`
 }
 
 // VulnerabilityScanResult represents a single scan result
@@ -331,4 +333,46 @@ type SummaryResult struct {
 	ConfirmedTimeout int `json:"confirmed-timeout"`
 	Failure          int `json:"failure"`
 	TypeUnsupported  int `json:"type-unsupported"`
+}
+
+// SCA
+// VulnerabilityListRequest represents the request for getting vulnerability list
+type VulnerabilityListRequest struct {
+	OrgID       string `json:"orgId"`
+	TeamID      string `json:"teamId"`
+	PageNo      int    `json:"pageNo"`
+	PageLimit   int    `json:"pageLimit"`
+	SortBy      string `json:"sortBy"`
+	SortOrder   string `json:"sortOrder"`
+	Artifacts   string `json:"artifacts"`
+	ArtifactSha string `json:"artifactSha"`
+	Tools       string `json:"tools"`
+}
+
+// VulnerabilityListResponse represents the response for vulnerability list
+type VulnerabilityListResponse struct {
+	VulnerabilityList []VulnerabilityItem `json:"vulnerabilityList"`
+	TotalSize         int                 `json:"totalSize"`
+}
+
+// VulnerabilityItem represents a single vulnerability item
+type VulnerabilityItem struct {
+	Component        []string `json:"component"`
+	Severity         string   `json:"severity"`
+	Priority         string   `json:"priority"`
+	CVSS             float64  `json:"cvss"`
+	EPSS             float64  `json:"epss"`
+	InstalledVersion []string `json:"installedVersion"`
+	FixedVersion     []string `json:"fixedVersion"`
+	Title            string   `json:"title"`
+	Vulnerability    string   `json:"vulnerability"`
+	PublishedAt      string   `json:"publishedAt"`
+	CWEList          []string `json:"cweList"`
+	Artifacts        []string `json:"artifacts"`
+	TimeScanned      string   `json:"timeScanned"`
+	ArtifactSha      string   `json:"artifactSha"`
+	Tool             string   `json:"tool"`
+	Exploitation     string   `json:"exploitation,omitempty"`
+	Automatable      string   `json:"automatable,omitempty"`
+	TechnicalImpact  string   `json:"technicalImpact,omitempty"`
 }

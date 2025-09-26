@@ -551,3 +551,72 @@ func (c *SSDClient) GetVulnerabilityData(ctx context.Context, req *Vulnerability
 		Results: result,
 	}, nil
 }
+
+// SCA API
+// GetVulnerabilityList retrieves vulnerability list data with pagination and filtering
+func (c *SSDClient) GetVulnerabilityList(ctx context.Context, req *VulnerabilityListRequest) (*VulnerabilityListResponse, error) {
+	// Build query parameters
+	params := make([]string, 0)
+
+	// Required parameters
+	req.OrgID = c.orgID
+
+	if req.TeamID != "" {
+		params = append(params, fmt.Sprintf("teamId=%s", req.TeamID))
+	}
+
+	// Pagination parameters
+	if req.PageNo >= 0 {
+		params = append(params, fmt.Sprintf("pageNo=%d", req.PageNo))
+	}
+
+	if req.PageLimit > 0 {
+		params = append(params, fmt.Sprintf("pageLimit=%d", req.PageLimit))
+	}
+
+	// Sorting parameters
+	if req.SortBy != "" {
+		params = append(params, fmt.Sprintf("sortBy=%s", req.SortBy))
+	}
+
+	if req.SortOrder != "" {
+		params = append(params, fmt.Sprintf("sortOrder=%s", req.SortOrder))
+	}
+
+	// Filter parameters
+	if req.Artifacts != "" {
+		params = append(params, fmt.Sprintf("Artifacts=%s", req.Artifacts))
+	}
+
+	if req.ArtifactSha != "" {
+		params = append(params, fmt.Sprintf("ArtifactSha=%s", req.ArtifactSha))
+	}
+
+	if req.Tools != "" {
+		params = append(params, fmt.Sprintf("Tools=%s", req.Tools))
+	}
+
+	params = append(params, fmt.Sprintf("orgId=%s", c.orgID))
+
+	// Build endpoint
+	endpoint := "/gate/ssdservice/v1/vulnerability/inpage"
+	if len(params) > 0 {
+		endpoint += "?" + strings.Join(params, "&")
+	}
+
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to get vulnerability list: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result VulnerabilityListResponse
+	if err := resp.ParseJSON(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse vulnerability list response: %w", err)
+	}
+
+	return &result, nil
+}
