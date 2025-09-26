@@ -249,7 +249,7 @@ type ScanResultDataResponse struct {
 type ScannedFiledData struct {
 	OpenSSF OpenSSFData `json:"OpenSSF"`
 	SAST    SASTData    `json:"SAST"`
-	// SCA     SCAData     `json:"SCA"`
+	SCA     SCAData     `json:"SCA"`
 }
 
 // OpenSSFData represents OpenSSF scan data
@@ -272,11 +272,11 @@ type ScanFiles struct {
 }
 
 // SCAData represents SCA scan data
-// type SCAData struct {
-// 	CodeLicense CodeLicenseScanData `json:"codelicense"`
-// 	CodeSecret  CodeSecretScanData  `json:"codesecret"`
-// 	Sbom        SbomScanData        `json:"sbom"`
-// }
+type SCAData struct {
+	CodeLicense ScanFiles `json:"codelicense"`
+	CodeSecret  ScanFiles `json:"codesecret"`
+	Sbom        ScanFiles `json:"sbom"`
+}
 
 // vuln findings
 // VulnerabilityDataRequest represents the request for getting vulnerability data

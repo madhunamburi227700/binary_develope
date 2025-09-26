@@ -26,7 +26,18 @@ func NewProjectController() *ProjectController {
 	}
 }
 
-// // CreateProject handles POST /api/v1/projects
+// // CreateProject creates a new project
+// @Summary Create a new project
+// @Description Creates a new project with the provided details
+// @Tags Projects
+// @Accept  json
+// @Produce  json
+// @Param   request body service.CreateProjectRequest true "Project creation details"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/projects [post]
 // func (c *ProjectController) CreateProject(w http.ResponseWriter, r *http.Request) {
 // 	var req service.CreateProjectRequest
 // 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -300,6 +311,18 @@ func (c *ProjectController) buildListRequest(r *http.Request) *service.GetProjec
 	return req
 }
 
+// GetProjectSummariesForHub returns a list of project summaries for a hub
+// @Summary Get project summaries for hub
+// @Description Returns a list of project summaries for the specified hub
+// @Tags Projects
+// @Accept  json
+// @Produce  json
+// @Param   hub_id path string true "Hub ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid hub ID"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/hubs/{hub_id}/projects/summaries [get]
 func (c *ProjectController) GetProjectSummariesForHub(w http.ResponseWriter, r *http.Request) {
 	req := c.buildListRequest(r)
 	vars := mux.Vars(r)
@@ -379,6 +402,18 @@ func (c *ProjectController) GetProjectSummariesForHub(w http.ResponseWriter, r *
 // 	})
 // }
 
+// GetProjectSummaryCount returns the count of project summaries
+// @Summary Get project summary count
+// @Description Returns the count of project summaries based on filters
+// @Tags Projects
+// @Accept  json
+// @Produce  json
+// @Param   team_id query string false "Filter by team ID"
+// @Param   hub_id query string false "Filter by hub ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/projects/summaries/count [get]
 func (c *ProjectController) GetProjectSummaryCount(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	hubIDStr, ok := vars["hub_id"]
