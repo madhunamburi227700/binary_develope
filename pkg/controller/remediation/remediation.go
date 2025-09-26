@@ -22,6 +22,18 @@ func NewRemediationsController() *RemediationController {
 	}
 }
 
+// SASTRemediation handles SAST (Static Application Security Testing) remediation
+// @Summary Process SAST remediation
+// @Description Processes SAST findings and provides remediation suggestions
+// @Tags Remediation
+// @Accept  json
+// @Produce  json
+// @Param   request body service.SASTRemediationRequest true "SAST findings data"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/remediation/sast [post]
 func (c *RemediationController) SASTRemediation(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
@@ -56,6 +68,18 @@ func (c *RemediationController) SASTRemediation(w http.ResponseWriter, r *http.R
 
 }
 
+// CVERemediation handles CVE (Common Vulnerabilities and Exposures) remediation
+// @Summary Process CVE remediation
+// @Description Processes CVE findings and provides remediation suggestions
+// @Tags Remediation
+// @Accept  json
+// @Produce  json
+// @Param   request body client.CVERemediationRequest true "CVE findings data"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/remediation/cve [post]
 func (c *RemediationController) CVERemediation(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)

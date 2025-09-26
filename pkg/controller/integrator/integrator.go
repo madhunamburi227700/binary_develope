@@ -20,7 +20,18 @@ func NewIntegratorController() *IntegratorController {
 	}
 }
 
-// CreateGitHubIntegration
+// CreateGitHubIntegration creates a new GitHub integration
+// @Summary Create GitHub integration
+// @Description Creates a new GitHub integration with the provided details
+// @Tags Integrations
+// @Accept  json
+// @Produce  json
+// @Param   request body service.CreateGitHubIntegrationRequest true "GitHub integration details"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/integrations/github [post]
 func (c *IntegratorController) CreateGitHubIntegration(w http.ResponseWriter, r *http.Request) {
 	var req service.CreateGitHubIntegrationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -44,6 +55,19 @@ func (c *IntegratorController) CreateGitHubIntegration(w http.ResponseWriter, r 
 	})
 }
 
+// ValidateGitHubIntegration validates GitHub integration credentials
+// @Summary Validate GitHub integration
+// @Description Validates the provided GitHub integration credentials
+// @Tags Integrations
+// @Accept  json
+// @Produce  json
+// @Param   request body service.ValidateGitHubIntegrationRequest true "GitHub integration credentials"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/integrations/github/validate [post]
 func (c *IntegratorController) ValidateGitHubIntegration(w http.ResponseWriter, r *http.Request) {
 	var req service.ValidateGitHubIntegrationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -65,6 +89,18 @@ func (c *IntegratorController) ValidateGitHubIntegration(w http.ResponseWriter, 
 	})
 }
 
+// InstallGitHubAppIntegration installs the GitHub App integration
+// @Summary Install GitHub App
+// @Description Installs the GitHub App integration with the provided installation ID
+// @Tags Integrations
+// @Accept  json
+// @Produce  json
+// @Param   request body service.InstallGitHubAppRequest true "GitHub App installation details"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/integrations/github/app/install [post]
 func (c *IntegratorController) InstallGitHubAppIntegration(w http.ResponseWriter, r *http.Request) {
 
 	installationUrl, err := c.integratorService.GetGithubAppInstallationURL(r.Context())
