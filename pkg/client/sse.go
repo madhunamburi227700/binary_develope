@@ -100,7 +100,7 @@ func FlushSSE(ctx context.Context, w http.ResponseWriter, resp SSEResponse) erro
 				return fmt.Errorf("Error reading SSE event: %v", event.Err)
 			}
 
-			_, err := fmt.Fprintf(w, "data: %s\n\n", event.Data)
+			_, err := fmt.Fprintf(w, "%s\n\n", event.Data)
 			if err != nil {
 				return fmt.Errorf("error forwarding SSE event: %v", err)
 			}
@@ -123,5 +123,4 @@ func headersSSE(w http.ResponseWriter, headers http.Header) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache, no-transform")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
 }
