@@ -216,3 +216,14 @@ func (s *SSDService) DeleteProject(ctx context.Context, teamIds, projectId strin
 	}
 	return result, nil
 }
+
+// integrations APIs
+func (s *SSDService) GetGithubOauthUrl(ctx context.Context) (string, error) {
+	ssdClient := client.NewSSDClient()
+
+	installUrl, err := ssdClient.GetGithubOauthUrl(ctx)
+	if err != nil {
+		return "", err
+	}
+	return installUrl, nil
+}

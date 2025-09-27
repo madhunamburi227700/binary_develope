@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // SSDClientInterface defines the interface for SSD operations
@@ -331,13 +329,16 @@ func (c *SSDClient) CreateGitHubIntegration(ctx context.Context, name, token, in
 			"createdAt": fmt.Sprintf("%d", time.Now().Unix()),
 		},
 		Team: make([]TeamAssignment, len(teamIDs)),
-		ID:   uuid.New().String(),
+		// this refers to github integrator id of ssd
+		// TODO: automate this via ssd call
+		ID: "19f5dc29-3f84-4510-b543-9e6a3a2922a4",
 	}
 
 	if installationId != "" {
 		req.FeatureConfigs["authType"] = "app"
 		req.IntegratorConfigs["installationId"] = installationId
 		req.IntegratorConfigs["createdAt"] = fmt.Sprintf("%d", timestamp)
+		delete(req.IntegratorConfigs, "token")
 	}
 
 	// Convert team IDs to team assignments
@@ -720,4 +721,30 @@ func (c *SSDClient) GetVulnerabilityList(ctx context.Context, req *Vulnerability
 	}
 
 	return &result, nil
+}
+
+// Github OAuth API
+// GetGithubOauthUrl retrieves oauth url
+func (c *SSDClient) GetGithubOauthUrl(ctx context.Context) (string, error) {
+
+	// endpoint
+	endpoint := "/gate/ssdservice/v1/github/auth/installation"
+
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return "", err
+	}
+
+	if !resp.IsSuccess() {
+		return "", fmt.Errorf("failed to get vulnerability list: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result struct {
+		InstallUrl string `json:"url"`
+	}
+	if err := resp.ParseJSON(&result); err != nil {
+		return "", fmt.Errorf("failed to parse vulnerability list response: %w", err)
+	}
+
+	return result.InstallUrl, nil
 }

@@ -97,7 +97,7 @@ func FlushSSE(ctx context.Context, w http.ResponseWriter, resp SSEResponse) erro
 			}
 
 			if event.Err != nil {
-				return fmt.Errorf("Error reading SSE event: %v", event.Err)
+				return fmt.Errorf("error reading SSE event: %v", event.Err)
 			}
 
 			_, err := fmt.Fprintf(w, "%s\n\n", event.Data)

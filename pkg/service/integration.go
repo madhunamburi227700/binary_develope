@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	oauthBridge "github.com/OpsMx/oauth-bridge-client"
 	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
@@ -250,21 +249,12 @@ func (s *IntegrationService) GetResourceCounts(ctx context.Context) (*client.Res
 }
 
 func (s *IntegrationService) GetGithubAppInstallationURL(ctx context.Context) (string, error) {
-	bridgeClient, err := oauthBridge.NewClient(serviceName)
+	installurl, err := s.ssdService.GetGithubOauthUrl(ctx)
 	if err != nil {
 		return "", fmt.Errorf("error while initializing oauth client: %s", err.Error())
 	}
 
-	// Generate token with all app permissions
-	bridgeResponse, err := bridgeClient.StartInstallation()
-	if err != nil {
-		return "", fmt.Errorf("error while starting installation: %s", err.Error())
-	}
-
-	if !bridgeResponse.Success {
-		return "", fmt.Errorf("success status: %t", bridgeResponse.Success)
-	}
-	return bridgeResponse.InstallURL, nil
+	return installurl, nil
 }
 
 // Helper method to create team assignments
