@@ -28,11 +28,12 @@ func NewProjectService() *ProjectService {
 
 // CreateProjectRequest represents the request to create a project
 type CreateProjectRequest struct {
-	HubID         *uuid.UUID `json:"hub_id" validate:"required"`
-	IntegrationID *uuid.UUID `json:"integration_id"`
-	Name          string     `json:"name" validate:"required,min=1,max=255"`
-	RepoURL       *string    `json:"repo_url" validate:"omitempty,url"`
-	Description   *string    `json:"description" validate:"omitempty,max=1000"`
+	HubID         string `json:"hub_id" validate:"required"`
+	IntegrationID string `json:"integration_id"`
+	Name          string `json:"name" validate:"required,min=1,max=255"`
+	Organisation  string `json:"organisation" validate:"required,min=1,max=255"`
+	Type          string `json:"type" validate:"required,min=1,max=255"` // user/organisation
+	RepoName      string `json:"repoName" validate:"required,min=1,max=255"`
 }
 
 // UpdateProjectRequest represents the request to update a project
@@ -54,36 +55,44 @@ type ProjectListRequest struct {
 }
 
 // CreateProject creates a new project
-func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRequest) (*models.Project, error) {
+func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRequest) (string, error) {
 	// Validate request
 	if err := s.validateCreateRequest(req); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
+		return "", fmt.Errorf("validation failed: %w", err)
 	}
 
-	// Check if project name already exists in the same hub
-	exists, err := s.projectExistsInHub(ctx, req.HubID, req.Name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to check project existence: %w", err)
-	}
-	if exists {
-		return nil, fmt.Errorf("project with name '%s' already exists in this hub", req.Name)
-	}
+	// same project name check would be auto applied via ssd
+	// current they do not have any api to check project via name
 
+	// {"name":"temp22","scanType":"sourceScan","platform":"github","accountId":"0x5f2f9","teamId":"fe2e8a09-a3f2-4263-b635-fa7e99f2d43b","scanLevel":"repoLevel","organisation":"arpit-jaswani","type":"user","projectConfigs":[{"repository":"python-app","scheduleTime":0,"branch":["onlyMain"],"branchPattern":"","scanUpto":0}]}
 	// Create project
-	project := &models.Project{
-		HubID:         req.HubID,
-		IntegrationID: req.IntegrationID,
-		Name:          &req.Name,
-		RepoURL:       req.RepoURL,
-		Description:   req.Description,
+	scheduleTime := 0
+	scanUpto := 0
+	project := &client.ProjectRef{
+		Name:         req.Name,
+		AccountID:    req.IntegrationID,
+		Organisation: req.Organisation,
+		Type:         req.Type,
+		TeamID:       req.HubID,
+
+		// TODO: automate below fields
+		ProjectConfig: []client.ProjectConfigRef{{
+			Repository:   req.RepoName,
+			Branch:       []string{"onlyMain"},
+			ScheduleTime: &scheduleTime,
+			ScanUpto:     &scanUpto,
+		}},
+		ScanType:  "sourceScan",
+		Platform:  "github",
+		ScanLevel: "repoLevel",
 	}
 
-	err = s.projectRepo.Create(ctx, project)
+	projectId, err := s.ssdService.CreateProject(ctx, req.HubID, project)
 	if err != nil {
 		s.logger.LogError(err, "Failed to create project", map[string]interface{}{
-			"request": req,
+			"request": project,
 		})
-		return nil, fmt.Errorf("failed to create project: %w", err)
+		return "", fmt.Errorf("failed to create project: %w", err)
 	}
 
 	s.logger.LogInfo("Project created successfully", map[string]interface{}{
@@ -92,15 +101,15 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 		"hub_id":     req.HubID,
 	})
 
-	return project, nil
+	return projectId, nil
 }
 
 // GetProject retrieves a project by ID
-func (s *ProjectService) GetProject(ctx context.Context, id uuid.UUID) (*models.Project, error) {
-	project, err := s.projectRepo.GetByID(ctx, id)
+func (s *ProjectService) GetProject(ctx context.Context, projectId string) (*client.ProjectRef, error) {
+	project, err := s.ssdService.GetProjectDetails(ctx, projectId)
 	if err != nil {
 		s.logger.LogError(err, "Failed to get project", map[string]interface{}{
-			"project_id": id,
+			"projectId": projectId,
 		})
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
@@ -162,27 +171,18 @@ func (s *ProjectService) UpdateProject(ctx context.Context, id uuid.UUID, req *U
 }
 
 // DeleteProject deletes a project
-func (s *ProjectService) DeleteProject(ctx context.Context, id uuid.UUID) error {
-	// Check if project exists
-	exists, err := s.projectRepo.Exists(ctx, id)
-	if err != nil {
-		return fmt.Errorf("failed to check project existence: %w", err)
-	}
-	if !exists {
-		return fmt.Errorf("project not found")
-	}
-
+func (s *ProjectService) DeleteProject(ctx context.Context, teamIds, projectId string) error {
 	// Delete project
-	err = s.projectRepo.Delete(ctx, id)
+	_, err := s.ssdService.DeleteProject(ctx, teamIds, projectId)
 	if err != nil {
 		s.logger.LogError(err, "Failed to delete project", map[string]interface{}{
-			"project_id": id,
+			"project_id": projectId,
 		})
 		return fmt.Errorf("failed to delete project: %w", err)
 	}
 
 	s.logger.LogInfo("Project deleted successfully", map[string]interface{}{
-		"project_id": id,
+		"project_id": projectId,
 	})
 
 	return nil
@@ -306,17 +306,20 @@ func (s *ProjectService) GetProjectsByIntegration(ctx context.Context, integrati
 
 // validateCreateRequest validates create project request
 func (s *ProjectService) validateCreateRequest(req *CreateProjectRequest) error {
-	if req.HubID == nil {
+	if req.HubID == "" {
 		return fmt.Errorf("hub_id is required")
 	}
 	if req.Name == "" {
 		return fmt.Errorf("name is required")
 	}
-	if len(req.Name) > 255 {
-		return fmt.Errorf("name must be less than 255 characters")
+	if req.Organisation == "" {
+		return fmt.Errorf("organisation is required")
 	}
-	if req.Description != nil && len(*req.Description) > 1000 {
-		return fmt.Errorf("description must be less than 1000 characters")
+	if req.Type == "" {
+		return fmt.Errorf("type is required user/organisation")
+	}
+	if req.RepoName == "" {
+		return fmt.Errorf("repoName is required user/organisation")
 	}
 	return nil
 }
@@ -353,7 +356,7 @@ func (s *ProjectService) projectExistsInHub(ctx context.Context, hubID *uuid.UUI
 	return len(result.Data) > 0, nil
 }
 
-///////////New//////////////
+// /////////New//////////////
 func (s *ProjectService) GetProjectSummariesForTeams(ctx context.Context, req *GetProjectSummariesForTeamsRequest) (*client.ProjectSummaryResponse, error) {
 	return s.ssdService.GetProjectSummariesForTeams(ctx, req)
 }

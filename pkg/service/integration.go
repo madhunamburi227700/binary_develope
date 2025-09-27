@@ -16,6 +16,11 @@ type IntegrationService struct {
 	logger     *utils.ErrorLogger
 }
 
+const (
+	// service name to app with oauth bridge
+	serviceName = "ai-guardian-api"
+)
+
 // NewIntegrationService creates a new integration service
 func NewIntegrationService() *IntegrationService {
 	return &IntegrationService{
@@ -28,6 +33,10 @@ type CreateGitHubIntegrationRequest struct {
 	Name    string   `json:"name"`
 	Token   string   `json:"token"`
 	TeamIDs []string `json:"team_ids"`
+
+	// for app based access token decryption
+	Timestamp      int64  `json:"timestamp"`
+	InstallationId string `json:"installationId"`
 }
 
 type ValidateGitHubIntegrationRequest struct {
@@ -42,7 +51,7 @@ type InstallGitHubAppRequest struct {
 }
 
 // GetIntegrationsByType retrieves integrations by type
-func (s *IntegrationService) GetIntegrationsByType(ctx context.Context, integratorType string, teamIDs []string) ([]client.Integration, error) {
+func (s *IntegrationService) GetIntegrationsByType(ctx context.Context, integratorType, teamIDs string) ([]client.Integration, error) {
 	ssdClient := client.NewSSDClient()
 
 	integrations, err := ssdClient.GetIntegrations(ctx, integratorType, teamIDs)
@@ -63,7 +72,7 @@ func (s *IntegrationService) GetIntegrationsByType(ctx context.Context, integrat
 }
 
 // GetGitHubIntegrations retrieves all GitHub integrations
-func (s *IntegrationService) GetGitHubIntegrations(ctx context.Context, teamIDs []string) ([]client.Integration, error) {
+func (s *IntegrationService) GetGitHubIntegrations(ctx context.Context, teamIDs string) ([]client.Integration, error) {
 	return s.GetIntegrationsByType(ctx, "github", teamIDs)
 }
 
@@ -98,13 +107,33 @@ func (s *IntegrationService) ValidateGitHubIntegration(ctx context.Context, req 
 // CreateIntegration creates a new integration
 func (s *IntegrationService) CreateGitHubIntegration(ctx context.Context, req CreateGitHubIntegrationRequest) (string, error) {
 	// Validate parameters
-	if err := s.validateGitHubIntegrationParams(req.Name, req.Token, req.TeamIDs); err != nil {
+	if err := s.validateGitHubIntegrationParams(req); err != nil {
 		return "", err
 	}
 
+	// bridgeClient, err := oauthBridge.NewClient(serviceName)
+	// if err != nil {
+	// 	s.logger.LogError(err, "failed to initialize oauth client", map[string]interface{}{
+	// 		"name":     req.Name,
+	// 		"team_ids": req.TeamIDs,
+	// 	})
+	// 	return "", fmt.Errorf("failed to initialize oauth client: %s", err.Error())
+	// }
+
+	// oauthDecryptedToken, err := bridgeClient.DecryptToken(req.Token, req.Timestamp)
+	// if err != nil {
+	// 	s.logger.LogError(err, "failed to decrypt oauth token", map[string]interface{}{
+	// 		"name":      req.Name,
+	// 		"team_ids":  req.TeamIDs,
+	// 		"token":     req.Token,
+	// 		"timestamp": req.Timestamp,
+	// 	})
+	// 	return "", fmt.Errorf("failed to decrypt oauth token: %s", err.Error())
+	// }
+
 	ssdClient := client.NewSSDClient()
 
-	result, err := ssdClient.CreateGitHubIntegration(ctx, req.Name, req.Token, req.TeamIDs)
+	result, err := ssdClient.CreateGitHubIntegration(ctx, req.Name, req.Token, req.InstallationId, req.Timestamp, req.TeamIDs)
 	if err != nil {
 		s.logger.LogError(err, "Failed to create GitHub integration", map[string]interface{}{
 			"name":     req.Name,
@@ -150,7 +179,7 @@ func (s *IntegrationService) CreateIntegration(ctx context.Context, req *client.
 }
 
 // GetIntegrationStatus retrieves the status of integrations
-func (s *IntegrationService) GetIntegrationStatus(ctx context.Context, integratorType string, teamIDs []string) (map[string]int, error) {
+func (s *IntegrationService) GetIntegrationStatus(ctx context.Context, integratorType, teamIDs string) (map[string]int, error) {
 	integrations, err := s.GetIntegrationsByType(ctx, integratorType, teamIDs)
 	if err != nil {
 		return nil, err
@@ -181,7 +210,7 @@ func (s *IntegrationService) GetIntegrationStatus(ctx context.Context, integrato
 }
 
 // ListActiveIntegrations retrieves only active integrations
-func (s *IntegrationService) ListActiveIntegrations(ctx context.Context, integratorType string, teamIDs []string) ([]client.Integration, error) {
+func (s *IntegrationService) ListActiveIntegrations(ctx context.Context, integratorType, teamIDs string) ([]client.Integration, error) {
 	integrations, err := s.GetIntegrationsByType(ctx, integratorType, teamIDs)
 	if err != nil {
 		return nil, err
@@ -221,8 +250,6 @@ func (s *IntegrationService) GetResourceCounts(ctx context.Context) (*client.Res
 }
 
 func (s *IntegrationService) GetGithubAppInstallationURL(ctx context.Context) (string, error) {
-	// TODO: Make the serviceName const or config based
-	serviceName := "ai-guardian-api"
 	bridgeClient, err := oauthBridge.NewClient(serviceName)
 	if err != nil {
 		return "", fmt.Errorf("error while initializing oauth client: %s", err.Error())
@@ -284,15 +311,23 @@ func (s *IntegrationService) validateCreateIntegrationRequest(req *client.Create
 	return nil
 }
 
-func (s *IntegrationService) validateGitHubIntegrationParams(name, token string, teamIDs []string) error {
-	if name == "" {
+func (s *IntegrationService) validateGitHubIntegrationParams(req CreateGitHubIntegrationRequest) error {
+	if req.Name == "" {
 		return fmt.Errorf("integration name is required")
 	}
-	if token == "" {
+	if req.Token == "" {
 		return fmt.Errorf("GitHub token is required")
 	}
-	if len(teamIDs) == 0 {
+	if len(req.TeamIDs) == 0 {
 		return fmt.Errorf("at least one team ID is required")
 	}
+	// required to decrypt token from oauth-bridge
+	if req.Timestamp == 0 {
+		return fmt.Errorf("auth generation timestamp required")
+	}
+	// TODO: enable for future short lived token cases
+	// if req.InstallationId == "" {
+	// 	return fmt.Errorf("auth generation InstallationId required")
+	// }
 	return nil
 }

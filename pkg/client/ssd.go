@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
 
 // SSDClientInterface defines the interface for SSD operations
@@ -152,10 +151,9 @@ func (c *SSDClient) CreateHub(ctx context.Context, req *CreateHubRequest) (*Crea
 }
 
 // Integration operations
-func (c *SSDClient) GetIntegrations(ctx context.Context, integratorType string, teamIDs []string) ([]Integration, error) {
-	teamIDsStr := strings.Join(teamIDs, ",")
+func (c *SSDClient) GetIntegrations(ctx context.Context, integratorType, teamIDs string) ([]Integration, error) {
 	endpoint := fmt.Sprintf("/gate/ssdservice/v1/integration?integratorType=%s&multiSupport=true&orgId=%s&level=global&teamId=%s",
-		integratorType, c.orgID, teamIDsStr)
+		integratorType, c.orgID, teamIDs)
 
 	resp, err := c.restClient.Get(ctx, endpoint, nil)
 	if err != nil {
@@ -313,11 +311,12 @@ func (c *SSDClient) GetHubByID(ctx context.Context, hubID string) (*Hub, error) 
 }
 
 // CreateGitHubIntegration creates a GitHub integration with the given parameters
-func (c *SSDClient) CreateGitHubIntegration(ctx context.Context, name, token string, teamIDs []string) (string, error) {
-	encryptedToken, err := utils.EncryptToken(token)
-	if err != nil {
-		return "", fmt.Errorf("failed to encrypt token: %w", err)
-	}
+func (c *SSDClient) CreateGitHubIntegration(ctx context.Context, name, token, installationId string,
+	timestamp int64, teamIDs []string) (string, error) {
+	// encryptedToken, err := utils.EncryptToken(token)
+	// if err != nil {
+	// 	return "", fmt.Errorf("failed to encrypt token: %w", err)
+	// }
 
 	req := &CreateIntegrationRequest{
 		Name:           name,
@@ -328,11 +327,17 @@ func (c *SSDClient) CreateGitHubIntegration(ctx context.Context, name, token str
 		},
 		IntegratorConfigs: map[string]interface{}{
 			"url":       "https://api.github.com",
-			"token":     encryptedToken,
-			"createdAt": fmt.Sprintf("%d", time.Now().UnixMilli()),
+			"token":     token,
+			"createdAt": fmt.Sprintf("%d", time.Now().Unix()),
 		},
 		Team: make([]TeamAssignment, len(teamIDs)),
 		ID:   uuid.New().String(),
+	}
+
+	if installationId != "" {
+		req.FeatureConfigs["authType"] = "app"
+		req.IntegratorConfigs["installationId"] = installationId
+		req.IntegratorConfigs["createdAt"] = fmt.Sprintf("%d", timestamp)
 	}
 
 	// Convert team IDs to team assignments
@@ -349,6 +354,8 @@ func (c *SSDClient) CreateGitHubIntegration(ctx context.Context, name, token str
 
 	return c.CreateIntegration(ctx, req, teamIDs)
 }
+
+// Projects API below
 
 // project summaries for team
 func (c *SSDClient) GetProjectSummaries(ctx context.Context, req *ProjectSummaryRequest) (*ProjectSummaryResponse, error) {
@@ -403,42 +410,115 @@ func (c *SSDClient) GetProjectSummaries(ctx context.Context, req *ProjectSummary
 	return &result, nil
 }
 
-// func (c *SSDClient) GetProjectDetails(ctx context.Context, req *ProjectDetailsRequest) (*ProjectDetailsResponse, error) {
-// 	// Build query parameters
-// 	params := make([]string, 0)
+func (c *SSDClient) GetProjectDetails(ctx context.Context, projectId string) (*ProjectRef, error) {
+	// Build query parameters
+	params := make([]string, 0)
 
-// 	// Add orgId
-// 	params = append(params, fmt.Sprintf("orgId=%s", c.orgID))
+	// Add orgId
+	params = append(params, fmt.Sprintf("orgId=%s", c.orgID))
+	// Add project id
+	params = append(params, fmt.Sprintf("id=%s", projectId))
 
-// 	// Add team IDs
-// 	if req.TeamIDs != "" {
-// 		params = append(params, fmt.Sprintf("teamId=%s", req.TeamIDs))
-// 	} else {
-// 		return nil, fmt.Errorf("hub IDs are required")
-// 	}
+	// Build endpoint
+	endpoint := "/gate/ssdservice/v1/scan/project"
+	if len(params) > 0 {
+		endpoint += "?" + strings.Join(params, "&")
+	}
 
-// 	// Build endpoint
-// 	endpoint := fmt.Sprintf("/gate/ssdservice/v1/sourceScan/projects/%s", req.ProjectID)
-// 	if len(params) > 0 {
-// 		endpoint += "?" + strings.Join(params, "&")
-// 	}
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
 
-// 	resp, err := c.restClient.Get(ctx, endpoint, nil)
-// 	if err != nil {
-// 		return nil, err
-// 	}
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to get project details: status %d, body: %s", resp.StatusCode, resp.String())
+	}
 
-// 	if !resp.IsSuccess() {
-// 		return nil, fmt.Errorf("failed to get project details: status %d, body: %s", resp.StatusCode, resp.String())
-// 	}
+	var result []*ProjectRef
+	if err := resp.ParseJSON(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse project details response: %w", err)
+	}
 
-// 	var result ProjectDetailsResponse
-// 	if err := resp.ParseJSON(&result); err != nil {
-// 		return nil, fmt.Errorf("failed to parse project details response: %w", err)
-// 	}
+	if len(result) == 0 {
+		return nil, fmt.Errorf("project not found: %w", err)
+	}
 
-// 	return &result, nil
-// }
+	return result[0], nil
+}
+
+// CreateProject creates a ssd project
+// Add project
+// Request Type POST
+// https://july-dev.aoa.oes.opsmx.org/gate/ssdservice/v1/scan/project?orgId=c3b62ec6-42e2-43d4-beaf-5b2017ab5848
+// {"name":"temp22","scanType":"sourceScan","platform":"github","accountId":"0x5f2f9","teamId":"fe2e8a09-a3f2-4263-b635-fa7e99f2d43b","scanLevel":"repoLevel","organisation":"arpit-jaswani","type":"user","projectConfigs":[{"repository":"python-app","scheduleTime":0,"branch":["onlyMain"],"branchPattern":"","scanUpto":0}]}
+// returns 201 and json response {"id":"0x5f416"}
+func (c *SSDClient) CreateProject(ctx context.Context, teamIds string, req *ProjectRef) (string, error) {
+	// Build query parameters
+	params := make([]string, 0)
+
+	params = append(params, fmt.Sprintf("orgId=%s", c.orgID))
+
+	// Add team IDs
+	if teamIds != "" {
+		params = append(params, fmt.Sprintf("teamId=%s", teamIds))
+	}
+
+	// Build endpoint
+	endpoint := "/gate/ssdservice/v1/scan/project"
+	if len(params) > 0 {
+		endpoint += "?" + strings.Join(params, "&")
+	}
+
+	resp, err := c.restClient.Post(ctx, endpoint, req, nil)
+	if err != nil {
+		return "", err
+	}
+
+	if !resp.IsSuccess() {
+		return "", fmt.Errorf("failed to create project: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result struct {
+		Id string `json:"id"`
+	}
+	if err := resp.ParseJSON(&result); err != nil {
+		return "", fmt.Errorf("failed to parse project summaries response: %w", err)
+	}
+
+	return result.Id, nil
+}
+
+// Delete project
+// Requst type DELETE
+// https://july-dev.aoa.oes.opsmx.org/gate/ssdservice/v1/scan/project/0x5f2a6?orgId=c3b62ec6-42e2-43d4-beaf-5b2017ab5848&teamId=fe2e8a09-a3f2-4263-b635-fa7e99f2d43b
+// returns string and success Response
+func (c *SSDClient) DeleteProject(ctx context.Context, teamIds, projectId string) (string, error) {
+	// Build query parameters
+	params := make([]string, 0)
+
+	// Add default org id
+	params = append(params, fmt.Sprintf("orgId=%s", c.orgID))
+
+	// Add team IDs
+	params = append(params, fmt.Sprintf("teamId=%s", teamIds))
+
+	// Build endpoint
+	endpoint := fmt.Sprintf("/gate/ssdservice/v1/scan/project/%s", projectId)
+	if len(params) > 0 {
+		endpoint += "?" + strings.Join(params, "&")
+	}
+
+	resp, err := c.restClient.Delete(ctx, endpoint, nil)
+	if err != nil {
+		return "", err
+	}
+
+	if !resp.IsSuccess() {
+		return "", fmt.Errorf("failed to get project summaries: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	return "Project deleted", nil
+}
 
 func (c *SSDClient) GetProjectSummaryCount(ctx context.Context, hubIDs []string) (*SourceScanSummaryCount, error) {
 

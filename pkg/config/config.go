@@ -219,12 +219,10 @@ func GetUserOrgID() string {
 }
 
 func GetUserOrgName() string {
-	fmt.Println("config.SSD.UserName", config.SSD.UserName)
 	return config.SSD.UserName
 }
 
 func GetUserOrgPassword() string {
-	fmt.Println("config.SSD.Password", config.SSD.Password)
 	return config.SSD.Password
 }
 

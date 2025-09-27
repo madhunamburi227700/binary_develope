@@ -4,9 +4,10 @@
 *.dll
 *.so
 *.dylib
-# config.yaml
+.vscode
 config.yaml
 local-config/
+
 
 # Test binary, built with `go test -c`
 *.test

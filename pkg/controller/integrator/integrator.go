@@ -121,3 +121,21 @@ func (c *IntegratorController) InstallGitHubAppIntegration(w http.ResponseWriter
 		"data":    redirectionURL,
 	})
 }
+
+func (c *IntegratorController) ListIntegrations(w http.ResponseWriter, r *http.Request) {
+	teamIds := r.URL.Query().Get("teamIds")
+	// TODO: manage integrator via provider in future release
+	integratorType := "github"
+	integrators, err := c.integratorService.ListActiveIntegrations(r.Context(), integratorType, teamIds)
+	if err != nil {
+		c.logger.LogError(err, "Failed to get GitHub app install url", nil)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    integrators,
+	})
+}

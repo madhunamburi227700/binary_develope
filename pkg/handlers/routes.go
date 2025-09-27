@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/mux"
+
 	"github.com/opsmx/ai-guardian-api/pkg/controller/auth"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/hub"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/integrator"
@@ -47,11 +48,11 @@ func SetupRoutes() *mux.Router {
 		{
 			// Basic CRUD operations
 			// projectRouter.HandleFunc("", projectController.ListProjects).Methods(http.MethodGet)
-			// projectRouter.HandleFunc("", projectController.CreateProject).Methods(http.MethodPost)
+			projectRouter.HandleFunc("", projectController.CreateProject).Methods(http.MethodPost)
 			// projectRouter.HandleFunc("/details", projectController.ListProjectsWithDetails).Methods(http.MethodGet)
-			// projectRouter.HandleFunc("/{id}", projectController.GetProject).Methods(http.MethodGet)
+			projectRouter.HandleFunc("/{id}", projectController.GetProject).Methods(http.MethodGet)
 			// projectRouter.HandleFunc("/{id}", projectController.UpdateProject).Methods(http.MethodPut)
-			// projectRouter.HandleFunc("/{id}", projectController.DeleteProject).Methods(http.MethodDelete)
+			projectRouter.HandleFunc("/{id}", projectController.DeleteProject).Methods(http.MethodDelete)
 
 			// list projects by hub
 			projectRouter.HandleFunc("/list/summary/{hub_id}", projectController.GetProjectSummariesForHub).Methods(http.MethodGet) //working
@@ -83,6 +84,8 @@ func SetupRoutes() *mux.Router {
 		// integrations
 		integrationsRouter := apiRouter.PathPrefix("/integrations").Subrouter()
 		{
+			// list Integrations
+			integrationsRouter.HandleFunc("/", integratorController.ListIntegrations).Methods(http.MethodGet)
 			// create integration
 			integrationsRouter.HandleFunc("/github/create", integratorController.CreateGitHubIntegration).Methods(http.MethodPost)
 			// validate integration

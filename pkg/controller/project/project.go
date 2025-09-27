@@ -38,64 +38,64 @@ func NewProjectController() *ProjectController {
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security ApiKeyAuth
 // @Router /api/v1/projects [post]
-// func (c *ProjectController) CreateProject(w http.ResponseWriter, r *http.Request) {
-// 	var req service.CreateProjectRequest
-// 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-// 		c.logger.LogWarning("Invalid request body", map[string]interface{}{
-// 			"error": err.Error(),
-// 		})
-// 		http.Error(w, "Invalid request body", http.StatusBadRequest)
-// 		return
-// 	}
+func (c *ProjectController) CreateProject(w http.ResponseWriter, r *http.Request) {
+	var req service.CreateProjectRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		c.logger.LogWarning("Invalid request body", map[string]interface{}{
+			"error": err.Error(),
+		})
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
 
-// 	project, err := c.projectService.CreateProject(r.Context(), &req)
-// 	if err != nil {
-// 		c.logger.LogError(err, "Failed to create project", map[string]interface{}{
-// 			"request": req,
-// 		})
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
+	project, err := c.projectService.CreateProject(r.Context(), &req)
+	if err != nil {
+		c.logger.LogError(err, "Failed to create project", map[string]interface{}{
+			"request": req,
+		})
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 
-// 	w.Header().Set("Content-Type", "application/json")
-// 	w.WriteHeader(http.StatusCreated)
-// 	json.NewEncoder(w).Encode(map[string]interface{}{
-// 		"success": true,
-// 		"data":    project,
-// 	})
-// }
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    project,
+	})
+}
 
-// // GetProject handles GET /api/v1/projects/{id}
-// func (c *ProjectController) GetProject(w http.ResponseWriter, r *http.Request) {
-// 	vars := mux.Vars(r)
-// 	idStr, ok := vars["id"]
-// 	if !ok {
-// 		http.Error(w, "Project ID is required", http.StatusBadRequest)
-// 		return
-// 	}
+// GetProject handles GET /api/v1/projects/{id}
+func (c *ProjectController) GetProject(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	projectId, ok := vars["id"]
+	if !ok {
+		http.Error(w, "Project ID is required", http.StatusBadRequest)
+		return
+	}
 
-// 	id, err := uuid.Parse(idStr)
-// 	if err != nil {
-// 		http.Error(w, "Invalid project ID", http.StatusBadRequest)
-// 		return
-// 	}
+	// id, err := uuid.Parse(idStr)
+	// if err != nil {
+	// 	http.Error(w, "Invalid project ID", http.StatusBadRequest)
+	// 	return
+	// }
 
-// 	project, err := c.projectService.GetProject(r.Context(), id)
-// 	if err != nil {
-// 		c.logger.LogError(err, "Failed to get project", map[string]interface{}{
-// 			"project_id": id,
-// 		})
-// 		http.Error(w, err.Error(), http.StatusNotFound)
-// 		return
-// 	}
+	project, err := c.projectService.GetProject(r.Context(), projectId)
+	if err != nil {
+		c.logger.LogError(err, "Failed to get project", map[string]interface{}{
+			"projectId": projectId,
+		})
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
 
-// 	w.Header().Set("Content-Type", "application/json")
-// 	w.WriteHeader(http.StatusOK)
-// 	json.NewEncoder(w).Encode(map[string]interface{}{
-// 		"success": true,
-// 		"data":    project,
-// 	})
-// }
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    project,
+	})
+}
 
 // // UpdateProject handles PUT /api/v1/projects/{id}
 // func (c *ProjectController) UpdateProject(w http.ResponseWriter, r *http.Request) {
@@ -139,37 +139,39 @@ func NewProjectController() *ProjectController {
 // 	})
 // }
 
-// // DeleteProject handles DELETE /api/v1/projects/{id}
-// func (c *ProjectController) DeleteProject(w http.ResponseWriter, r *http.Request) {
-// 	vars := mux.Vars(r)
-// 	idStr, ok := vars["id"]
-// 	if !ok {
-// 		http.Error(w, "Project ID is required", http.StatusBadRequest)
-// 		return
-// 	}
+// DeleteProject handles DELETE /api/v1/projects/{id}
+func (c *ProjectController) DeleteProject(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	projectId, ok := vars["id"]
+	if !ok {
+		http.Error(w, "Project ID is required", http.StatusBadRequest)
+		return
+	}
 
-// 	id, err := uuid.Parse(idStr)
-// 	if err != nil {
-// 		http.Error(w, "Invalid project ID", http.StatusBadRequest)
-// 		return
-// 	}
+	teamIds := r.URL.Query().Get("teamIds")
 
-// 	err = c.projectService.DeleteProject(r.Context(), id)
-// 	if err != nil {
-// 		c.logger.LogError(err, "Failed to delete project", map[string]interface{}{
-// 			"project_id": id,
-// 		})
-// 		http.Error(w, err.Error(), http.StatusInternalServerError)
-// 		return
-// 	}
+	// id, err := uuid.Parse(idStr)
+	// if err != nil {
+	// 	http.Error(w, "Invalid project ID", http.StatusBadRequest)
+	// 	return
+	// }
 
-// 	w.Header().Set("Content-Type", "application/json")
-// 	w.WriteHeader(http.StatusOK)
-// 	json.NewEncoder(w).Encode(map[string]interface{}{
-// 		"success": true,
-// 		"message": "Project deleted successfully",
-// 	})
-// }
+	err := c.projectService.DeleteProject(r.Context(), teamIds, projectId)
+	if err != nil {
+		c.logger.LogError(err, "Failed to delete project", map[string]interface{}{
+			"projectId": projectId,
+		})
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": "Project deleted successfully",
+	})
+}
 
 // // ListProjects handles GET /api/v1/projects
 // func (c *ProjectController) ListProjects(w http.ResponseWriter, r *http.Request) {

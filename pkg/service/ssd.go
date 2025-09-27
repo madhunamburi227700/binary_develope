@@ -133,11 +133,11 @@ func (s *SSDService) GetProjectSummariesForTeams(ctx context.Context, req *GetPr
 	return ssdClient.GetProjectSummaries(ctx, reqClient)
 }
 
-// func (s *SSDService) GetProjectDetails(ctx context.Context, req *client.ProjectDetailsRequest) (*client.ProjectDetailsResponse, error) {
-// 	ssdClient := client.NewSSDClient()
+func (s *SSDService) GetProjectDetails(ctx context.Context, projectId string) (*client.ProjectRef, error) {
+	ssdClient := client.NewSSDClient()
 
-// 	return ssdClient.GetProjectDetails(ctx, req)
-// }
+	return ssdClient.GetProjectDetails(ctx, projectId)
+}
 
 func (s *SSDService) GetProjectSummaryCount(ctx context.Context, hubIDs []string) (*client.SourceScanSummaryCount, error) {
 	ssdClient := client.NewSSDClient()
@@ -193,4 +193,26 @@ func (s *SSDService) GetVulnerabilityList(ctx context.Context, req *client.Vulne
 	ssdClient := client.NewSSDClient()
 
 	return ssdClient.GetVulnerabilityList(ctx, req)
+}
+
+// projects services below
+
+func (s *SSDService) CreateProject(ctx context.Context, teamIds string, req *client.ProjectRef) (string, error) {
+	ssdClient := client.NewSSDClient()
+
+	result, err := ssdClient.CreateProject(ctx, teamIds, req)
+	if err != nil {
+		return "", err
+	}
+	return result, nil
+}
+
+func (s *SSDService) DeleteProject(ctx context.Context, teamIds, projectId string) (string, error) {
+	ssdClient := client.NewSSDClient()
+
+	result, err := ssdClient.DeleteProject(ctx, teamIds, projectId)
+	if err != nil {
+		return "", err
+	}
+	return result, nil
 }

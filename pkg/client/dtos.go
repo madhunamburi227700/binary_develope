@@ -156,6 +156,39 @@ type ResourceResponse struct {
 }
 
 // project
+type ProjectRef struct {
+	ID            string             `json:"id,omitempty" yaml:"id,omitempty"`
+	Name          string             `json:"name,omitempty" yaml:"name,omitempty"`
+	ScanType      string             `json:"scanType,omitempty" yaml:"scanType,omitempty"`
+	Type          string             `json:"type,omitempty" yaml:"type,omitempty"`
+	Platform      string             `json:"platform,omitempty" yaml:"platform,omitempty"`
+	AccountID     string             `json:"accountId,omitempty" yaml:"accountId,omitempty"`
+	TeamID        string             `json:"teamId" yaml:"teamId,omitempty"`
+	TeamName      string             `json:"teamName,omitempty" yaml:"teamName,omitempty"`
+	AccountName   string             `json:"accountName,omitempty" yaml:"accountName,omitempty"`
+	Organisation  string             `json:"organisation,omitempty" yaml:"organisation,omitempty"`
+	ScanLevel     string             `json:"scanLevel,omitempty" yaml:"scanLevel,omitempty"`
+	Level         string             `json:"level,omitempty" yaml:"level,omitempty"`
+	ProjectConfig []ProjectConfigRef `json:"projectConfigs,omitempty" yaml:"projectConfigs,omitempty"`
+	CreatedAt     *time.Time         `json:"createdAt,omitempty" yaml:"createdAt,omitempty"`
+	UpdatedAt     *time.Time         `json:"updatedAt,omitempty" yaml:"updatedAt,omitempty"`
+}
+
+type ProjectConfigRef struct {
+	ID                 string     `json:"id,omitempty" yaml:"id,omitempty"`
+	Organisation       string     `json:"organisation,omitempty" yaml:"organisation,omitempty"`
+	Repository         string     `json:"repository,omitempty" yaml:"repository,omitempty"`
+	Branch             []string   `json:"branch,omitempty" yaml:"branch,omitempty"`
+	BranchPattern      string     `json:"branchPattern,omitempty" yaml:"branchPattern,omitempty"`
+	ArtifactTag        []string   `json:"tag,omitempty" yaml:"tag,omitempty"`
+	ArtifactTagPattern string     `json:"tagPattern,omitempty" yaml:"tagPattern,omitempty"`
+	ScheduleTime       *int       `json:"scheduleTime,omitempty" yaml:"scheduleTime,omitempty"`
+	ScheduledScan      bool       `json:"scheduledScan,omitempty" yaml:"scheduledScan,omitempty"`
+	CreatedAt          *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty"`
+	UpdatedAt          *time.Time `json:"updatedAt,omitempty" yaml:"updatedAt,omitempty"`
+	ScanUpto           *int       `json:"scanUpto,omitempty" yaml:"scanUpto,omitempty"`
+}
+
 type ProjectSummaryRequest struct {
 	TeamIDs     string `json:"team_ids"`
 	PageNo      int    `json:"page_no"`
