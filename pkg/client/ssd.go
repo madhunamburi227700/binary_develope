@@ -748,3 +748,35 @@ func (c *SSDClient) GetGithubOauthUrl(ctx context.Context) (string, error) {
 
 	return result.InstallUrl, nil
 }
+
+func (c *SSDClient) GetRepoBranchList(ctx context.Context, qparams map[string]string) ([]string, error) {
+	// Build query parameters
+	params := make([]string, 0)
+
+	// Add params
+	for key, value := range qparams {
+		params = append(params, fmt.Sprintf("%s=%s", key, value))
+	}
+
+	// Build endpoint
+	endpoint := "/gate/ssdservice/v1/sourceScan/repobranchList"
+	if len(params) > 0 {
+		endpoint += "?" + strings.Join(params, "&")
+	}
+
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to get repo branch list: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result []string
+	if err := resp.ParseJSON(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse repo branch list response: %w", err)
+	}
+
+	return result, nil
+}

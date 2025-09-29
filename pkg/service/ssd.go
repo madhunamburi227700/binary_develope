@@ -227,3 +227,8 @@ func (s *SSDService) GetGithubOauthUrl(ctx context.Context) (string, error) {
 	}
 	return installUrl, nil
 }
+
+func (s *SSDService) GetRepoBranchList(ctx context.Context, params map[string]string) ([]string, error) {
+	ssdClient := client.NewSSDClient()
+	return ssdClient.GetRepoBranchList(ctx, params)
+}

@@ -257,6 +257,17 @@ func (s *IntegrationService) GetGithubAppInstallationURL(ctx context.Context) (s
 	return installurl, nil
 }
 
+// GetGithubIntegrationsDetails
+// getting details related to orgs/users/repos via github APIs
+func (s *IntegrationService) GetGithubIntegrationsDetails(ctx context.Context, params map[string]string) ([]string, error) {
+	details, err := s.ssdService.GetRepoBranchList(ctx, params)
+	if err != nil {
+		s.logger.LogError(err, "Failed to get repo branch list", nil)
+		return nil, fmt.Errorf("failed to get repo branch list: %w", err)
+	}
+	return details, nil
+}
+
 // Helper method to create team assignments
 func (s *IntegrationService) createTeamAssignments(ctx context.Context, teamIDs []string) []client.TeamAssignment {
 	var assignments []client.TeamAssignment

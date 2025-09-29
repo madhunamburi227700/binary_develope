@@ -122,6 +122,46 @@ func (c *IntegratorController) InstallGitHubAppIntegration(w http.ResponseWriter
 	})
 }
 
+// GetIntegrationsGithubDetails get GitHub integration details based on various params
+// @Summary Github Integrations details via Github APIs
+// @Description Github Integrations details via Github APIs
+// @Tags Integrations
+// @Accept */*
+// @Produce  json
+// @Param platform query string true "Platform name (e.g., github)"
+// @Param type query string true "Type of integration (e.g., organisation, user)"
+// @Param accountId query string true "Account ID (e.g., 0x3b32)"
+// @Param scanLevel query string true "Scan level (e.g., repository, organization)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 401 {object} map[string]string "Unauthorized"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/integrations/github/details [get]
+func (c *IntegratorController) GetIntegrationsGithubDetails(w http.ResponseWriter, r *http.Request) {
+	queryParams := map[string]string{
+		// default scanLevel
+		"scanLevel": "org",
+	}
+	for key, values := range r.URL.Query() {
+		if len(values) > 0 {
+			queryParams[key] = values[0]
+		}
+	}
+	details, err := c.integratorService.GetGithubIntegrationsDetails(r.Context(), queryParams)
+	if err != nil {
+		c.logger.LogError(err, "Failed to get github integrations details", nil)
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    details,
+	})
+}
+
 func (c *IntegratorController) ListIntegrations(w http.ResponseWriter, r *http.Request) {
 	teamIds := r.URL.Query().Get("teamIds")
 	// TODO: manage integrator via provider in future release
