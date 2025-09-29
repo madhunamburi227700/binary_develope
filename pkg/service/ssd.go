@@ -232,3 +232,26 @@ func (s *SSDService) GetRepoBranchList(ctx context.Context, params map[string]st
 	ssdClient := client.NewSSDClient()
 	return ssdClient.GetRepoBranchList(ctx, params)
 }
+
+func (s *SSDService) getIntegratorToken(ctx context.Context, projectId string) (string, error) {
+	// Installation ID
+	ssdClient := client.NewSSDClient()
+
+	integration, err := ssdClient.GetIntegratorConfigForProject(ctx, "github", projectId, "installationId")
+	if err != nil {
+		return "", err
+	}
+
+	// nil check the integration
+	if integration.Data.QueryProject[0].IntegratorConfigs[0].Configs[0].Value == "" {
+		return "", fmt.Errorf("no installationId found for project %s", projectId)
+	}
+
+	// Fetch the token
+	token, err := client.GetGithubTokenFromInstallationId(integration.Data.QueryProject[0].IntegratorConfigs[0].Configs[0].Value)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
+}

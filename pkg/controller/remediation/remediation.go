@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 
 	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/service"
@@ -38,31 +39,37 @@ func (c *RemediationController) SASTRemediation(w http.ResponseWriter, r *http.R
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	projectId := r.URL.Query().Get("project_id")
+	if strings.TrimSpace(projectId) == "" {
+		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	var payload service.SASTRemediationRequest
 	if err := json.Unmarshal(body, &payload); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if err := c.remediationService.ValidateSASTRequest(&payload); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	resp, err := c.remediationService.SAST(r.Context(), &payload, r.Header, r.URL.Query())
+	resp, err := c.remediationService.SAST(r.Context(), &payload, projectId, r.Header, r.URL.Query())
 	if err != nil {
 		c.logger.LogError(err, err.Error(), nil)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	if err = client.FlushSSE(r.Context(), w, *resp); err != nil {
 		c.logger.LogError(err, err.Error(), nil)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -88,28 +95,33 @@ func (c *RemediationController) CVERemediation(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	projectId := r.URL.Query().Get("project_id")
+	if strings.TrimSpace(projectId) == "" {
+		utils.SendErrorResponse(w, http.StatusBadRequest, "project_id is required")
+		return
+	}
+
 	var payload service.CVERemediationRequest
 	if err := json.Unmarshal(body, &payload); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if err := c.remediationService.ValidateCVERequest(&payload); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	resp, err := c.remediationService.CVE(r.Context(), &payload, r.Header, r.URL.Query())
+	resp, err := c.remediationService.CVE(r.Context(), &payload, projectId, r.Header, r.URL.Query())
 	if err != nil {
 		c.logger.LogError(err, err.Error(), nil)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
 	if err = client.FlushSSE(r.Context(), w, *resp); err != nil {
 		c.logger.LogError(err, err.Error(), nil)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-
 }

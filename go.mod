@@ -6,6 +6,7 @@ toolchain go1.24.7
 
 require (
 	github.com/OpsMx/go-app-base v0.0.24
+	github.com/OpsMx/oauth-bridge-client v1.2.0
 	github.com/antonlindstrom/pgstore v0.0.0-20220421113606-e3a6e3fed12a
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -31,6 +32,7 @@ require (
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
 	github.com/go-openapi/spec v0.20.6 // indirect
 	github.com/go-openapi/swag v0.19.15 // indirect
+	github.com/golang-jwt/jwt/v5 v5.2.2 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20240606120523-5a60cdf6a761 // indirect
 	github.com/jackc/puddle/v2 v2.2.2 // indirect

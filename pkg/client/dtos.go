@@ -149,6 +149,32 @@ type ValidateIntegrationResponse struct {
 	Message string `json:"Message"`
 }
 
+type GetIntegratorConfigResponse struct {
+	Data struct {
+		QueryProject []Project `json:"queryProject"`
+	} `json:"data"`
+}
+
+type Project struct {
+	ID                string             `json:"id"`
+	Name              string             `json:"name"`
+	Platform          string             `json:"platform"`
+	IntegratorConfigs []IntegratorConfig `json:"integratorConfigs"`
+}
+
+type IntegratorConfig struct {
+	Name    string   `json:"name"`
+	Status  string   `json:"status"`
+	Configs []Config `json:"configs"`
+}
+
+type Config struct {
+	ID      string `json:"id"`
+	Key     string `json:"key"`
+	Value   string `json:"value"`
+	Encrypt bool   `json:"encrypt"`
+}
+
 // Resource structures
 type ResourceResponse struct {
 	Integrations int `json:"integrations"`
@@ -398,6 +424,7 @@ type VulnerabilityListRequest struct {
 // VulnerabilityListResponse represents the response for vulnerability list
 type VulnerabilityListResponse struct {
 	VulnerabilityList []VulnerabilityItem `json:"vulnerabilityList"`
+	ScanID            string              `json:"scanId"`
 	TotalSize         int                 `json:"totalSize"`
 }
 

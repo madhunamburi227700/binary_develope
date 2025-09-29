@@ -57,7 +57,7 @@ func (c *SSDClient) GetOrganizations(ctx context.Context) (*OrganizationResponse
 		}
 	}`
 
-	resp, err := c.ExecuteGraphQL(ctx, query)
+	resp, err := c.ExecuteGraphQL(ctx, query, "get-Org-and-Teams-team-modal-popup")
 	if err != nil {
 		return nil, err
 	}
@@ -108,7 +108,7 @@ func (c *SSDClient) GetOrganizationsAndTeams(ctx context.Context) (*Organization
 		}
 	}`
 
-	resp, err := c.ExecuteGraphQL(ctx, query)
+	resp, err := c.ExecuteGraphQL(ctx, query, "get-Org-and-Teams-team-modal-popup")
 	if err != nil {
 		return nil, err
 	}
@@ -209,6 +209,46 @@ func (c *SSDClient) CreateIntegration(ctx context.Context, req *CreateIntegratio
 	return resp.String(), nil
 }
 
+func (c *SSDClient) GetIntegratorConfigForProject(ctx context.Context, platform, projectId, key string) (*GetIntegratorConfigResponse, error) {
+	query := `query GetIntegratorConfig{
+    queryProject(filter: { platform: { eq: "%s" }, id: "%s"}) @cascade{
+        id
+        name
+        platform
+        integratorConfigs {
+            name
+            status
+            configs(filter: { key: { in: ["%s"] } }) {
+                id
+                key
+                value
+                encrypt
+            }
+        }
+    }
+}`
+
+	query = fmt.Sprintf(query, platform, projectId, key)
+
+	resp, err := c.ExecuteGraphQL(ctx, query, "get-Integrator-Config-For-Project")
+	if err != nil {
+		return nil, err
+	}
+
+	// Fix: Convert interface{} to []byte first, then unmarshal
+	dataBytes, err := json.Marshal(resp.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal response data: %w", err)
+	}
+
+	var result GetIntegratorConfigResponse
+	if err := json.Unmarshal(dataBytes, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal organization response: %w", err)
+	}
+
+	return &result, nil
+}
+
 // Resource operations
 func (c *SSDClient) GetResources(ctx context.Context) (*ResourceResponse, error) {
 	endpoint := fmt.Sprintf("/gate/ssdservice/v1/resource?orgId=%s", c.orgID)
@@ -231,11 +271,11 @@ func (c *SSDClient) GetResources(ctx context.Context) (*ResourceResponse, error)
 }
 
 // GraphQL operations
-func (c *SSDClient) ExecuteGraphQL(ctx context.Context, query string) (*GraphQLResponse, error) {
-	endpoint := "/graphql?req=get-Org-and-Teams-team-modal-popup"
+func (c *SSDClient) ExecuteGraphQL(ctx context.Context, query string, req string) (*GraphQLResponse, error) {
+	endpoint := fmt.Sprintf("/graphql?req=%s", req)
 
-	req := GraphQLRequest{Query: query}
-	resp, err := c.restClient.Post(ctx, endpoint, req, nil)
+	request := GraphQLRequest{Query: query}
+	resp, err := c.restClient.Post(ctx, endpoint, request, nil)
 	if err != nil {
 		return nil, err
 	}

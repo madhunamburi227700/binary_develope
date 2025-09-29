@@ -10,8 +10,9 @@ import (
 )
 
 type RemediationService struct {
-	SSEClient *client.SSEClient
-	logger    *utils.ErrorLogger
+	SSDService *SSDService
+	SSEClient  *client.SSEClient
+	logger     *utils.ErrorLogger
 }
 
 func NewRemediationService() *RemediationService {
@@ -23,8 +24,9 @@ func NewRemediationService() *RemediationService {
 	RESTClient := client.NewRESTClient(restConfig)
 
 	return &RemediationService{
-		SSEClient: client.NewSSEClient(RESTClient),
-		logger:    utils.NewErrorLogger("remediation_service"),
+		SSEClient:  client.NewSSEClient(RESTClient),
+		SSDService: NewSSDService(),
+		logger:     utils.NewErrorLogger("remediation_service"),
 	}
 }
 
@@ -72,9 +74,15 @@ func (s *RemediationService) ValidateSASTRequest(req *SASTRemediationRequest) er
 	return nil
 }
 
-func (s *RemediationService) SAST(ctx context.Context, req *SASTRemediationRequest, headers, queryParams map[string][]string) (*client.SSEResponse, error) {
+func (s *RemediationService) SAST(ctx context.Context, req *SASTRemediationRequest, projectId string, headers, queryParams map[string][]string) (*client.SSEResponse, error) {
 	options := client.MakeRequestOptions(headers, queryParams)
-	req.Token = config.GetGithubTokenTemp()
+
+	token, err := s.SSDService.getIntegratorToken(ctx, projectId)
+	if err != nil {
+		return nil, err
+	}
+	req.Token = token
+
 	return s.SSEClient.SSERequest(ctx, "/sast-remediation/v1/fix", "POST", req, options)
 }
 
@@ -121,8 +129,14 @@ func (s *RemediationService) ValidateCVERequest(req *CVERemediationRequest) erro
 	return nil
 }
 
-func (s *RemediationService) CVE(ctx context.Context, req *CVERemediationRequest, headers, queryParams map[string][]string) (*client.SSEResponse, error) {
+func (s *RemediationService) CVE(ctx context.Context, req *CVERemediationRequest, projectId string, headers, queryParams map[string][]string) (*client.SSEResponse, error) {
 	options := client.MakeRequestOptions(headers, queryParams)
-	req.Token = config.GetGithubTokenTemp()
+
+	token, err := s.SSDService.getIntegratorToken(ctx, projectId)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Token = token
 	return s.SSEClient.SSERequest(ctx, "/cve-remediation/v1/fix", "POST", req, options)
 }
