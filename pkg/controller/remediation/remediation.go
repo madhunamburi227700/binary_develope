@@ -43,9 +43,9 @@ func (c *RemediationController) SASTRemediation(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	projectId := r.URL.Query().Get("project_id")
+	projectId := r.URL.Query().Get("projectId")
 	if strings.TrimSpace(projectId) == "" {
-		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		utils.SendErrorResponse(w, http.StatusBadRequest, "projectId cannot be blank")
 		return
 	}
 
@@ -95,9 +95,9 @@ func (c *RemediationController) CVERemediation(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	projectId := r.URL.Query().Get("project_id")
+	projectId := r.URL.Query().Get("projectId")
 	if strings.TrimSpace(projectId) == "" {
-		utils.SendErrorResponse(w, http.StatusBadRequest, "project_id is required")
+		utils.SendErrorResponse(w, http.StatusBadRequest, "projectId cannot be blank")
 		return
 	}
 

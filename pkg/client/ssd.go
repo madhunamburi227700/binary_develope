@@ -243,7 +243,7 @@ func (c *SSDClient) GetIntegratorConfigForProject(ctx context.Context, platform,
 
 	var result GetIntegratorConfigResponse
 	if err := json.Unmarshal(dataBytes, &result); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal organization response: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal integrator config response: %w", err)
 	}
 
 	return &result, nil

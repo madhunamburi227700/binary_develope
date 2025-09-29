@@ -150,16 +150,14 @@ type ValidateIntegrationResponse struct {
 }
 
 type GetIntegratorConfigResponse struct {
-	Data struct {
-		QueryProject []Project `json:"queryProject"`
-	} `json:"data"`
+	QueryProject []Project `json:"queryProject"`
 }
 
 type Project struct {
-	ID                string             `json:"id"`
-	Name              string             `json:"name"`
-	Platform          string             `json:"platform"`
-	IntegratorConfigs []IntegratorConfig `json:"integratorConfigs"`
+	ID                string           `json:"id"`
+	Name              string           `json:"name"`
+	Platform          string           `json:"platform"`
+	IntegratorConfigs IntegratorConfig `json:"integratorConfigs"`
 }
 
 type IntegratorConfig struct {
@@ -425,6 +423,7 @@ type VulnerabilityListRequest struct {
 type VulnerabilityListResponse struct {
 	VulnerabilityList []VulnerabilityItem `json:"vulnerabilityList"`
 	ScanID            string              `json:"scanId"`
+	Platform          string              `json:"platform"`
 	TotalSize         int                 `json:"totalSize"`
 }
 

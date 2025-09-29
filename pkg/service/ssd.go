@@ -242,13 +242,13 @@ func (s *SSDService) getIntegratorToken(ctx context.Context, projectId string) (
 		return "", err
 	}
 
-	// nil check the integration
-	if integration.Data.QueryProject[0].IntegratorConfigs[0].Configs[0].Value == "" {
+	s.logger.LogInfo(fmt.Sprintf("getIntegratorToken  %v", integration), nil)
+
+	if len(integration.QueryProject) == 0 {
 		return "", fmt.Errorf("no installationId found for project %s", projectId)
 	}
-
 	// Fetch the token
-	token, err := client.GetGithubTokenFromInstallationId(integration.Data.QueryProject[0].IntegratorConfigs[0].Configs[0].Value)
+	token, err := client.GetGithubTokenFromInstallationId(integration.QueryProject[0].IntegratorConfigs.Configs[0].Value)
 	if err != nil {
 		return "", err
 	}

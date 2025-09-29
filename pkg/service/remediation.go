@@ -77,11 +77,16 @@ func (s *RemediationService) ValidateSASTRequest(req *SASTRemediationRequest) er
 func (s *RemediationService) SAST(ctx context.Context, req *SASTRemediationRequest, projectId string, headers, queryParams map[string][]string) (*client.SSEResponse, error) {
 	options := client.MakeRequestOptions(headers, queryParams)
 
-	token, err := s.SSDService.getIntegratorToken(ctx, projectId)
-	if err != nil {
-		return nil, err
+	// TODO: Temp remove
+	if config.GetGithubTokenTemp() != "" {
+		req.Token = config.GetGithubTokenTemp()
+	} else {
+		token, err := s.SSDService.getIntegratorToken(ctx, projectId)
+		if err != nil {
+			return nil, err
+		}
+		req.Token = token
 	}
-	req.Token = token
 
 	return s.SSEClient.SSERequest(ctx, "/sast-remediation/v1/fix", "POST", req, options)
 }
@@ -132,11 +137,16 @@ func (s *RemediationService) ValidateCVERequest(req *CVERemediationRequest) erro
 func (s *RemediationService) CVE(ctx context.Context, req *CVERemediationRequest, projectId string, headers, queryParams map[string][]string) (*client.SSEResponse, error) {
 	options := client.MakeRequestOptions(headers, queryParams)
 
-	token, err := s.SSDService.getIntegratorToken(ctx, projectId)
-	if err != nil {
-		return nil, err
+	// TODO: Temp remove
+	if config.GetGithubTokenTemp() != "" {
+		req.Token = config.GetGithubTokenTemp()
+	} else {
+		token, err := s.SSDService.getIntegratorToken(ctx, projectId)
+		if err != nil {
+			return nil, err
+		}
+		req.Token = token
 	}
 
-	req.Token = token
 	return s.SSEClient.SSERequest(ctx, "/cve-remediation/v1/fix", "POST", req, options)
 }
