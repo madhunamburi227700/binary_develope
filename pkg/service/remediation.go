@@ -117,9 +117,7 @@ func (s *RemediationService) ValidateCVERequest(req *CVERemediationRequest) erro
 	if req.MessageType != "start_generate" && req.MessageType != "start_apply" && req.MessageType != "followup" {
 		return fmt.Errorf("message_type must be one of: start_generate, start_apply, followup")
 	}
-	if req.UserMessage == nil {
-		return fmt.Errorf("user_message is required")
-	}
+
 	return nil
 }
 
