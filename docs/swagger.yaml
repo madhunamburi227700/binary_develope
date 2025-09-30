@@ -1,30 +1,76 @@
-basePath: /api/v1
+basePath: /
 definitions:
-  client.CVERemediationRequest:
+  client.VulnerabilityOptimization:
     properties:
-      environment:
-        type: string
-      findings:
+      allVulnerabilities:
+        type: integer
+      topPriority:
+        type: integer
+      uniqueVulnerabilities:
+        type: integer
+    type: object
+  client.VulnerabilityPriority:
+    properties:
+      priority:
+        additionalProperties:
+          type: integer
+        type: object
+      vulnerabilities:
+        type: integer
+      vulnerabilityPrioritisationData:
         items:
-          type: string
+          properties:
+            cvss:
+              type: number
+            epss:
+              type: number
+            name:
+              type: string
+            prirorityInt:
+              type: integer
+            severity:
+              type: string
+          type: object
         type: array
-      project_id:
+    type: object
+  service.CVERemediationRequest:
+    properties:
+      branch:
         type: string
-      scan_id:
+      cve_id:
         type: string
-      team_ids:
-        items:
-          type: string
-        type: array
+      message_type:
+        type: string
+      organization:
+        type: string
+      package:
+        type: string
+      platform:
+        type: string
+      repository:
+        type: string
+      scan_result_id:
+        type: string
+      session_id:
+        type: string
+      token:
+        type: string
+      user_message:
+        type: string
     type: object
   service.CreateGitHubIntegrationRequest:
     properties:
+      installationId:
+        type: string
       name:
         type: string
       team_ids:
         items:
           type: string
         type: array
+      timestamp:
+        description: for app based access token decryption
+        type: integer
       token:
         type: string
     type: object
@@ -41,6 +87,36 @@ definitions:
     required:
     - email
     - name
+    type: object
+  service.CreateProjectRequest:
+    properties:
+      hub_id:
+        type: string
+      integration_id:
+        type: string
+      name:
+        maxLength: 255
+        minLength: 1
+        type: string
+      organisation:
+        maxLength: 255
+        minLength: 1
+        type: string
+      repoName:
+        maxLength: 255
+        minLength: 1
+        type: string
+      type:
+        description: user/organisation
+        maxLength: 255
+        minLength: 1
+        type: string
+    required:
+    - hub_id
+    - name
+    - organisation
+    - repoName
+    - type
     type: object
   service.InstallGitHubAppRequest:
     properties:
@@ -325,6 +401,63 @@ paths:
       summary: Install GitHub App
       tags:
       - Integrations
+  /api/v1/integrations/github/details:
+    get:
+      consumes:
+      - '*/*'
+      description: Github Integrations details via Github APIs
+      parameters:
+      - description: Platform name (e.g., github)
+        in: query
+        name: platform
+        required: true
+        type: string
+      - description: Type of integration (e.g., organisation, user)
+        in: query
+        name: type
+        required: true
+        type: string
+      - description: Account ID (e.g., 0x3b32)
+        in: query
+        name: accountId
+        required: true
+        type: string
+      - description: Scan level (e.g., repository, organization)
+        in: query
+        name: scanLevel
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Github Integrations details via Github APIs
+      tags:
+      - Integrations
   /api/v1/integrations/github/validate:
     post:
       consumes:
@@ -368,6 +501,43 @@ paths:
       summary: Validate GitHub integration
       tags:
       - Integrations
+  /api/v1/projects:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new project with the provided details
+      parameters:
+      - description: Project creation details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Create a new project
+      tags:
+      - Projects
   /api/v1/projects/summaries/count:
     get:
       consumes:
@@ -412,7 +582,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/client.CVERemediationRequest'
+          $ref: '#/definitions/service.CVERemediationRequest'
       produces:
       - application/json
       responses:
@@ -475,6 +645,100 @@ paths:
       summary: Process SAST remediation
       tags:
       - Remediation
+  /api/v1/vuln/optimisation:
+    get:
+      consumes:
+      - application/json
+      description: Returns vulnerability optimization metrics
+      parameters:
+      - description: Organization ID
+        in: query
+        name: orgId
+        required: true
+        type: string
+      - description: Comma-separated list of team IDs
+        in: query
+        name: teamId
+        type: string
+      - description: Filter by suppressed status
+        in: query
+        name: suppressedFlag
+        type: boolean
+      - description: Get current vulnerabilities
+        in: query
+        name: current
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/client.VulnerabilityOptimization'
+        "400":
+          description: Missing required parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get vulnerability optimization data
+      tags:
+      - Vulnerabilities
+  /api/v1/vuln/prioritisation:
+    get:
+      consumes:
+      - application/json
+      description: Returns vulnerability prioritization metrics
+      parameters:
+      - description: Organization ID
+        in: query
+        name: orgId
+        required: true
+        type: string
+      - description: Comma-separated list of team IDs
+        in: query
+        name: teamId
+        type: string
+      - description: Filter by suppressed status
+        in: query
+        name: suppressedFlag
+        type: boolean
+      - description: Get current vulnerabilities
+        in: query
+        name: current
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/client.VulnerabilityPriority'
+        "400":
+          description: Missing required parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get vulnerability prioritization data
+      tags:
+      - Vulnerabilities
   /api/v1/vulnerabilities/sast:
     get:
       consumes:

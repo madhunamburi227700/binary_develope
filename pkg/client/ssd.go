@@ -10,6 +10,9 @@ import (
 
 // SSDClientInterface defines the interface for SSD operations
 type SSDClientInterface interface {
+	// Vulnerability operations
+	GetVulnerabilityOptimization(ctx context.Context, orgID string, teamIDs []string, suppressedFlag bool, current bool) (*VulnerabilityOptimization, error)
+	GetVulnerabilityPrioritization(ctx context.Context, orgID string, teamIDs []string, suppressedFlag bool, current bool) (*VulnerabilityPriority, error)
 	// Organization operations
 	GetOrganizations(ctx context.Context) (*OrganizationResponse, error)
 	GetOrganizationsAndTeams(ctx context.Context) (*OrganizationResponse, error)
@@ -692,6 +695,95 @@ func (c *SSDClient) Rescan(ctx context.Context, req *RescanRequest) (*RescanResp
 	}
 
 	return &result, nil
+}
+
+// VulnerabilityData represents the response structure for vulnerability endpoints
+// VulnerabilityOptimization represents the optimization data structure
+type VulnerabilityOptimization struct {
+	AllVulnerabilities    int `json:"allVulnerabilities"`
+	UniqueVulnerabilities int `json:"uniqueVulnerabilities"`
+	TopPriority           int `json:"topPriority"`
+}
+
+// VulnerabilityPriority represents the priority data structure
+type VulnerabilityPriority struct {
+	Vulnerabilities                 int            `json:"vulnerabilities"`
+	Priority                        map[string]int `json:"priority"`
+	VulnerabilityPrioritisationData []struct {
+		Name        string  `json:"name"`
+		Severity    string  `json:"severity"`
+		CVSS        float64 `json:"cvss"`
+		EPSS        float64 `json:"epss"`
+		PriorityInt int     `json:"prirorityInt"`
+	} `json:"vulnerabilityPrioritisationData"`
+}
+
+// GetVulnerabilityOptimization retrieves vulnerability optimization data
+func (c *SSDClient) GetVulnerabilityOptimization(ctx context.Context, orgID string, teamIDs []string, suppressedFlag bool, current bool) (*VulnerabilityOptimization, error) {
+	if orgID == "" {
+		return nil, fmt.Errorf("organization ID is required")
+	}
+
+	// Build query parameters
+	params := make([]string, 0)
+	params = append(params, fmt.Sprintf("orgId=%s", orgID))
+	params = append(params, fmt.Sprintf("suppressedFlag=%t", suppressedFlag))
+	params = append(params, fmt.Sprintf("current=%t", current))
+
+	// Add team IDs if provided
+	if len(teamIDs) > 0 {
+		params = append(params, fmt.Sprintf("teamId=%s", strings.Join(teamIDs, ",")))
+	}
+
+	// Build endpoint
+	endpoint := fmt.Sprintf("/gate/ssdservice/v1/vulnerability/optimisation?%s", strings.Join(params, "&"))
+
+	// Make request
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vulnerability optimization data: %w", err)
+	}
+
+	var response VulnerabilityOptimization
+	if err := resp.ParseJSON(&response); err != nil {
+		return nil, fmt.Errorf("failed to parse vulnerability optimization response: %w", err)
+	}
+
+	return &response, nil
+}
+
+// GetVulnerabilityPrioritization retrieves vulnerability prioritization data
+func (c *SSDClient) GetVulnerabilityPrioritization(ctx context.Context, orgID string, teamIDs []string, suppressedFlag bool, current bool) (*VulnerabilityPriority, error) {
+	if orgID == "" {
+		return nil, fmt.Errorf("organization ID is required")
+	}
+
+	// Build query parameters
+	params := make([]string, 0)
+	params = append(params, fmt.Sprintf("orgId=%s", orgID))
+	params = append(params, fmt.Sprintf("suppressedFlag=%t", suppressedFlag))
+	params = append(params, fmt.Sprintf("current=%t", current))
+
+	// Add team IDs if provided
+	if len(teamIDs) > 0 {
+		params = append(params, fmt.Sprintf("teamId=%s", strings.Join(teamIDs, ",")))
+	}
+
+	// Build endpoint
+	endpoint := fmt.Sprintf("/gate/ssdservice/v1/vulnerability/prioritisation?%s", strings.Join(params, "&"))
+
+	// Make request
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get vulnerability prioritization data: %w", err)
+	}
+
+	var response VulnerabilityPriority
+	if err := resp.ParseJSON(&response); err != nil {
+		return nil, fmt.Errorf("failed to parse vulnerability prioritization response: %w", err)
+	}
+
+	return &response, nil
 }
 
 // SCA API

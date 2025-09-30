@@ -375,6 +375,92 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/integrations/github/details": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Github Integrations details via Github APIs",
+                "consumes": [
+                    "*/*"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Github Integrations details via Github APIs",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Platform name (e.g., github)",
+                        "name": "platform",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Type of integration (e.g., organisation, user)",
+                        "name": "type",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Account ID (e.g., 0x3b32)",
+                        "name": "accountId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Scan level (e.g., repository, organization)",
+                        "name": "scanLevel",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/integrations/github/validate": {
             "post": {
                 "security": [
@@ -423,6 +509,64 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Creates a new project with the provided details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Create a new project",
+                "parameters": [
+                    {
+                        "description": "Project creation details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/service.CreateProjectRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -519,7 +663,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/client.CVERemediationRequest"
+                            "$ref": "#/definitions/service.CVERemediationRequest"
                         }
                     }
                 ],
@@ -591,6 +735,152 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/vuln/optimisation": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns vulnerability optimization metrics",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vulnerabilities"
+                ],
+                "summary": "Get vulnerability optimization data",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Organization ID",
+                        "name": "orgId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated list of team IDs",
+                        "name": "teamId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by suppressed status",
+                        "name": "suppressedFlag",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Get current vulnerabilities",
+                        "name": "current",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/client.VulnerabilityOptimization"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/vuln/prioritisation": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns vulnerability prioritization metrics",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vulnerabilities"
+                ],
+                "summary": "Get vulnerability prioritization data",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Organization ID",
+                        "name": "orgId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated list of team IDs",
+                        "name": "teamId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter by suppressed status",
+                        "name": "suppressedFlag",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Get current vulnerabilities",
+                        "name": "current",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/client.VulnerabilityPriority"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameters",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -855,35 +1145,101 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "client.CVERemediationRequest": {
+        "client.VulnerabilityOptimization": {
             "type": "object",
             "properties": {
-                "environment": {
-                    "type": "string"
+                "allVulnerabilities": {
+                    "type": "integer"
                 },
-                "findings": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
+                "topPriority": {
+                    "type": "integer"
+                },
+                "uniqueVulnerabilities": {
+                    "type": "integer"
+                }
+            }
+        },
+        "client.VulnerabilityPriority": {
+            "type": "object",
+            "properties": {
+                "priority": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "integer"
                     }
                 },
-                "project_id": {
-                    "type": "string"
+                "vulnerabilities": {
+                    "type": "integer"
                 },
-                "scan_id": {
-                    "type": "string"
-                },
-                "team_ids": {
+                "vulnerabilityPrioritisationData": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "object",
+                        "properties": {
+                            "cvss": {
+                                "type": "number"
+                            },
+                            "epss": {
+                                "type": "number"
+                            },
+                            "name": {
+                                "type": "string"
+                            },
+                            "prirorityInt": {
+                                "type": "integer"
+                            },
+                            "severity": {
+                                "type": "string"
+                            }
+                        }
                     }
+                }
+            }
+        },
+        "service.CVERemediationRequest": {
+            "type": "object",
+            "properties": {
+                "branch": {
+                    "type": "string"
+                },
+                "cve_id": {
+                    "type": "string"
+                },
+                "message_type": {
+                    "type": "string"
+                },
+                "organization": {
+                    "type": "string"
+                },
+                "package": {
+                    "type": "string"
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "scan_result_id": {
+                    "type": "string"
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "user_message": {
+                    "type": "string"
                 }
             }
         },
         "service.CreateGitHubIntegrationRequest": {
             "type": "object",
             "properties": {
+                "installationId": {
+                    "type": "string"
+                },
                 "name": {
                     "type": "string"
                 },
@@ -892,6 +1248,10 @@ const docTemplate = `{
                     "items": {
                         "type": "string"
                     }
+                },
+                "timestamp": {
+                    "description": "for app based access token decryption",
+                    "type": "integer"
                 },
                 "token": {
                     "type": "string"
@@ -915,6 +1275,45 @@ const docTemplate = `{
                 },
                 "tag": {
                     "type": "string"
+                }
+            }
+        },
+        "service.CreateProjectRequest": {
+            "type": "object",
+            "required": [
+                "hub_id",
+                "name",
+                "organisation",
+                "repoName",
+                "type"
+            ],
+            "properties": {
+                "hub_id": {
+                    "type": "string"
+                },
+                "integration_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "organisation": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "repoName": {
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
+                },
+                "type": {
+                    "description": "user/organisation",
+                    "type": "string",
+                    "maxLength": 255,
+                    "minLength": 1
                 }
             }
         },
@@ -998,7 +1397,7 @@ const docTemplate = `{
 var SwaggerInfo = &swag.Spec{
 	Version:          "1.0",
 	Host:             "localhost:8080",
-	BasePath:         "/api/v1",
+	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "AI Guardian API",
 	Description:      "AI Guardian API Service",

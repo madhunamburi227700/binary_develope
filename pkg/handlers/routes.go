@@ -5,6 +5,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/auth"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/hub"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/integrator"
@@ -19,11 +20,14 @@ import (
 func SetupRoutes() *mux.Router {
 	r := mux.NewRouter()
 
+	// Create clients
+	ssdClient := client.NewSSDClient()
+
 	// Create controllers
 	authController := auth.NewOAuthController()
 	projectController := project.NewProjectController()
 	hubController := hub.NewHubController()
-	vulnController := vuln.NewVulnController()
+	vulnController := vuln.NewVulnController(ssdClient)
 	integratorController := integrator.NewIntegratorController()
 	remediationController := remediation.NewRemediationsController()
 	scanController := scan.NewScanController()
@@ -79,6 +83,12 @@ func SetupRoutes() *mux.Router {
 
 			// list vulnerabilities by scan for sca ?hubname ?project name SCA
 			vulnerabilityRouter.HandleFunc("/list/sca", vulnController.GetSCAVulnerabilityList).Methods(http.MethodGet)
+
+			// Get vulnerability optimization data
+			vulnerabilityRouter.HandleFunc("/optimisation", vulnController.GetVulnerabilityOptimization).Methods(http.MethodGet)
+
+			// Get vulnerability prioritization data
+			vulnerabilityRouter.HandleFunc("/prioritisation", vulnController.GetVulnerabilityPrioritization).Methods(http.MethodGet)
 		}
 
 		// integrations

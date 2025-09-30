@@ -81,7 +81,7 @@ func (c *RemediationController) SASTRemediation(w http.ResponseWriter, r *http.R
 // @Tags Remediation
 // @Accept  json
 // @Produce  json
-// @Param   request body client.CVERemediationRequest true "CVE findings data"
+// @Param   request body service.CVERemediationRequest true "CVE findings data"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]string "Invalid request body"
 // @Failure 500 {object} map[string]string "Internal server error"
