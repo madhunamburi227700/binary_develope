@@ -5,7 +5,6 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/auth"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/hub"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/integrator"
@@ -20,14 +19,11 @@ import (
 func SetupRoutes() *mux.Router {
 	r := mux.NewRouter()
 
-	// Create clients
-	ssdClient := client.NewSSDClient()
-
 	// Create controllers
 	authController := auth.NewOAuthController()
 	projectController := project.NewProjectController()
 	hubController := hub.NewHubController()
-	vulnController := vuln.NewVulnController(ssdClient)
+	vulnController := vuln.NewVulnController()
 	integratorController := integrator.NewIntegratorController()
 	remediationController := remediation.NewRemediationsController()
 	scanController := scan.NewScanController()
