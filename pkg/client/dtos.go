@@ -448,3 +448,24 @@ type VulnerabilityItem struct {
 	Automatable      string   `json:"automatable,omitempty"`
 	TechnicalImpact  string   `json:"technicalImpact,omitempty"`
 }
+
+// VulnerabilityData represents the response structure for vulnerability endpoints
+// VulnerabilityOptimization represents the optimization data structure
+type VulnerabilityOptimization struct {
+	AllVulnerabilities    int `json:"allVulnerabilities"`
+	UniqueVulnerabilities int `json:"uniqueVulnerabilities"`
+	TopPriority           int `json:"topPriority"`
+}
+
+// VulnerabilityPriority represents the priority data structure
+type VulnerabilityPriority struct {
+	Vulnerabilities                 int            `json:"vulnerabilities"`
+	Priority                        map[string]int `json:"priority"`
+	VulnerabilityPrioritisationData []struct {
+		Name        string  `json:"name"`
+		Severity    string  `json:"severity"`
+		CVSS        float64 `json:"cvss"`
+		EPSS        float64 `json:"epss"`
+		PriorityInt int     `json:"prirorityInt"`
+	} `json:"vulnerabilityPrioritisationData"`
+}

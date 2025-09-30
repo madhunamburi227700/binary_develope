@@ -79,6 +79,12 @@ func SetupRoutes() *mux.Router {
 
 			// list vulnerabilities by scan for sca ?hubname ?project name SCA
 			vulnerabilityRouter.HandleFunc("/list/sca", vulnController.GetSCAVulnerabilityList).Methods(http.MethodGet)
+
+			// Get vulnerability optimization data
+			vulnerabilityRouter.HandleFunc("/optimisation", vulnController.GetVulnerabilityOptimization).Methods(http.MethodGet)
+
+			// Get vulnerability prioritization data
+			vulnerabilityRouter.HandleFunc("/prioritisation", vulnController.GetVulnerabilityPrioritization).Methods(http.MethodGet)
 		}
 
 		// integrations
