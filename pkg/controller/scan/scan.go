@@ -21,6 +21,18 @@ func NewScanController() *ScanController {
 	}
 }
 
+// Rescan triggers a rescan of the specified repository
+// @Summary Trigger a rescan
+// @Description Initiates a rescan of the specified repository for vulnerabilities
+// @Tags Scans
+// @Accept  json
+// @Produce  json
+// @Param   request body service.RescanRequest true "Rescan configuration"
+// @Success 200 {object} map[string]interface{} "Rescan initiated successfully"
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/scans/rescan [post]
 func (c *ScanController) Rescan(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)

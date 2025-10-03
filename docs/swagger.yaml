@@ -127,6 +127,19 @@ definitions:
           type: string
         type: array
     type: object
+  service.RescanRequest:
+    properties:
+      platform:
+        type: string
+      projectId:
+        type: string
+      projectName:
+        type: string
+      scanId:
+        type: string
+      scanType:
+        type: string
+    type: object
   service.SASTRemediationRequest:
     properties:
       branch:
@@ -326,6 +339,41 @@ paths:
       summary: List hubs by owner
       tags:
       - Hubs
+  /api/v1/integrations:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of all active integrations
+      parameters:
+      - description: Comma-separated list of team IDs to filter by
+        in: query
+        name: teamIds
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: List active integrations
+      tags:
+      - Integrations
   /api/v1/integrations/github:
     post:
       consumes:
@@ -538,6 +586,89 @@ paths:
       summary: Create a new project
       tags:
       - Projects
+  /api/v1/projects/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes the project with the specified ID
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid project ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Project not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Delete project by ID
+      tags:
+      - Projects
+    get:
+      consumes:
+      - application/json
+      description: Returns the project with the specified ID
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid project ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Project not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get project by ID
+      tags:
+      - Projects
   /api/v1/projects/summaries/count:
     get:
       consumes:
@@ -645,6 +776,95 @@ paths:
       summary: Process SAST remediation
       tags:
       - Remediation
+  /api/v1/scans/rescan:
+    post:
+      consumes:
+      - application/json
+      description: Initiates a rescan of the specified repository for vulnerabilities
+      parameters:
+      - description: Rescan configuration
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.RescanRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Rescan initiated successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Trigger a rescan
+      tags:
+      - Scans
+  /api/v1/vuln/list/sca:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of SCA vulnerabilities for the specified repository,
+        branch, and project
+      parameters:
+      - description: Project ID
+        in: query
+        name: projectId
+        required: true
+        type: string
+      - description: Hub ID (must be a valid UUID)
+        in: query
+        name: hubId
+        required: true
+        type: string
+      - description: Repository name
+        in: query
+        name: repository
+        required: true
+        type: string
+      - description: Branch name
+        in: query
+        name: branch
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing required parameters or invalid Hub ID format
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get SCA vulnerabilities
+      tags:
+      - Vulnerabilities
   /api/v1/vuln/optimisation:
     get:
       consumes:
