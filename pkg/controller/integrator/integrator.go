@@ -162,6 +162,18 @@ func (c *IntegratorController) GetIntegrationsGithubDetails(w http.ResponseWrite
 	})
 }
 
+// ListIntegrations lists all active integrations
+// @Summary List active integrations
+// @Description Returns a list of all active integrations
+// @Tags Integrations
+// @Accept  json
+// @Produce  json
+// @Param   teamIds query string false "Comma-separated list of team IDs to filter by"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/integrations [get]
 func (c *IntegratorController) ListIntegrations(w http.ResponseWriter, r *http.Request) {
 	teamIds := r.URL.Query().Get("teamIds")
 	// TODO: manage integrator via provider in future release

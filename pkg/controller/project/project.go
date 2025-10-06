@@ -65,7 +65,19 @@ func (c *ProjectController) CreateProject(w http.ResponseWriter, r *http.Request
 	})
 }
 
-// GetProject handles GET /api/v1/projects/{id}
+// GetProject retrieves a project by its ID
+// @Summary Get project by ID
+// @Description Returns the project with the specified ID
+// @Tags Projects
+// @Accept  json
+// @Produce  json
+// @Param   id path string true "Project ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid project ID"
+// @Failure 404 {object} map[string]string "Project not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/projects/{id} [get]
 func (c *ProjectController) GetProject(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	projectId, ok := vars["id"]
@@ -139,7 +151,19 @@ func (c *ProjectController) GetProject(w http.ResponseWriter, r *http.Request) {
 // 	})
 // }
 
-// DeleteProject handles DELETE /api/v1/projects/{id}
+// DeleteProject deletes a project by its ID
+// @Summary Delete project by ID
+// @Description Deletes the project with the specified ID
+// @Tags Projects
+// @Accept  json
+// @Produce  json
+// @Param   id path string true "Project ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid project ID"
+// @Failure 404 {object} map[string]string "Project not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/projects/{id} [delete]
 func (c *ProjectController) DeleteProject(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	projectId, ok := vars["id"]
