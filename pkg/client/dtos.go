@@ -235,6 +235,7 @@ type ProjectSummary struct {
 
 type SummaryMetaData struct {
 	ProjectName string `json:"projectName"`
+	TeamID      string `json:"teamId"`
 	Platform    string `json:"platform"`
 	// Organisation string `json:"organisation"`
 	Status string `json:"status"`

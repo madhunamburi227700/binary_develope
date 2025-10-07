@@ -399,8 +399,6 @@ func (c *SSDClient) CreateGitHubIntegration(ctx context.Context, name, token, in
 	return c.CreateIntegration(ctx, req, teamIDs)
 }
 
-// Projects API below
-
 // project summaries for team
 func (c *SSDClient) GetProjectSummaries(ctx context.Context, req *ProjectSummaryRequest) (*ProjectSummaryResponse, error) {
 	// Build query parameters
@@ -411,6 +409,8 @@ func (c *SSDClient) GetProjectSummaries(ctx context.Context, req *ProjectSummary
 		teamIDsStr := req.TeamIDs
 		params = append(params, fmt.Sprintf("teamId=%s", teamIDsStr))
 	}
+
+	params = append(params, fmt.Sprintf("orgId=%s", c.orgID))
 
 	// Add pagination
 	if req.PageNo > 0 {
@@ -451,7 +451,20 @@ func (c *SSDClient) GetProjectSummaries(ctx context.Context, req *ProjectSummary
 		return nil, fmt.Errorf("failed to parse project summaries response: %w", err)
 	}
 
+	result.ProjectSummaryResponse = filterByTeamID(result.ProjectSummaryResponse, req.TeamIDs)
+
 	return &result, nil
+}
+
+// filter by team id
+func filterByTeamID(projects []ProjectSummary, teamID string) []ProjectSummary {
+	var filteredProjects []ProjectSummary
+	for _, project := range projects {
+		if project.SummaryMetaData.TeamID == teamID {
+			filteredProjects = append(filteredProjects, project)
+		}
+	}
+	return filteredProjects
 }
 
 func (c *SSDClient) GetProjectDetails(ctx context.Context, projectId string) (*ProjectRef, error) {
@@ -490,12 +503,6 @@ func (c *SSDClient) GetProjectDetails(ctx context.Context, projectId string) (*P
 	return result[0], nil
 }
 
-// CreateProject creates a ssd project
-// Add project
-// Request Type POST
-// https://july-dev.aoa.oes.opsmx.org/gate/ssdservice/v1/scan/project?orgId=c3b62ec6-42e2-43d4-beaf-5b2017ab5848
-// {"name":"temp22","scanType":"sourceScan","platform":"github","accountId":"0x5f2f9","teamId":"fe2e8a09-a3f2-4263-b635-fa7e99f2d43b","scanLevel":"repoLevel","organisation":"arpit-jaswani","type":"user","projectConfigs":[{"repository":"python-app","scheduleTime":0,"branch":["onlyMain"],"branchPattern":"","scanUpto":0}]}
-// returns 201 and json response {"id":"0x5f416"}
 func (c *SSDClient) CreateProject(ctx context.Context, teamIds string, req *ProjectRef) (string, error) {
 	// Build query parameters
 	params := make([]string, 0)
@@ -532,10 +539,6 @@ func (c *SSDClient) CreateProject(ctx context.Context, teamIds string, req *Proj
 	return result.Id, nil
 }
 
-// Delete project
-// Requst type DELETE
-// https://july-dev.aoa.oes.opsmx.org/gate/ssdservice/v1/scan/project/0x5f2a6?orgId=c3b62ec6-42e2-43d4-beaf-5b2017ab5848&teamId=fe2e8a09-a3f2-4263-b635-fa7e99f2d43b
-// returns string and success Response
 func (c *SSDClient) DeleteProject(ctx context.Context, teamIds, projectId string) (string, error) {
 	// Build query parameters
 	params := make([]string, 0)
@@ -764,9 +767,6 @@ func (c *SSDClient) GetVulnerabilityPrioritization(ctx context.Context, teamIDs 
 func (c *SSDClient) GetVulnerabilityList(ctx context.Context, req *VulnerabilityListRequest) (*VulnerabilityListResponse, error) {
 	// Build query parameters
 	params := make([]string, 0)
-
-	// Required parameters
-	req.OrgID = c.orgID
 
 	if req.TeamID != "" {
 		params = append(params, fmt.Sprintf("teamId=%s", req.TeamID))
