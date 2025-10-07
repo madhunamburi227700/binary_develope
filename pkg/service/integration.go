@@ -217,6 +217,9 @@ func (s *IntegrationService) ListActiveIntegrations(ctx context.Context, integra
 
 	var activeIntegrations []client.Integration
 	for _, integration := range integrations {
+		if len(integration.Team) == 0 {
+			continue
+		}
 		if strings.ToLower(integration.Status) == "active" {
 			activeIntegrations = append(activeIntegrations, integration)
 		}
