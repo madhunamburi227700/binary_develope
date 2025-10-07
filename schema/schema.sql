@@ -1,155 +1,162 @@
-CREATE TABLE "users" (
-  "id" uuid PRIMARY KEY,
-  "email" varchar UNIQUE NOT NULL,
-  "name" varchar,
-  "status" varchar,
-  "created_at" timestamp,
-  "updated_at" timestamp
+-- Optional: enable extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";   -- for gen_random_uuid() if preferred
+
+-- ENUMs
+CREATE TYPE remediation_status_t AS ENUM ('OPEN','IN_PROGRESS','FIXED','FAILED','IGNORED');
+CREATE TYPE verification_status_t AS ENUM ('FIXED','UNFIXED');
+CREATE TYPE scan_status_t AS ENUM ('QUEUED','RUNNING','COMPLETED','FAILED');
+
+CREATE TABLE IF NOT EXISTS hubs (
+  id              varchar(16)    PRIMARY KEY,     -- SSD team id (bounded to save space)
+  name            varchar(255)   NOT NULL UNIQUE,
+  description     text,
+  owner_email     varchar(254),                      -- owner email from SSD
+  collaborators   text[],                            -- array of emails from SSD
+  created_at      timestamptz   NOT NULL DEFAULT now(),
+  updated_at      timestamptz   NOT NULL DEFAULT now()
 );
 
-CREATE TABLE "hubs" (
-  "id" uuid PRIMARY KEY,
-  "name" varchar UNIQUE NOT NULL,
-  "description" text,
-  "owner_id" uuid,
-  "collabrator_id" uuid [],
-  "created_at" timestamp,
-  "updated_at" timestamp
+CREATE INDEX IF NOT EXISTS idx_hubs_owner_email ON hubs(owner_email);
+
+CREATE TABLE IF NOT EXISTS settings (
+  id          uuid            PRIMARY KEY DEFAULT gen_random_uuid(),
+  hub_id      varchar(16)     NOT NULL,
+  key         varchar(190)    NOT NULL,
+  value       varchar(1000),
+  created_at  timestamptz     NOT NULL DEFAULT now(),
+  updated_at  timestamptz     NOT NULL DEFAULT now(),
+  CONSTRAINT fk_settings_hub FOREIGN KEY (hub_id) REFERENCES hubs(id) ON DELETE CASCADE
 );
 
-CREATE TABLE "integrations" (
-  "id" uuid PRIMARY KEY,
-  "user_id" uuid NOT NULL,
-  "type" varchar,
-  "name" varchar,
-  "config" text,
-  "is_active" boolean,
-  "created_at" timestamp,
-  "updated_at" timestamp
+CREATE UNIQUE INDEX IF NOT EXISTS ux_settings_hub_key ON settings(hub_id, key);
+
+CREATE TABLE IF NOT EXISTS scans (
+  id              varchar(16)    PRIMARY KEY,       -- SSD scan id
+  parent_scan_id  varchar(16),                         -- parent SSD scan id
+  project_id      varchar(16),                         -- SSD project id
+  status          scan_status_t  NOT NULL DEFAULT 'QUEUED',
+  triggered_by    varchar(254),                         -- user email
+  remediated      integer         DEFAULT 0,           -- consolidated remediated count
+  repository      varchar(512),
+  branch          varchar(256),
+  commit_sha      varchar(128),                         -- allow up to 128 to support sha256 if needed
+  pull_request_id varchar(128),
+  tag             varchar(128),
+  settings        jsonb,                                -- runtime settings for this scan
+  start_time      timestamptz,
+  end_time        timestamptz,
+  created_at      timestamptz     NOT NULL DEFAULT now()
 );
 
-CREATE TABLE "settings" (
-  "id" uuid PRIMARY KEY,
-  "hub_id" uuid,
-  "key" varchar,
-  "value" varchar,
-  "created_at" timestamp,
-  "updated_at" timestamp
+CREATE INDEX IF NOT EXISTS idx_scans_project ON scans(project_id);
+CREATE INDEX IF NOT EXISTS idx_scans_status ON scans(status);
+CREATE INDEX IF NOT EXISTS idx_scans_triggered_by ON scans(triggered_by);
+CREATE INDEX IF NOT EXISTS idx_scans_created_at ON scans(created_at);
+CREATE INDEX IF NOT EXISTS idx_scans_start_time ON scans(start_time);
+CREATE INDEX IF NOT EXISTS idx_scans_settings_gin ON scans USING GIN (settings);
+
+-- Fast lookup by repository/branch/commit
+CREATE INDEX IF NOT EXISTS idx_scans_repo_branch ON scans(repository, branch);
+
+CREATE TABLE IF NOT EXISTS scan_type (
+  id             varchar(80)    PRIMARY KEY,           -- e.g., "{scanid}-{type}" or SSD-provided id
+  scan_id        varchar(16)    NOT NULL,
+  scan_type      varchar(32)    NOT NULL,              -- sca, sast, etc.
+  tool           varchar(128),
+  file_name      varchar(512),
+  file_url       varchar(1024),
+  raw_json       jsonb,
+  findings_count integer        DEFAULT 0,
+  critical_count integer        DEFAULT 0,
+  high_count     integer        DEFAULT 0,
+  medium_count   integer        DEFAULT 0,
+  low_count      integer        DEFAULT 0,
+  CONSTRAINT fk_scan_type_scan FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE
 );
 
-CREATE TABLE "projects" (
-  "id" uuid PRIMARY KEY,
-  "hub_id" uuid,
-  "integration_id" uuid,
-  "name" varchar,
-  "repo_url" varchar,
-  "description" text,
-  "created_at" timestamp,
-  "updated_at" timestamp
+CREATE INDEX IF NOT EXISTS idx_scan_type_scanid ON scan_type(scan_id);
+CREATE INDEX IF NOT EXISTS idx_scan_type_tool ON scan_type(tool);
+CREATE INDEX IF NOT EXISTS idx_scan_type_rawjson_gin ON scan_type USING GIN (raw_json);
+
+CREATE TABLE IF NOT EXISTS vulnerabilities (
+  id           uuid           PRIMARY KEY DEFAULT gen_random_uuid(),
+  scan_id      varchar(16)    NOT NULL,                 -- refers to scans.id (SSD)
+  name         varchar(800)   NOT NULL,                 -- rule/file/line or CVE id or hashed composite
+  type         varchar(32),                              -- 'sast' or 'cve' etc
+  metadata     jsonb,
+  severity     varchar(32),
+  description  text,
+  created_at   timestamptz   NOT NULL DEFAULT now(),
+  CONSTRAINT fk_vuln_scan FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE
 );
 
-CREATE TABLE "scans" (
-  "id" uuid PRIMARY KEY,
-  "project_id" uuid,
-  "scan_type" varchar,
-  "tool" varchar,
-  "status" varchar,
-  "triggered_by" uuid,
-  "file_name" varchar,
-  "file_url" varchar,
-  "raw_json" jsonb,
-  "findings_count" int,
-  "critical_count" int,
-  "high_count" int,
-  "medium_count" int,
-  "low_count" int,
-  "remediated" int,
-  "branch" varchar,
-  "commit_sha" varchar,
-  "pull_request_id" varchar,
-  "tag" varchar,
-  "settings" jsonb,
-  "start_time" timestamp,
-  "end_time" timestamp,
-  "created_at" timestamp,
-  "updated_at" timestamp
+CREATE INDEX IF NOT EXISTS idx_vuln_scanid ON vulnerabilities(scan_id);
+CREATE INDEX IF NOT EXISTS idx_vuln_severity ON vulnerabilities(severity);
+CREATE INDEX IF NOT EXISTS idx_vuln_metadata_gin ON vulnerabilities USING GIN (metadata);
+
+CREATE TABLE IF NOT EXISTS remediations (
+  id               uuid                PRIMARY KEY DEFAULT gen_random_uuid(),
+  vulnerability_id uuid                NOT NULL,
+  status           remediation_status_t NOT NULL DEFAULT 'OPEN',
+  fix_commit_sha   varchar(128),
+  fix_branch       varchar(256),
+  pr_link          varchar(1024),
+  prompt_id        uuid,
+  conversation     jsonb,                   -- AI-assisted conversation / comments
+  started_at       timestamptz,
+  completed_at     timestamptz,
+  created_at       timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT fk_remediation_vuln FOREIGN KEY (vulnerability_id) REFERENCES vulnerabilities(id) ON DELETE CASCADE
 );
 
-CREATE TABLE "vulnerabilities" (
-  "id" uuid PRIMARY KEY,
-  "scan_id" uuid NOT NULL,
-  "name" varchar,
-  "type" varchar,
-  "metadata" jsonb,
-  "severity" varchar,
-  "description" varchar
+CREATE INDEX IF NOT EXISTS idx_remediations_vuln ON remediations(vulnerability_id);
+CREATE INDEX IF NOT EXISTS idx_remediations_status ON remediations(status);
+CREATE INDEX IF NOT EXISTS idx_remediations_prompt ON remediations(prompt_id);
+CREATE INDEX IF NOT EXISTS idx_remediations_conv_gin ON remediations USING GIN (conversation);
+
+CREATE TABLE IF NOT EXISTS remediation_verification (
+  id                 uuid                PRIMARY KEY DEFAULT gen_random_uuid(),
+  vulnerability_id   uuid                NOT NULL,
+  remediation_id     uuid                NOT NULL,
+  verification_tool  varchar(128),
+  status             verification_status_t NOT NULL,
+  pr_link            varchar(1024),
+  description        text,
+  created_at         timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT fk_ver_vuln FOREIGN KEY (vulnerability_id) REFERENCES vulnerabilities(id) ON DELETE CASCADE,
+  CONSTRAINT fk_ver_rem FOREIGN KEY (remediation_id) REFERENCES remediations(id) ON DELETE CASCADE
 );
 
-CREATE TABLE "remediations" (
-  "id" uuid PRIMARY KEY,
-  "scan_result_id" uuid NOT NULL,
-  "status" varchar,
-  "fix_commit_sha" varchar,
-  "pr_link" varchar,
-  "prompt_id" uuid,
-  "conversation" jsonb,
-  "started_at" timestamp,
-  "completed_at" timestamp
+CREATE INDEX IF NOT EXISTS idx_ver_remediation ON remediation_verification(remediation_id);
+CREATE INDEX IF NOT EXISTS idx_ver_tool ON remediation_verification(verification_tool);
+CREATE INDEX IF NOT EXISTS idx_ver_status ON remediation_verification(status);
+
+CREATE TABLE IF NOT EXISTS remediation_feedback (
+  id               uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
+  remediation_id   uuid          NOT NULL,
+  vulnerability_id  uuid         NOT NULL,
+  comments         text,
+  rating           numeric(3,2),
+  created_at       timestamptz   NOT NULL DEFAULT now(),
+  CONSTRAINT fk_feedback_rem FOREIGN KEY (remediation_id) REFERENCES remediations(id) ON DELETE CASCADE,
+  CONSTRAINT fk_feedback_vuln FOREIGN KEY (vulnerability_id) REFERENCES vulnerabilities(id) ON DELETE CASCADE
 );
 
-CREATE TABLE "remediation_verification" (
-  "id" uuid PRIMARY KEY,
-  "vulnerability_id" uuid,
-  "remediation_id" uuid,
-  "verification_tool" varchar,
-  "status" varchar,
-  "description" varchar,
-  "created_at" timestamp
+CREATE INDEX IF NOT EXISTS idx_feedback_rem ON remediation_feedback(remediation_id);
+CREATE INDEX IF NOT EXISTS idx_feedback_vuln ON remediation_feedback(vulnerability_id);
+
+CREATE TABLE IF NOT EXISTS audit_logs (
+  id         uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_email varchar(254)  NOT NULL,
+  hub_id     varchar(16),                          -- reference to hubs.id
+  action     varchar(128) NOT NULL,                -- consider enumerating if small set
+  metadata   jsonb,
+  created_at timestamptz  NOT NULL DEFAULT now(),
+  CONSTRAINT fk_audit_hub FOREIGN KEY (hub_id) REFERENCES hubs(id) ON DELETE SET NULL
 );
 
-CREATE TABLE "remediation_feedback" (
-  "id" uuid PRIMARY KEY,
-  "remediation_id" uuid,
-  "vulnerability_id" uuid,
-  "comments" varchar,
-  "rating" num
-);
-
-CREATE TABLE "audit_logs" (
-  "id" uuid PRIMARY KEY,
-  "user_id" uuid,
-  "hub_id" uuid,
-  "action" varchar,
-  "metadata" jsonb,
-  "created_at" timestamp
-);
-
-ALTER TABLE "hubs" ADD FOREIGN KEY ("owner_id") REFERENCES "users" ("id");
-
-ALTER TABLE "integrations" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
-
-ALTER TABLE "settings" ADD FOREIGN KEY ("hub_id") REFERENCES "hubs" ("id");
-
-ALTER TABLE "projects" ADD FOREIGN KEY ("hub_id") REFERENCES "hubs" ("id");
-
-ALTER TABLE "projects" ADD FOREIGN KEY ("integration_id") REFERENCES "integrations" ("id");
-
-ALTER TABLE "scans" ADD FOREIGN KEY ("project_id") REFERENCES "projects" ("id");
-
-ALTER TABLE "scans" ADD FOREIGN KEY ("triggered_by") REFERENCES "users" ("id");
-
-ALTER TABLE "vulnerabilities" ADD FOREIGN KEY ("scan_id") REFERENCES "scans" ("id");
-
-ALTER TABLE "remediations" ADD FOREIGN KEY ("scan_result_id") REFERENCES "vulnerabilities" ("id");
-
-ALTER TABLE "remediation_verification" ADD FOREIGN KEY ("vulnerability_id") REFERENCES "vulnerabilities" ("id");
-
-ALTER TABLE "remediation_verification" ADD FOREIGN KEY ("remediation_id") REFERENCES "remediations" ("id");
-
-ALTER TABLE "remediation_feedback" ADD FOREIGN KEY ("remediation_id") REFERENCES "remediations" ("id");
-
-ALTER TABLE "remediation_feedback" ADD FOREIGN KEY ("vulnerability_id") REFERENCES "vulnerabilities" ("id");
-
-ALTER TABLE "audit_logs" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
-
-ALTER TABLE "audit_logs" ADD FOREIGN KEY ("hub_id") REFERENCES "hubs" ("id");
+CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_logs(user_email);
+CREATE INDEX IF NOT EXISTS idx_audit_hub ON audit_logs(hub_id);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_audit_metadata_gin ON audit_logs USING GIN (metadata);
