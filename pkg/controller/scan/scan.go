@@ -37,29 +37,28 @@ func (c *ScanController) Rescan(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	var payload service.RescanRequest
 	if err := json.Unmarshal(body, &payload); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		c.logger.LogError(err, err.Error(), nil)
+		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	if err := c.scanService.ValidateRescanRequest(&payload); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	resp, err := c.scanService.Rescan(r.Context(), &payload)
 	if err != nil {
 		c.logger.LogError(err, err.Error(), nil)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(resp)
+	utils.SendSuccessResponseWithNoData(w, resp)
 }
