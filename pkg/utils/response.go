@@ -25,3 +25,13 @@ func SendSuccessResponse(w http.ResponseWriter, data interface{}, message string
 		"data":    data,
 	})
 }
+
+// send success response with no data
+func SendSuccessResponseWithNoData(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"message": message,
+	})
+}

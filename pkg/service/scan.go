@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
 
@@ -19,11 +20,10 @@ func NewScanService() *ScanService {
 }
 
 type RescanRequest struct {
-	ProjectID   string `json:"projectId"`
-	ProjectName string `json:"projectName"`
-	Platform    string `json:"platform"`
-	ScanID      string `json:"scanId"`
-	ScanType    string `json:"scanType"`
+	ProjectID  string `json:"projectId"`
+	HubID      string `json:"hubId"`
+	Repository string `json:"repository"`
+	Branch     string `json:"branch"`
 }
 
 type RescanResponse struct {
@@ -31,24 +31,27 @@ type RescanResponse struct {
 }
 
 func (s *ScanService) ValidateRescanRequest(req *RescanRequest) error {
-	if req.ProjectID == "" {
-		return fmt.Errorf("projectId is required")
-	}
-	if req.ProjectName == "" {
-		return fmt.Errorf("projectName is required")
-	}
-	if req.Platform == "" {
-		return fmt.Errorf("platform is required")
-	}
-	if req.ScanID == "" {
-		return fmt.Errorf("scanId is required")
-	}
-	if req.ScanType == "" {
-		return fmt.Errorf("scanType is required")
+	if req.ProjectID == "" || req.HubID == "" || req.Repository == "" || req.Branch == "" {
+		return fmt.Errorf("invalid request")
 	}
 	return nil
 }
 
-func (s *ScanService) Rescan(ctx context.Context, req *RescanRequest) (*RescanResponse, error) {
-	return s.ssdService.Rescan(ctx, req)
+func (s *ScanService) Rescan(ctx context.Context, req *RescanRequest) (string, error) {
+	scanResult, err := s.ssdService.GetScanResultData(ctx, &client.ScanResultDataRequest{
+		ProjectID:  req.ProjectID,
+		TeamID:     req.HubID,
+		Repository: req.Repository,
+		Type:       "sourceScan",
+		Branch:     req.Branch,
+	})
+	if err != nil {
+		return "", err
+	}
+
+	if scanResult.ScanID == "" {
+		return "", fmt.Errorf("scan result not found")
+	}
+
+	return s.ssdService.Rescan(ctx, req, scanResult)
 }

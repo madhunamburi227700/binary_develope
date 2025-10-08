@@ -167,25 +167,23 @@ func (s *SSDService) GetScanResultData(ctx context.Context, req *client.ScanResu
 	return result, nil
 }
 
-func (s *SSDService) Rescan(ctx context.Context, req *RescanRequest) (*RescanResponse, error) {
+func (s *SSDService) Rescan(ctx context.Context, req *RescanRequest, scanResult *client.ScanResultDataResponse) (string, error) {
 	ssdClient := client.NewSSDClient()
 
 	rescanReq := client.RescanRequest{
 		ProjectID:   req.ProjectID,
-		ProjectName: req.ProjectName,
-		Platform:    req.Platform,
-		ScanID:      req.ScanID,
-		ScanType:    req.ScanType,
+		ProjectName: scanResult.ProjectName,
+		Platform:    scanResult.Platform,
+		ScanID:      scanResult.ScanID,
+		ScanType:    "sourceScan",
 	}
 
 	resp, err := ssdClient.Rescan(ctx, &rescanReq)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	return &RescanResponse{
-		Message: resp.Message,
-	}, nil
+	return resp.Message, nil
 
 }
 
