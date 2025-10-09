@@ -86,3 +86,13 @@ func EncryptToken(plaintext string) (string, error) {
 	// Base64 encode
 	return base64.StdEncoding.EncodeToString(final), nil
 }
+
+// Check for string contains a specific strings array
+func ContainsString(str string, substrs []string) bool {
+	for _, substr := range substrs {
+		if strings.Contains(str, substr) {
+			return true
+		}
+	}
+	return false
+}

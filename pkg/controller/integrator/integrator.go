@@ -139,6 +139,24 @@ func (c *IntegratorController) InstallGitHubAppIntegration(w http.ResponseWriter
 // @Security ApiKeyAuth
 // @Router /api/v1/integrations/github/details [get]
 func (c *IntegratorController) GetIntegrationsGithubDetails(w http.ResponseWriter, r *http.Request) {
+	integrationId := r.URL.Query().Get("accountId")
+	if integrationId == "" {
+		utils.SendErrorResponse(w, http.StatusBadRequest, "Account ID is required")
+		return
+	}
+
+	integrationName := r.URL.Query().Get("integrationName")
+	if integrationName == "" {
+		utils.SendErrorResponse(w, http.StatusBadRequest, "Integration name is required")
+		return
+	}
+
+	hubID := r.URL.Query().Get("hubId")
+	if hubID == "" {
+		utils.SendErrorResponse(w, http.StatusBadRequest, "Hub ID is required")
+		return
+	}
+
 	queryParams := map[string]string{
 		// default scanLevel
 		"scanLevel": "org",
@@ -148,12 +166,14 @@ func (c *IntegratorController) GetIntegrationsGithubDetails(w http.ResponseWrite
 			queryParams[key] = values[0]
 		}
 	}
-	details, err := c.integratorService.GetGithubIntegrationsDetails(r.Context(), queryParams)
+
+	details, err := c.integratorService.GetGithubIntegrationsDetails(r.Context(), queryParams, integrationId, integrationName, hubID)
 	if err != nil {
 		c.logger.LogError(err, "Failed to get github integrations details", nil)
-		http.Error(w, err.Error(), http.StatusNotFound)
+		utils.SendErrorResponse(w, http.StatusNotFound, err.Error())
 		return
 	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -161,6 +181,9 @@ func (c *IntegratorController) GetIntegrationsGithubDetails(w http.ResponseWrite
 		"data":    details,
 	})
 }
+
+// failed to get repo branch list: failed to get repo branch list: status 500, body: {"status":"error","code":500,"error":"unable to fetch github token, error while receiving token response: HTTP 400: {\"success\":false,\"error\":\"failed to create installation token: POST https://api.github.com/app/installations/88096131/access_tokens: 404 Not Found []\",\"code\":\"GITHUB_API_ERROR\"}\n"}
+// github app is not available, please reinstall the app
 
 // ListIntegrations lists all active integrations
 // @Summary List active integrations
@@ -190,4 +213,33 @@ func (c *IntegratorController) ListIntegrations(w http.ResponseWriter, r *http.R
 		"success": true,
 		"data":    integrators,
 	})
+}
+
+func (c *IntegratorController) DeleteIntegration(w http.ResponseWriter, r *http.Request) {
+	integrationId := r.URL.Query().Get("integrationId")
+	if integrationId == "" {
+		http.Error(w, "Integration ID is required", http.StatusBadRequest)
+		return
+	}
+
+	hubID := r.URL.Query().Get("hubID")
+	if hubID == "" {
+		http.Error(w, "Hub ID is required", http.StatusBadRequest)
+		return
+	}
+
+	integrationName := r.URL.Query().Get("integrationName")
+	if integrationName == "" {
+		http.Error(w, "Integration name is required", http.StatusBadRequest)
+		return
+	}
+
+	err := c.integratorService.DeleteIntegration(r.Context(), integrationId, integrationName, hubID)
+	if err != nil {
+		c.logger.LogError(err, "Failed to delete integration", nil)
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	utils.SendSuccessResponseWithNoData(w, "Integration deleted successfully")
 }
