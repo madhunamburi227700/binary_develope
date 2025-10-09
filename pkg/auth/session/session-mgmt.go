@@ -97,8 +97,6 @@ func InitRedisSessionsStore(sessionTimeout int, hostAndPort, username, password 
 
 // Initialize the Session Store to DB for Postres backend sessions
 func InitPgSessionsStore(sessionTimeout int, dbuser, pass, hostAndPort, dbname, sslmode string) error {
-	log.Printf("Connect String:%s\n", "postgres://"+dbuser+":"+"REDACTED@"+hostAndPort+
-		"/"+dbname+"?sslmode="+sslmode)
 	store, err := pgstore.NewPGStore("postgres://"+dbuser+":"+pass+"@"+hostAndPort+
 		"/"+dbname+"?sslmode="+sslmode, []byte(generateRand()))
 	if err != nil {
@@ -126,8 +124,6 @@ func InitPgSessionsStore(sessionTimeout int, dbuser, pass, hostAndPort, dbname, 
 // On login success, create a Session ID, set a cookie and register the user
 // in the session storage. User name is added in
 func CreateSession(w http.ResponseWriter, r *http.Request, refreshToken, username string) {
-	log.Printf("Creating session for user: %s", username)
-
 	if sessionStore == nil {
 		log.Printf("Session store is nil!")
 		http.Error(w, "Session store not initialized", http.StatusInternalServerError)
@@ -154,7 +150,7 @@ func CreateSession(w http.ResponseWriter, r *http.Request, refreshToken, usernam
 		return
 	}
 	saveUser(user.Username) // Save user as logged in
-	log.Printf("Session created successfully for user: %s", user.Username)
+	log.Printf("Session created successfully for user")
 }
 
 // Method to check if an active session exists. Check if cookie exists
@@ -192,13 +188,12 @@ func GetSessionExists(r *http.Request) *models.AuthUser {
 
 	log.Printf("User found in session: %+v", user)
 	if userTmp, ok := user.(models.AuthUser); ok {
-		log.Printf("User type assertion successful: %s", userTmp.Username)
 		return &models.AuthUser{
 			Username:      userTmp.Username,
 			Authenticated: true,
 		}
 	} else {
-		log.Printf("Session Value was not a User:%T:%+v\n", user, user)
+		log.Printf("Session Value was not a User")
 	}
 	return nil
 }
@@ -233,7 +228,7 @@ func DeleteSession(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	log.Printf("User Status AFTER logout:%+v", session.Values["user"])
+	log.Printf("User Status AFTER logout")
 }
 
 // method to return the current session store
@@ -274,6 +269,5 @@ func generateRand() string {
 	}
 
 	state := base64.URLEncoding.EncodeToString(b)
-	log.Printf("state=%s\n", state)
 	return state
 }

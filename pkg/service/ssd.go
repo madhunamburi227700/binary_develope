@@ -240,8 +240,6 @@ func (s *SSDService) getIntegratorToken(ctx context.Context, projectId string) (
 		return "", err
 	}
 
-	s.logger.LogInfo(fmt.Sprintf("getIntegratorToken  %v", integration), nil)
-
 	if len(integration.QueryProject) == 0 {
 		return "", fmt.Errorf("no installationId found for project %s", projectId)
 	}

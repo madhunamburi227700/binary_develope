@@ -54,11 +54,7 @@ func (sm *SessionManager) Start(ctx context.Context) error {
 	// Start refresh goroutine
 	go sm.refreshLoop(ctx)
 
-	sm.logger.LogInfo("Session manager started", map[string]interface{}{
-		"base_url":         sm.baseURL,
-		"username":         sm.username,
-		"refresh_interval": "20 minutes",
-	})
+	sm.logger.LogInfo("SSD's session manager started", nil)
 
 	return nil
 }
@@ -66,7 +62,7 @@ func (sm *SessionManager) Start(ctx context.Context) error {
 // Stop stops the session manager
 func (sm *SessionManager) Stop() {
 	close(sm.stopChan)
-	sm.logger.LogInfo("Session manager stopped", nil)
+	sm.logger.LogInfo("SSD's session manager stopped", nil)
 }
 
 // GetSessionInfo returns current session information
@@ -99,10 +95,7 @@ func (sm *SessionManager) GetOrgID() string {
 func (sm *SessionManager) login() error {
 	loginURL := sm.baseURL + "/login?to="
 
-	sm.logger.LogInfo("Attempting login", map[string]interface{}{
-		"login_url": loginURL,
-		"username":  sm.username,
-	})
+	sm.logger.LogInfo("Attempting login", nil)
 
 	// Prepare form data
 	data := url.Values{}
@@ -148,18 +141,12 @@ func (sm *SessionManager) login() error {
 	defer resp.Body.Close()
 
 	// Log response details for debugging
-	sm.logger.LogInfo("Login response received", map[string]interface{}{
-		"status_code":   resp.StatusCode,
-		"cookies_count": len(resp.Cookies()),
-		"location":      resp.Header.Get("Location"),
-	})
+	sm.logger.LogInfo("Login response received", nil)
 
 	// Extract session ID from the initial login response cookies first
 	sessionID := sm.extractSessionFromCookies(resp.Cookies())
 	if sessionID != "" {
-		sm.logger.LogInfo("Session ID found in initial response", map[string]interface{}{
-			"session_id": sessionID,
-		})
+		sm.logger.LogInfo("Session ID found in initial response", nil)
 
 		// Get organization ID
 		orgID, err := sm.getOrganizationID(sessionID)
@@ -174,10 +161,7 @@ func (sm *SessionManager) login() error {
 		sm.orgID = orgID
 		sm.mutex.Unlock()
 
-		sm.logger.LogInfo("Login successful", map[string]interface{}{
-			"session_id": sessionID,
-			"org_id":     orgID,
-		})
+		sm.logger.LogInfo("Login successful", nil)
 
 		return nil
 	}
@@ -185,9 +169,7 @@ func (sm *SessionManager) login() error {
 	// If no session in initial response, check if we got a redirect
 	if resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusSeeOther || resp.StatusCode == 303 {
 		location := resp.Header.Get("Location")
-		sm.logger.LogInfo("Login redirect received", map[string]interface{}{
-			"location": location,
-		})
+		sm.logger.LogInfo("Login redirect received", nil)
 
 		// Handle relative URLs
 		var redirectURL string
@@ -197,9 +179,7 @@ func (sm *SessionManager) login() error {
 			redirectURL = sm.baseURL + location
 		}
 
-		sm.logger.LogInfo("Following redirect", map[string]interface{}{
-			"redirect_url": redirectURL,
-		})
+		sm.logger.LogInfo("Following redirect", nil)
 
 		// Follow the redirect to get the session cookie
 		if location != "" {
@@ -224,10 +204,7 @@ func (sm *SessionManager) login() error {
 			}
 			defer redirectResp.Body.Close()
 
-			sm.logger.LogInfo("Redirect response received", map[string]interface{}{
-				"status_code":   redirectResp.StatusCode,
-				"cookies_count": len(redirectResp.Cookies()),
-			})
+			sm.logger.LogInfo("Redirect response received", nil)
 
 			// Extract session ID from redirect response cookies
 			sessionID := sm.extractSessionFromCookies(redirectResp.Cookies())
@@ -248,10 +225,7 @@ func (sm *SessionManager) login() error {
 			sm.orgID = orgID
 			sm.mutex.Unlock()
 
-			sm.logger.LogInfo("Login successful via redirect", map[string]interface{}{
-				"session_id": sessionID,
-				"org_id":     orgID,
-			})
+			sm.logger.LogInfo("Login successful via redirect", nil)
 
 			return nil
 		}
@@ -291,10 +265,7 @@ func (sm *SessionManager) refreshLoop(ctx context.Context) {
 				sm.logger.LogError(err, "Session refresh failed", nil)
 				// Continue trying - don't exit the loop
 			} else {
-				sm.logger.LogInfo("Session refreshed successfully", map[string]interface{}{
-					"session_id": sm.sessionID,
-					"org_id":     sm.orgID,
-				})
+				sm.logger.LogInfo("Session refreshed successfully", nil)
 			}
 		case <-sm.stopChan:
 			return

@@ -99,8 +99,6 @@ func (s *HubService) CreateHub(ctx context.Context, req *CreateHubRequest) (*Cre
 		return nil, fmt.Errorf("received nil response from SSD service")
 	}
 
-	fmt.Println("clientResp ", clientResp)
-
 	// Convert response
 	response := &CreateHubResponse{
 		ID:    clientResp.ID,
