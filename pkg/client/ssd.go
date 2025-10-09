@@ -885,3 +885,20 @@ func (c *SSDClient) GetRepoBranchList(ctx context.Context, qparams map[string]st
 
 	return result, nil
 }
+
+func (c *SSDClient) DeleteIntegration(ctx context.Context, req *DeleteIntegrationRequest) error {
+	endpoint := fmt.Sprintf("/gate/ssdservice/v1/integration/delete?integrationId=%s&integrationName=%s&integrationType=%s&orgId=%s&level=global&teamId=%s",
+		req.IntegrationID, req.IntegrationName, req.IntegrationType, c.orgID, req.TeamID)
+
+	resp, err := c.restClient.Delete(ctx, endpoint, nil)
+	if err != nil {
+		fmt.Println("error while deleting integration", err)
+		return err
+	}
+
+	if !resp.IsSuccess() {
+		return fmt.Errorf("failed to delete integration: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	return nil
+}

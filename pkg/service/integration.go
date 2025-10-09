@@ -262,13 +262,34 @@ func (s *IntegrationService) GetGithubAppInstallationURL(ctx context.Context) (s
 
 // GetGithubIntegrationsDetails
 // getting details related to orgs/users/repos via github APIs
-func (s *IntegrationService) GetGithubIntegrationsDetails(ctx context.Context, params map[string]string) ([]string, error) {
+func (s *IntegrationService) GetGithubIntegrationsDetails(ctx context.Context, params map[string]string, integrationId, integrationName, hubID string) ([]string, error) {
 	details, err := s.ssdService.GetRepoBranchList(ctx, params)
 	if err != nil {
-		s.logger.LogError(err, "Failed to get repo branch list", nil)
-		return nil, fmt.Errorf("failed to get repo branch list: %w", err)
+		err := s.IntegratorHandler(ctx, err.Error(), integrationId, integrationName, hubID)
+		if err != nil {
+			return nil, err
+		}
+		return nil, err
 	}
 	return details, nil
+}
+
+func (s *IntegrationService) IntegratorHandler(ctx context.Context, err, integrationId, integrationName, hubID string) error {
+	if utils.ContainsString(err, []string{"404 Not Found", "GITHUB_API_ERROR"}) {
+		// delete the integration
+		err := s.DeleteIntegration(ctx, integrationId, integrationName, hubID)
+		if err != nil {
+			s.logger.LogError(err, "Failed to delete integration", map[string]interface{}{
+				"integration_id":   integrationId,
+				"integration_name": integrationName,
+				"hub_id":           hubID,
+			})
+			return fmt.Errorf("Internal server error")
+		}
+		return fmt.Errorf("github app is not available, please reinstall the app")
+	}
+	s.logger.LogError(nil, "Failed to get repo branch list", nil)
+	return fmt.Errorf("internal server error")
 }
 
 // Helper method to create team assignments
@@ -334,4 +355,16 @@ func (s *IntegrationService) validateGitHubIntegrationParams(req CreateGitHubInt
 	// 	return fmt.Errorf("auth generation InstallationId required")
 	// }
 	return nil
+}
+
+func (s *IntegrationService) DeleteIntegration(ctx context.Context, integrationId, integrationName, hubID string) error {
+	ssdClient := client.NewSSDClient()
+
+	return ssdClient.DeleteIntegration(ctx, &client.DeleteIntegrationRequest{
+		IntegrationID:   integrationId,
+		IntegrationName: integrationName,
+		IntegrationType: "github",
+		Level:           "global",
+		TeamID:          hubID,
+	})
 }

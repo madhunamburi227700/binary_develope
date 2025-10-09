@@ -470,3 +470,11 @@ type VulnerabilityPriority struct {
 		PriorityInt int     `json:"prirorityInt"`
 	} `json:"vulnerabilityPrioritisationData"`
 }
+
+type DeleteIntegrationRequest struct {
+	IntegrationID   string `json:"integrationId"`
+	IntegrationName string `json:"integrationName"`
+	IntegrationType string `json:"integrationType"`
+	Level           string `json:"level"`
+	TeamID          string `json:"teamId"`
+}
