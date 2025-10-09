@@ -118,8 +118,6 @@ func main() {
 	// Start server
 	addr := fmt.Sprintf(":%s", config.GetApiPort())
 	log.Info().Msgf("Server starting on %s", addr)
-	log.Info().Msgf("Swagger UI available at http://localhost%s/swagger/", addr)
-
 	// Setup graceful shutdown
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)

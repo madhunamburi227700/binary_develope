@@ -91,7 +91,6 @@ func FlushSSE(ctx context.Context, w http.ResponseWriter, resp SSEResponse) erro
 	for {
 		select {
 		case event, ok := <-resp.EventsChan:
-			fmt.Println("Received event data", event.Data)
 			if !ok {
 				return nil
 			}

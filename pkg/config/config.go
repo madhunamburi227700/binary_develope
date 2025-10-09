@@ -227,7 +227,6 @@ func GetUserOrgPassword() string {
 }
 
 func GetRemediationURL() string {
-	fmt.Println("config.RemediationService.Addr", config.RemediationService.Addr)
 	return config.RemediationService.Addr
 }
 
