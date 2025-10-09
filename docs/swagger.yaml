@@ -58,6 +58,22 @@ definitions:
       user_message:
         type: string
     type: object
+  service.CreateFeedbackRequest:
+    properties:
+      comments:
+        type: string
+      rating:
+        maximum: 5
+        minimum: 0
+        type: number
+      remediation_id:
+        type: string
+      vulnerability_id:
+        type: string
+    required:
+    - remediation_id
+    - vulnerability_id
+    type: object
   service.CreateGitHubIntegrationRequest:
     properties:
       installationId:
@@ -129,15 +145,13 @@ definitions:
     type: object
   service.RescanRequest:
     properties:
-      platform:
+      branch:
+        type: string
+      hubId:
         type: string
       projectId:
         type: string
-      projectName:
-        type: string
-      scanId:
-        type: string
-      scanType:
+      repository:
         type: string
     type: object
   service.SASTRemediationRequest:
@@ -162,6 +176,15 @@ definitions:
         type: string
       token:
         type: string
+    type: object
+  service.UpdateFeedbackRequest:
+    properties:
+      comments:
+        type: string
+      rating:
+        maximum: 5
+        minimum: 0
+        type: number
     type: object
   service.ValidateGitHubIntegrationRequest:
     properties:
@@ -702,6 +725,334 @@ paths:
       summary: Get project summary count
       tags:
       - Projects
+  /api/v1/remediation-feedback:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of feedbacks with optional filtering. Internal use
+        only - requires authentication.
+      parameters:
+      - description: Filter by remediation ID
+        in: query
+        name: remediation_id
+        type: string
+      - description: Filter by vulnerability ID
+        in: query
+        name: vulnerability_id
+        type: string
+      - description: 'Page number (default: 1)'
+        in: query
+        name: page
+        type: integer
+      - description: 'Page size (default: 10)'
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid query parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: List feedbacks (Internal)
+      tags:
+      - RemediationFeedback-Internal
+    post:
+      consumes:
+      - application/json
+      description: Creates a new feedback entry for a remediation. Any authenticated
+        user can create feedback.
+      parameters:
+      - description: Feedback creation details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.CreateFeedbackRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Create remediation feedback
+      tags:
+      - RemediationFeedback
+  /api/v1/remediation-feedback/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: Deletes a feedback entry. Internal use only - requires authentication.
+      parameters:
+      - description: Feedback ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid feedback ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Feedback not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Delete feedback (Internal)
+      tags:
+      - RemediationFeedback-Internal
+    get:
+      consumes:
+      - application/json
+      description: Returns the feedback with the specified ID. Internal use only -
+        requires authentication.
+      parameters:
+      - description: Feedback ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid feedback ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Feedback not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get feedback by ID (Internal)
+      tags:
+      - RemediationFeedback-Internal
+    put:
+      consumes:
+      - application/json
+      description: Updates an existing feedback entry. Internal use only - requires
+        authentication.
+      parameters:
+      - description: Feedback ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Feedback update details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/service.UpdateFeedbackRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Feedback not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Update feedback (Internal)
+      tags:
+      - RemediationFeedback-Internal
+  /api/v1/remediation-feedback/remediation/{remediation_id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns all feedbacks for a specific remediation. Internal use
+        only - requires authentication.
+      parameters:
+      - description: Remediation ID
+        in: path
+        name: remediation_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid remediation ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get feedbacks by remediation ID (Internal)
+      tags:
+      - RemediationFeedback-Internal
+  /api/v1/remediation-feedback/stats/{remediation_id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns statistics for feedback of a specific remediation. Internal
+        use only - requires authentication.
+      parameters:
+      - description: Remediation ID
+        in: path
+        name: remediation_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid remediation ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get feedback statistics (Internal)
+      tags:
+      - RemediationFeedback-Internal
+  /api/v1/remediation-feedback/vulnerability/{vulnerability_id}:
+    get:
+      consumes:
+      - application/json
+      description: Returns all feedbacks for a specific vulnerability. Internal use
+        only - requires authentication.
+      parameters:
+      - description: Vulnerability ID
+        in: path
+        name: vulnerability_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid vulnerability ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get feedbacks by vulnerability ID (Internal)
+      tags:
+      - RemediationFeedback-Internal
   /api/v1/remediation/cve:
     post:
       consumes:
