@@ -128,10 +128,7 @@ func (c *IntegratorController) InstallGitHubAppIntegration(w http.ResponseWriter
 // @Tags Integrations
 // @Accept */*
 // @Produce  json
-// @Param platform query string true "Platform name (e.g., github)"
-// @Param type query string true "Type of integration (e.g., organisation, user)"
 // @Param accountId query string true "Account ID (e.g., 0x3b32)"
-// @Param scanLevel query string true "Scan level (e.g., repository, organization)"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]string "Invalid request"
 // @Failure 401 {object} map[string]string "Unauthorized"
@@ -158,8 +155,16 @@ func (c *IntegratorController) GetIntegrationsGithubDetails(w http.ResponseWrite
 	}
 
 	queryParams := map[string]string{
-		// default scanLevel
-		"scanLevel": "org",
+		// automated param from UI
+		// "accountId":"account-id",
+
+		// default params
+		// ssd will look for repos from installation id based token
+		// if orgName is blank
+		"platform":  "github", // automate platform in future release
+		"scanLevel": "repository",
+		"type":      "user",
+		"orgName":   "",
 	}
 	for key, values := range r.URL.Query() {
 		if len(values) > 0 {
