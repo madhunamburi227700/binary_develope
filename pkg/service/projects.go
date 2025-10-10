@@ -31,8 +31,6 @@ type CreateProjectRequest struct {
 	HubID         string `json:"hub_id" validate:"required"`
 	IntegrationID string `json:"integration_id"`
 	Name          string `json:"name" validate:"required,min=1,max=255"`
-	Organisation  string `json:"organisation" validate:"required,min=1,max=255"`
-	Type          string `json:"type" validate:"required,min=1,max=255"` // user/organisation
 	RepoName      string `json:"repoName" validate:"required,min=1,max=255"`
 }
 
@@ -64,6 +62,13 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 	// same project name check would be auto applied via ssd
 	// current they do not have any api to check project via name
 
+	// getting username from ssd based on account id
+	username, err := s.getGithubUsername(ctx, req.IntegrationID)
+	if err != nil {
+		s.logger.LogError(err, "Failed to get user", nil)
+		return "", fmt.Errorf("failed to get user")
+	}
+
 	// {"name":"temp22","scanType":"sourceScan","platform":"github","accountId":"0x5f2f9","teamId":"fe2e8a09-a3f2-4263-b635-fa7e99f2d43b","scanLevel":"repoLevel","organisation":"arpit-jaswani","type":"user","projectConfigs":[{"repository":"python-app","scheduleTime":0,"branch":["onlyMain"],"branchPattern":"","scanUpto":0}]}
 	// Create project
 	scheduleTime := 0
@@ -71,8 +76,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 	project := &client.ProjectRef{
 		Name:         req.Name,
 		AccountID:    req.IntegrationID,
-		Organisation: req.Organisation,
-		Type:         req.Type,
+		Organisation: username,
 		TeamID:       req.HubID,
 
 		// TODO: automate below fields
@@ -82,6 +86,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 			ScheduleTime: &scheduleTime,
 			ScanUpto:     &scanUpto,
 		}},
+		Type:      "user", // since we authenticating using github app token type can be any user/organisation
 		ScanType:  "sourceScan",
 		Platform:  "github",
 		ScanLevel: "repoLevel",
@@ -96,7 +101,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 	}
 
 	s.logger.LogInfo("Project created successfully", map[string]interface{}{
-		"project_id": project.ID,
+		"project_id": projectId,
 		"name":       req.Name,
 		"hub_id":     req.HubID,
 	})
@@ -312,12 +317,6 @@ func (s *ProjectService) validateCreateRequest(req *CreateProjectRequest) error 
 	if req.Name == "" {
 		return fmt.Errorf("name is required")
 	}
-	if req.Organisation == "" {
-		return fmt.Errorf("organisation is required")
-	}
-	if req.Type == "" {
-		return fmt.Errorf("type is required user/organisation")
-	}
 	if req.RepoName == "" {
 		return fmt.Errorf("repoName is required user/organisation")
 	}
@@ -367,4 +366,24 @@ func (s *ProjectService) GetProjectSummariesForTeams(ctx context.Context, req *G
 
 func (s *ProjectService) GetProjectSummaryCount(ctx context.Context, hubIDs []string) (*client.SourceScanSummaryCount, error) {
 	return s.ssdService.GetProjectSummaryCount(ctx, hubIDs)
+}
+
+func (s *ProjectService) getGithubUsername(ctx context.Context, accountId string) (string, error) {
+	userNames, err := s.ssdService.GetRepoBranchList(ctx, map[string]string{
+		// automated param from UI
+		"accountId": accountId,
+		// default params
+		// ssd will look for repos from installation id based token
+		// if orgName is blank
+		"platform":  "github", // automate platform in future release
+		"scanLevel": "org",
+		"type":      "user",
+	})
+	if err != nil {
+		return "", err
+	} else if len(userNames) == 0 {
+		return "", fmt.Errorf("user not found")
+	}
+	// based on installation id token org should always be one
+	return userNames[0], nil
 }
