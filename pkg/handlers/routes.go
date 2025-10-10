@@ -10,6 +10,7 @@ import (
 	"github.com/opsmx/ai-guardian-api/pkg/controller/integrator"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/project"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/remediation"
+	"github.com/opsmx/ai-guardian-api/pkg/controller/remediation_feedback"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/scan"
 	vuln "github.com/opsmx/ai-guardian-api/pkg/controller/vulnerability"
 	"github.com/opsmx/ai-guardian-api/pkg/middleware"
@@ -26,6 +27,7 @@ func SetupRoutes() *mux.Router {
 	vulnController := vuln.NewVulnController()
 	integratorController := integrator.NewIntegratorController()
 	remediationController := remediation.NewRemediationsController()
+	remediationFeedbackController := remediation_feedback.NewRemediationFeedbackController()
 	scanController := scan.NewScanController()
 
 	// Public auth routes (no authentication required)
@@ -111,18 +113,32 @@ func SetupRoutes() *mux.Router {
 			remediationsRouter.HandleFunc("/cve", remediationController.CVERemediation).Methods(http.MethodPost)
 		}
 
+		// remediation feedback
+		feedbackRouter := apiRouter.PathPrefix("/remediation-feedback").Subrouter()
+		{
+			feedbackRouter.HandleFunc("", remediationFeedbackController.CreateFeedback).Methods(http.MethodPost)
+
+			// Developer endpoints
+			// feedbackRouter.HandleFunc("", remediationFeedbackController.ListFeedbacks).Methods(http.MethodGet)
+
+			// feedbackRouter.HandleFunc("/{id}", remediationFeedbackController.GetFeedback).Methods(http.MethodGet)
+
+			// feedbackRouter.HandleFunc("/{id}", remediationFeedbackController.UpdateFeedback).Methods(http.MethodPut)
+
+			// feedbackRouter.HandleFunc("/{id}", remediationFeedbackController.DeleteFeedback).Methods(http.MethodDelete)
+
+			// feedbackRouter.HandleFunc("/remediation/{remediation_id}", remediationFeedbackController.GetFeedbacksByRemediationID).Methods(http.MethodGet)
+
+			// feedbackRouter.HandleFunc("/vulnerability/{vulnerability_id}", remediationFeedbackController.GetFeedbacksByVulnerabilityID).Methods(http.MethodGet)
+
+			// feedbackRouter.HandleFunc("/stats/{remediation_id}", remediationFeedbackController.GetFeedbackStats).Methods(http.MethodGet)
+		}
+
 		// Scans
 		scansRouter := apiRouter.PathPrefix("/scans").Subrouter()
 		{
 			scansRouter.HandleFunc("/rescan", scanController.Rescan).Methods(http.MethodPost)
 		}
-
-		// Add other protected routes here
-		// apiRouter.HandleFunc("/integrations", integrationController.GetIntegrations).Methods("GET")
-		// apiRouter.HandleFunc("/scans", scanController.GetScans).Methods("GET")
-		// apiRouter.HandleFunc("/vulnerabilities", vulnerabilityController.GetVulnerabilities).Methods("GET")
-		// apiRouter.HandleFunc("/remediations", remediationController.GetRemediations).Methods("GET")
-		// audit
 	}
 
 	// Health check endpoint

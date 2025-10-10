@@ -31,8 +31,9 @@ type RemediationVerification struct {
 
 type RemediationFeedback struct {
 	ID              uuid.UUID  `json:"id" db:"id"`
-	RemediationID   *uuid.UUID `json:"remediation_id" db:"remediation_id"`
-	VulnerabilityID *uuid.UUID `json:"vulnerability_id" db:"vulnerability_id"`
+	RemediationID   uuid.UUID  `json:"remediation_id" db:"remediation_id"`
+	VulnerabilityID uuid.UUID  `json:"vulnerability_id" db:"vulnerability_id"`
 	Comments        *string    `json:"comments" db:"comments"`
 	Rating          *float64   `json:"rating" db:"rating"`
+	CreatedAt       *time.Time `json:"created_at" db:"created_at"`
 }
