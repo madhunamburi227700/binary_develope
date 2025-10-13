@@ -13,6 +13,7 @@ import (
 
 type OAuthController struct {
 	googleOAuth *oauth.GoogleOAuth
+	githubOAuth *oauth.GithubOAuth
 	logger      *utils.ErrorLogger
 }
 
@@ -20,6 +21,7 @@ type OAuthController struct {
 func NewOAuthController() *OAuthController {
 	return &OAuthController{
 		googleOAuth: oauth.NewGoogleOAuth(),
+		githubOAuth: oauth.NewGithubOAuth(),
 		logger:      utils.NewErrorLogger("oauth_controller"),
 	}
 }
@@ -136,4 +138,17 @@ func generateState() (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+// GithubLogin verifies the email from github and redirects to UI
+// @Summary Verifies github OAuth login
+// @Description Starts the OAuth 2.0 flow for Github authentication
+// @Tags Authentication
+// @Accept  json
+// @Produce  json
+// @Success 200 {object} map[string]string
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /auth/github/login [post]
+func (ctrl *OAuthController) GithubLogin(w http.ResponseWriter, r *http.Request) {
+	ctrl.githubOAuth.HandleLogin(w, r)
 }

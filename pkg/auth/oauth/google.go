@@ -183,7 +183,7 @@ func (g *GoogleOAuth) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	})
 
 	// Return success response
-	frontendUrl := fmt.Sprintf("https://ai-rem-dev.scanner.opsmx.org/callback?success=true&email=%s", user.Email)
+	frontendUrl := fmt.Sprintf("%s/callback?success=true&email=%s", config.GetUIAddress(), user.Email)
 	http.Redirect(w, r, frontendUrl, http.StatusFound)
 }
 

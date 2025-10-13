@@ -6,6 +6,8 @@ github.com/OpsMx/go-app-base v0.0.24 h1:ToKpkiVNk803DUFz0VEyi2r/ZUiZN1seNsIY4zbG
 github.com/OpsMx/go-app-base v0.0.24/go.mod h1:jKQSuIBTo9OcWOK1XC91jr7cbcEQHUU8FojDHj+nf0g=
 github.com/OpsMx/oauth-bridge-client v1.2.0 h1:1WWAfsqXlBVDx2hRkEqtDYlG533A1lIGYLDexUyYuSg=
 github.com/OpsMx/oauth-bridge-client v1.2.0/go.mod h1:nA4AtDp7Uot/6wnStL7t8NqG1QEY6iw+2mE5w1uLf+I=
+github.com/OpsMx/oauth-bridge-client v1.3.0 h1:55KRlWWPcxU0SSUlOczalvGuD+mKX7w8QjD6+KKcDcA=
+github.com/OpsMx/oauth-bridge-client v1.3.0/go.mod h1:nA4AtDp7Uot/6wnStL7t8NqG1QEY6iw+2mE5w1uLf+I=
 github.com/antonlindstrom/pgstore v0.0.0-20220421113606-e3a6e3fed12a h1:dIdcLbck6W67B5JFMewU5Dba1yKZA3MsT67i4No/zh0=
 github.com/antonlindstrom/pgstore v0.0.0-20220421113606-e3a6e3fed12a/go.mod h1:Sdr/tmSOLEnncCuXS5TwZRxuk7deH1WXVY8cve3eVBM=
 github.com/bsm/ginkgo/v2 v2.12.0 h1:Ny8MWAHyOepLGlLKYmXG4IEkioBysk6GpaRTLC8zwWs=

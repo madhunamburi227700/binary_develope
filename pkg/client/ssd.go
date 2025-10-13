@@ -841,14 +841,14 @@ func (c *SSDClient) GetGithubOauthUrl(ctx context.Context) (string, error) {
 	}
 
 	if !resp.IsSuccess() {
-		return "", fmt.Errorf("failed to get vulnerability list: status %d, body: %s", resp.StatusCode, resp.String())
+		return "", fmt.Errorf("failed to get oauth url: status %d, body: %s", resp.StatusCode, resp.String())
 	}
 
 	var result struct {
 		InstallUrl string `json:"url"`
 	}
 	if err := resp.ParseJSON(&result); err != nil {
-		return "", fmt.Errorf("failed to parse vulnerability list response: %w", err)
+		return "", fmt.Errorf("failed to parse oauth url response: %w", err)
 	}
 
 	return result.InstallUrl, nil

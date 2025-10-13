@@ -6,7 +6,7 @@ toolchain go1.24.7
 
 require (
 	github.com/OpsMx/go-app-base v0.0.24
-	github.com/OpsMx/oauth-bridge-client v1.2.0
+	github.com/OpsMx/oauth-bridge-client v1.3.0
 	github.com/antonlindstrom/pgstore v0.0.0-20220421113606-e3a6e3fed12a
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1

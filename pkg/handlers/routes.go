@@ -36,6 +36,10 @@ func SetupRoutes() *mux.Router {
 		authRouter.HandleFunc("/google/login", authController.GoogleLogin).Methods(http.MethodGet)
 		authRouter.HandleFunc("/google/callback", authController.GoogleCallback).Methods(http.MethodGet)
 		authRouter.HandleFunc("/logout", authController.Logout).Methods(http.MethodPost)
+
+		// install github app integrator
+		authRouter.HandleFunc("/github/install", integratorController.InstallGitHubAppIntegration).Methods(http.MethodGet)
+		authRouter.HandleFunc("/github/login", authController.GithubLogin).Methods(http.MethodPost)
 	}
 
 	// Protected routes (authentication required)
@@ -98,8 +102,6 @@ func SetupRoutes() *mux.Router {
 			integrationsRouter.HandleFunc("/github/create", integratorController.CreateGitHubIntegration).Methods(http.MethodPost)
 			// validate integration
 			integrationsRouter.HandleFunc("/github/validate", integratorController.ValidateGitHubIntegration).Methods(http.MethodPost)
-			// install github app integrator
-			integrationsRouter.HandleFunc("/github/install", integratorController.InstallGitHubAppIntegration).Methods(http.MethodGet)
 			// integrations related details for github
 			integrationsRouter.HandleFunc("/github/details", integratorController.GetIntegrationsGithubDetails).Methods(http.MethodGet)
 			// delete integration

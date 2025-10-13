@@ -13,6 +13,7 @@ type configType struct {
 	Timezone    string `yaml:"timezone"`
 	ApiHost     string `yaml:"apiHost"`
 	ApiPort     string `yaml:"apiPort"`
+	UIAddress   string `yaml:"uiAddr"`
 	ShowVersion bool   `yaml:"showVersion"`
 	// TODO: Remove
 	Token   string `yaml:"githubToken"`
@@ -114,6 +115,10 @@ func GetAppName() string {
 
 func GetCORSStr() string {
 	return config.CORSStr
+}
+
+func GetUIAddress() string {
+	return config.UIAddress
 }
 
 func GetCorsOrigin() string {
