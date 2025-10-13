@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -95,4 +96,16 @@ func ContainsString(str string, substrs []string) bool {
 		}
 	}
 	return false
+}
+
+// StringToInt converts a string to an integer with a default value if conversion fails
+func StringToInt(s string, defaultValue int) int {
+	if s == "" {
+		return defaultValue
+	}
+	val, err := strconv.Atoi(s)
+	if err != nil {
+		return defaultValue
+	}
+	return val
 }
