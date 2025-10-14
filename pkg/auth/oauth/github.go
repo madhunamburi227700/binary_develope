@@ -75,8 +75,12 @@ func (g *GithubOAuth) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		"email": userEmail,
 	})
 
-	frontendUrl := fmt.Sprintf("%s/callback?success=true&email=%s", g.uiAddr, userEmail)
-	http.Redirect(w, r, frontendUrl, http.StatusFound)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    map[string]string{"email": userEmail},
+	})
 }
 
 func decryptToken(eToken string, timestamp int64) (string, error) {
