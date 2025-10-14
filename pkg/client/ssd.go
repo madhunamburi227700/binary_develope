@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/opsmx/ai-guardian-api/pkg/config"
 )
 
 // SSDClientInterface defines the interface for SSD operations
@@ -374,7 +376,7 @@ func (c *SSDClient) CreateGitHubIntegration(ctx context.Context, name, token, in
 		Team: make([]TeamAssignment, len(teamIDs)),
 		// this refers to github integrator id of ssd
 		// TODO: automate this via ssd call
-		ID: "19f5dc29-3f84-4510-b543-9e6a3a2922a4",
+		ID: config.GetGithubIntegratorID(),
 	}
 
 	if installationId != "" {

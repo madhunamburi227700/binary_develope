@@ -110,26 +110,6 @@ func (s *IntegrationService) CreateGitHubIntegration(ctx context.Context, req Cr
 		return "", err
 	}
 
-	// bridgeClient, err := oauthBridge.NewClient(serviceName)
-	// if err != nil {
-	// 	s.logger.LogError(err, "failed to initialize oauth client", map[string]interface{}{
-	// 		"name":     req.Name,
-	// 		"team_ids": req.TeamIDs,
-	// 	})
-	// 	return "", fmt.Errorf("failed to initialize oauth client: %s", err.Error())
-	// }
-
-	// oauthDecryptedToken, err := bridgeClient.DecryptToken(req.Token, req.Timestamp)
-	// if err != nil {
-	// 	s.logger.LogError(err, "failed to decrypt oauth token", map[string]interface{}{
-	// 		"name":      req.Name,
-	// 		"team_ids":  req.TeamIDs,
-	// 		"token":     req.Token,
-	// 		"timestamp": req.Timestamp,
-	// 	})
-	// 	return "", fmt.Errorf("failed to decrypt oauth token: %s", err.Error())
-	// }
-
 	ssdClient := client.NewSSDClient()
 
 	result, err := ssdClient.CreateGitHubIntegration(ctx, req.Name, req.Token, req.InstallationId, req.Timestamp, req.TeamIDs)
