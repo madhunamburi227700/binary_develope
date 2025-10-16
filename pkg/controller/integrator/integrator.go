@@ -156,7 +156,7 @@ func (c *IntegratorController) GetIntegrationsGithubDetails(w http.ResponseWrite
 
 	queryParams := map[string]string{
 		// automated param from UI
-		// "accountId":"account-id",
+		"accountId": integrationId,
 
 		// default params
 		// ssd will look for repos from installation id based token
@@ -165,11 +165,6 @@ func (c *IntegratorController) GetIntegrationsGithubDetails(w http.ResponseWrite
 		"scanLevel": "repository",
 		"type":      "user",
 		"orgName":   "",
-	}
-	for key, values := range r.URL.Query() {
-		if len(values) > 0 {
-			queryParams[key] = values[0]
-		}
 	}
 
 	details, err := c.integratorService.GetGithubIntegrationsDetails(r.Context(), queryParams, integrationId, integrationName, hubID)
