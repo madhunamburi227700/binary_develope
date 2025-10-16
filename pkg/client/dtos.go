@@ -120,6 +120,12 @@ type Integration struct {
 	IntegratorConfigs map[string]interface{} `json:"integratorConfigs"`
 }
 
+type IntegrationStatus struct {
+	IntegratorTypeId string `json:"integratorTypeId,omitempty"`
+	IntegratorType   string `yaml:"integratorType,omitempty" json:"integratorType,omitempty"`
+	Status           string `yaml:"status,omitempty" json:"status,omitempty"`
+}
+
 type CreateIntegrationRequest struct {
 	Name              string                 `json:"name"`
 	IntegratorType    string                 `json:"integratorType"`
