@@ -1,14 +1,13 @@
--- Optional: enable extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";   -- for gen_random_uuid() if preferred
 
 -- ENUMs
 CREATE TYPE remediation_status_t AS ENUM ('OPEN','IN_PROGRESS','FIXED','FAILED','IGNORED');
 CREATE TYPE verification_status_t AS ENUM ('FIXED','UNFIXED');
-CREATE TYPE scan_status_t AS ENUM ('QUEUED','RUNNING','COMPLETED','FAILED');
+CREATE TYPE scan_status_t AS ENUM ('pending','fail','completed','scanning');
 
 CREATE TABLE IF NOT EXISTS hubs (
-  id              varchar(16)    PRIMARY KEY,     -- SSD team id (bounded to save space)
+  id              varchar(64)    PRIMARY KEY,     -- SSD team id (bounded to save space)
   name            varchar(255)   NOT NULL UNIQUE,
   description     text,
   owner_email     varchar(254),                      -- owner email from SSD
@@ -21,7 +20,7 @@ CREATE INDEX IF NOT EXISTS idx_hubs_owner_email ON hubs(owner_email);
 
 CREATE TABLE IF NOT EXISTS settings (
   id          uuid            PRIMARY KEY DEFAULT gen_random_uuid(),
-  hub_id      varchar(16)     NOT NULL,
+  hub_id      varchar(64)     NOT NULL,
   key         varchar(190)    NOT NULL,
   value       varchar(1000),
   created_at  timestamptz     NOT NULL DEFAULT now(),
@@ -32,11 +31,12 @@ CREATE TABLE IF NOT EXISTS settings (
 CREATE UNIQUE INDEX IF NOT EXISTS ux_settings_hub_key ON settings(hub_id, key);
 
 CREATE TABLE IF NOT EXISTS scans (
-  id              varchar(16)    PRIMARY KEY,       -- SSD scan id
-  parent_scan_id  varchar(16),                         -- parent SSD scan id
-  project_id      varchar(16),                         -- SSD project id
-  status          scan_status_t  NOT NULL DEFAULT 'QUEUED',
+  id              varchar(64)    PRIMARY KEY,       -- SSD scan id
+  parent_scan_id  varchar(64),                         -- parent SSD scan id
+  project_id      varchar(64),                         -- SSD project id
+  status          scan_status_t  NOT NULL DEFAULT 'pending',
   triggered_by    varchar(254),                         -- user email
+  hub_id          varchar(64),                         -- SSD hub id
   remediated      integer         DEFAULT 0,           -- consolidated remediated count
   repository      varchar(512),
   branch          varchar(256),
@@ -61,7 +61,7 @@ CREATE INDEX IF NOT EXISTS idx_scans_repo_branch ON scans(repository, branch);
 
 CREATE TABLE IF NOT EXISTS scan_type (
   id             varchar(80)    PRIMARY KEY,           -- e.g., "{scanid}-{type}" or SSD-provided id
-  scan_id        varchar(16)    NOT NULL,
+  scan_id        varchar(64)    NOT NULL,
   scan_type      varchar(32)    NOT NULL,              -- sca, sast, etc.
   tool           varchar(128),
   file_name      varchar(512),
@@ -72,6 +72,7 @@ CREATE TABLE IF NOT EXISTS scan_type (
   high_count     integer        DEFAULT 0,
   medium_count   integer        DEFAULT 0,
   low_count      integer        DEFAULT 0,
+  unknown_count  integer        DEFAULT 0,
   CONSTRAINT fk_scan_type_scan FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE
 );
 
@@ -81,9 +82,12 @@ CREATE INDEX IF NOT EXISTS idx_scan_type_rawjson_gin ON scan_type USING GIN (raw
 
 CREATE TABLE IF NOT EXISTS vulnerabilities (
   id           uuid           PRIMARY KEY DEFAULT gen_random_uuid(),
-  scan_id      varchar(16)    NOT NULL,                 -- refers to scans.id (SSD)
+  scan_id      varchar(64)    NOT NULL,                 -- refers to scans.id (SSD)
   name         varchar(800)   NOT NULL,                 -- rule/file/line or CVE id or hashed composite
-  type         varchar(32),                              -- 'sast' or 'cve' etc
+  scan_type    varchar(32),                              -- 'sast' or 'sca' etc
+  tool         varchar(128),
+  package      varchar(128),
+  version      varchar(128),
   metadata     jsonb,
   severity     varchar(32),
   description  text,
@@ -149,7 +153,7 @@ CREATE INDEX IF NOT EXISTS idx_feedback_vuln ON remediation_feedback(vulnerabili
 CREATE TABLE IF NOT EXISTS audit_logs (
   id         uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
   user_email varchar(254)  NOT NULL,
-  hub_id     varchar(16),                          -- reference to hubs.id
+  hub_id     varchar(64),                          -- reference to hubs.id
   action     varchar(128) NOT NULL,                -- consider enumerating if small set
   metadata   jsonb,
   created_at timestamptz  NOT NULL DEFAULT now(),

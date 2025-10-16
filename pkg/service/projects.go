@@ -17,6 +17,7 @@ import (
 type ProjectService struct {
 	ssdService  *SSDService
 	projectRepo *repository.ProjectRepository
+	scanRepo    *repository.ScanRepository
 	logger      *utils.ErrorLogger
 }
 
@@ -24,6 +25,7 @@ type ProjectService struct {
 func NewProjectService() *ProjectService {
 	return &ProjectService{
 		projectRepo: repository.NewProjectRepository(),
+		scanRepo:    repository.NewScanRepository(),
 		logger:      utils.NewErrorLogger("project_service"),
 	}
 }
@@ -102,7 +104,6 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 		return "", fmt.Errorf("failed to get user")
 	}
 
-	// {"name":"temp22","scanType":"sourceScan","platform":"github","accountId":"0x5f2f9","teamId":"fe2e8a09-a3f2-4263-b635-fa7e99f2d43b","scanLevel":"repoLevel","organisation":"arpit-jaswani","type":"user","projectConfigs":[{"repository":"python-app","scheduleTime":0,"branch":["onlyMain"],"branchPattern":"","scanUpto":0}]}
 	// Create project
 	scheduleTime := 0
 	scanUpto := 0
@@ -133,10 +134,28 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 		return "", fmt.Errorf("failed to create project: %w", err)
 	}
 
+	// Create a scan record for the project
+	scan := &models.Scan{
+		ProjectID:     projectId,
+		Repository:    req.RepoName,
+		Branch:        "main",
+		CommitSHA:     "",
+		PullRequestID: "",
+		Tag:           "",
+		Settings:      nil,
+		HubID:         req.HubID,
+		Status:        string(client.RiskStatusPending),
+	}
+
+	if err := s.scanRepo.Create(ctx, scan); err != nil {
+		s.logger.LogError(err, "Failed to create scan record", map[string]interface{}{
+			"project_id": projectId,
+		})
+		// Don't fail the entire operation if scan creation fails
+	}
+
 	s.logger.LogInfo("Project created successfully", map[string]interface{}{
 		"project_id": projectId,
-		"name":       req.Name,
-		"hub_id":     req.HubID,
 	})
 
 	return projectId, nil
@@ -333,24 +352,6 @@ func (s *ProjectService) validateUpdateRequest(req *UpdateProjectRequest) error 
 		return fmt.Errorf("description must be less than 1000 characters")
 	}
 	return nil
-}
-
-// projectExistsInHub checks if a project with the given name exists in the hub
-func (s *ProjectService) projectExistsInHub(ctx context.Context, hubID *uuid.UUID, name string) (bool, error) {
-	options := &repository.QueryOptions{
-		Filters: map[string]interface{}{
-			"hub_id": hubID,
-			"name":   name,
-		},
-		Limit: 1,
-	}
-
-	result, err := s.projectRepo.List(ctx, options)
-	if err != nil {
-		return false, err
-	}
-
-	return len(result.Data) > 0, nil
 }
 
 // /////////New//////////////

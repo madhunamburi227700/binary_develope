@@ -252,6 +252,57 @@ func (c *SSDClient) GetIntegratorConfigForProject(ctx context.Context, platform,
 	return &result, nil
 }
 
+func (c *SSDClient) GetProjectStatuses(ctx context.Context, projectIds []string) ([]ProjectDetailsResponse, error) {
+	var results []ProjectDetailsResponse
+
+	// Prepare IDs quoted properly for GraphQL
+	var quotedIDs []string
+	for _, id := range projectIds {
+		quotedIDs = append(quotedIDs, fmt.Sprintf(`"%s"`, id))
+	}
+
+	query := fmt.Sprintf(`query QueryProject {
+		queryProject(filter: { id: [%s] }) {
+			id
+			error
+			riskStatus
+			team {
+				id
+				name
+			}
+			scans {
+            	branch
+        	}
+		}
+	}`, strings.Join(quotedIDs, ","))
+
+	resp, err := c.ExecuteGraphQL(ctx, query, "get-Project-Statuses")
+	if err != nil {
+		fmt.Printf("Error querying projects %v: %v\n", projectIds, err)
+		return nil, err
+	}
+
+	// Adjust this based on actual response structure
+	var responseWrapper struct {
+		QueryProject []ProjectDetailsResponse `json:"queryProject"`
+	}
+
+	dataBytes, err := json.Marshal(resp.Data)
+	if err != nil {
+		fmt.Printf("Error marshaling response: %v\n", err)
+		return nil, err
+	}
+
+	if err := json.Unmarshal(dataBytes, &responseWrapper); err != nil {
+		fmt.Printf("Error unmarshaling response: %v\n", err)
+		return nil, err
+	}
+
+	results = append(results, responseWrapper.QueryProject...)
+
+	return results, nil
+}
+
 // Resource operations
 func (c *SSDClient) GetResources(ctx context.Context) (*ResourceResponse, error) {
 	endpoint := fmt.Sprintf("/gate/ssdservice/v1/resource?orgId=%s", c.orgID)
