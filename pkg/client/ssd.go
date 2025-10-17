@@ -498,6 +498,68 @@ func (c *SSDClient) GetProjectDetails(ctx context.Context, projectId string) (*P
 	return result[0], nil
 }
 
+// GetProjectDetailsCustom get project details based on custom dgraph query
+func (c *SSDClient) GetProjectDetailsCustom(ctx context.Context, projectId string) (*ProjectRef, error) {
+	query := `query GetProject {
+		getProject(id: "` + projectId + `") {
+			id
+			name
+			riskStatus
+			scans {
+				id
+				branch
+				lastScannedTime
+				riskStatus
+				artifact {
+					id
+					artifactName
+					artifactTag
+					artifactSha
+					scanData {
+						id
+						artifactSha
+						artifactNameTag
+						tool
+						lastScannedAt
+						vulnScanState
+						scanState
+						vulnCriticalCount
+						vulnHighCount
+						vulnMediumCount
+						vulnLowCount
+						vulnInfoCount
+						vulnUnknownCount
+						vulnNoneCount
+						vulnTotalCount
+					}
+				}
+			}
+		}
+	}`
+
+	resp, err := c.ExecuteGraphQL(ctx, query, "get-Project-Details-Custom")
+	if err != nil {
+		return nil, err
+	}
+
+	// Fix: Convert interface{} to []byte first, then unmarshal
+	dataBytes, err := json.Marshal(resp.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal response data: %w", err)
+	}
+
+	type project struct {
+		ProjectRef *ProjectRef `json:"getProject"`
+	}
+
+	result := &project{}
+	if err := json.Unmarshal(dataBytes, result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal custom project details response: %w", err)
+	}
+
+	return result.ProjectRef, nil
+}
+
 func (c *SSDClient) CreateProject(ctx context.Context, teamIds string, req *ProjectRef) (string, error) {
 	// Build query parameters
 	params := make([]string, 0)

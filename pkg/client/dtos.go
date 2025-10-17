@@ -185,6 +185,20 @@ type ResourceResponse struct {
 	Rules        int `json:"rules"`
 }
 
+// RiskStatus tells us what risk a current application instance or a deployment is at.
+type RiskStatus string
+
+const (
+	RiskStatusLowrisk        RiskStatus = "lowrisk"
+	RiskStatusMediumrisk     RiskStatus = "mediumrisk"
+	RiskStatusHighrisk       RiskStatus = "highrisk"
+	RiskStatusApocalypserisk RiskStatus = "apocalypserisk"
+	RiskStatusScanning       RiskStatus = "scanning"
+	RiskStatusCompleted      RiskStatus = "completed"
+	RiskStatusFail           RiskStatus = "fail"
+	RiskStatusPending        RiskStatus = "pending"
+)
+
 // project
 type ProjectRef struct {
 	ID            string             `json:"id,omitempty" yaml:"id,omitempty"`
@@ -200,6 +214,7 @@ type ProjectRef struct {
 	ScanLevel     string             `json:"scanLevel,omitempty" yaml:"scanLevel,omitempty"`
 	Level         string             `json:"level,omitempty" yaml:"level,omitempty"`
 	ProjectConfig []ProjectConfigRef `json:"projectConfigs,omitempty" yaml:"projectConfigs,omitempty"`
+	Scans         []*ScanTargetRef   `json:"scans,omitempty"`
 	CreatedAt     *time.Time         `json:"createdAt,omitempty" yaml:"createdAt,omitempty"`
 	UpdatedAt     *time.Time         `json:"updatedAt,omitempty" yaml:"updatedAt,omitempty"`
 }
@@ -217,6 +232,56 @@ type ProjectConfigRef struct {
 	CreatedAt          *time.Time `json:"createdAt,omitempty" yaml:"createdAt,omitempty"`
 	UpdatedAt          *time.Time `json:"updatedAt,omitempty" yaml:"updatedAt,omitempty"`
 	ScanUpto           *int       `json:"scanUpto,omitempty" yaml:"scanUpto,omitempty"`
+}
+
+type ScanTargetRef struct {
+	Id                *string       `json:"id"`
+	Projects          []*ProjectRef `json:"projects,omitempty"`
+	Organization      string        `json:"organization"`
+	Repository        string        `json:"repository"`
+	Branch            string        `json:"branch"`
+	LastTriggeredBy   string        `json:"lastTriggeredBy"`
+	LastScannedTime   *time.Time    `json:"lastScannedTime"`
+	LastAttemptedTime *time.Time    `json:"lastAttemptedTime"`
+	CreatedAt         *time.Time    `json:"createdAt"`
+	UpdatedAt         *time.Time    `json:"updatedAt"`
+	// ScanResults       []*ScanResultRef `json:"scanResults,omitempty"`
+	Artifact   *ArtifactRef `json:"artifact,omitempty"`
+	Error      string       `json:"error"`
+	RiskStatus RiskStatus   `json:"riskStatus"`
+}
+
+type ArtifactRef struct {
+	Id           string                 `json:"id"`
+	Attempt      *int                   `json:"attempt"`
+	ArtifactType string                 `json:"artifactType"`
+	ArtifactName string                 `json:"artifactName"`
+	ArtifactTag  string                 `json:"artifactTag"`
+	ArtifactSha  string                 `json:"artifactSha"`
+	ScanData     []*ArtifactScanDataRef `json:"scanData,omitempty"`
+	ScanTarget   []*ScanTargetRef       `json:"scanTarget,omitempty"`
+}
+
+type ArtifactScanDataRef struct {
+	Id string `json:"id"`
+	// platform: String! @search(by: [exact]) -> add later
+	ArtifactSha       string       `json:"artifactSha"`
+	ArtifactNameTag   string       `json:"artifactNameTag"`
+	Tool              string       `json:"tool"`
+	ArtifactDetails   *ArtifactRef `json:"artifactDetails,omitempty"`
+	LastScannedAt     *time.Time   `json:"lastScannedAt"`
+	CreatedAt         *time.Time   `json:"createdAt"`
+	VulnTrackingId    string       `json:"vulnTrackingId"`
+	VulnScanState     string       `json:"vulnScanState"`
+	ScanState         string       `json:"scanState"`
+	VulnCriticalCount *int         `json:"vulnCriticalCount"`
+	VulnHighCount     *int         `json:"vulnHighCount"`
+	VulnMediumCount   *int         `json:"vulnMediumCount"`
+	VulnLowCount      *int         `json:"vulnLowCount"`
+	VulnInfoCount     *int         `json:"vulnInfoCount"`
+	VulnUnknownCount  *int         `json:"vulnUnknownCount"`
+	VulnNoneCount     *int         `json:"vulnNoneCount"`
+	VulnTotalCount    *int         `json:"vulnTotalCount"`
 }
 
 type ProjectSummaryRequest struct {

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opsmx/ai-guardian-api/pkg/client"
@@ -50,6 +51,34 @@ type ProjectListRequest struct {
 	PageSize      int        `json:"page_size" validate:"min=1,max=100"`
 	OrderBy       string     `json:"order_by"`
 	OrderDir      string     `json:"order_dir" validate:"omitempty,oneof=ASC DESC"`
+}
+
+type ProjectStats struct {
+	ScanTimeFrequencies    []*ScanTimeFrequency    `json:"scans_time_frequencies"`
+	CurrentVulnerabilities *CurrentVulnerabilities `json:"current_vulnerabilities"`
+	RecentScans            []*RecentScan           `json:"recent_scans"`
+}
+
+type CurrentVulnerabilities struct {
+	CriticalCount *int `json:"critical_count"`
+	HighCount     *int `json:"high_count"`
+	MediumCount   *int `json:"medium_count"`
+	LowCount      *int `json:"low_count"`
+}
+
+type ScanTimeFrequency struct {
+	Date  *time.Time `json:"date"`
+	Count *int       `json:"count"`
+}
+
+type RecentScan struct {
+	Branch             string     `json:"branch"`
+	CommitId           string     `json:"commit_id"`
+	ScanTime           *time.Time `json:"scan_time"`
+	IssueCriticalCount *int       `json:"issue_critical_count"`
+	IssueHighCount     *int       `json:"issue_high_count"`
+	IssueMediumCount   *int       `json:"issue_medium_count"`
+	IssueLowCount      *int       `json:"issue_low_count"`
 }
 
 // CreateProject creates a new project
@@ -297,6 +326,19 @@ func (s *ProjectService) ListProjectsWithDetails(ctx context.Context, req *Proje
 	return result, nil
 }
 
+// GetProject retrieves a project by ID
+func (s *ProjectService) GetProjectStats(ctx context.Context, projectId string) (*ProjectStats, error) {
+	projectRef, err := s.ssdService.GetProjectDetailsCustom(ctx, projectId)
+	if err != nil {
+		s.logger.LogError(err, "Failed to get custom project details", map[string]interface{}{
+			"projectId": projectId,
+		})
+		return nil, fmt.Errorf("failed to get project details: %w", err)
+	}
+
+	return s.calculateProjectStats(projectRef), nil
+}
+
 // GetProjectsByHub retrieves projects by hub ID
 func (s *ProjectService) GetProjectsByHub(ctx context.Context, hubID uuid.UUID, req *ProjectListRequest) (*repository.QueryResult[models.Project], error) {
 	req.HubID = &hubID
@@ -360,12 +402,49 @@ func (s *ProjectService) GetProjectSummariesForTeams(ctx context.Context, req *G
 	return s.ssdService.GetProjectSummariesForTeams(ctx, req)
 }
 
-// func (s *ProjectService) GetProjectDetails(ctx context.Context, req *client.ProjectDetailsRequest) (*client.ProjectDetailsResponse, error) {
-// 	return s.ssdService.GetProjectDetails(ctx, req)
-// }
-
 func (s *ProjectService) GetProjectSummaryCount(ctx context.Context, hubIDs []string) (*client.SourceScanSummaryCount, error) {
 	return s.ssdService.GetProjectSummaryCount(ctx, hubIDs)
+}
+
+func (s *ProjectService) calculateProjectStats(projectRef *client.ProjectRef) *ProjectStats {
+	pstats := &ProjectStats{}
+
+	for _, scanTarget := range projectRef.Scans {
+		var totalVuln, criticalVuln, highVuln, mediumVuln, lowVuln *int
+		if len(scanTarget.Artifact.ScanData) > 0 {
+			scanData := scanTarget.Artifact.ScanData[0]
+			criticalVuln = scanData.VulnCriticalCount
+			highVuln = scanData.VulnHighCount
+			mediumVuln = scanData.VulnMediumCount
+			lowVuln = scanData.VulnLowCount
+			totalVuln = scanData.VulnTotalCount
+		}
+
+		pstats.RecentScans = append(pstats.RecentScans, &RecentScan{
+			Branch:             scanTarget.Branch,
+			CommitId:           scanTarget.Artifact.ArtifactSha[:7],
+			ScanTime:           scanTarget.LastScannedTime,
+			IssueCriticalCount: criticalVuln,
+			IssueHighCount:     highVuln,
+			IssueMediumCount:   mediumVuln,
+			IssueLowCount:      lowVuln,
+		})
+
+		pstats.ScanTimeFrequencies = append(pstats.ScanTimeFrequencies, &ScanTimeFrequency{
+			Date:  scanTarget.LastScannedTime,
+			Count: totalVuln,
+		})
+	}
+
+	if len(pstats.RecentScans) > 0 {
+		pstats.CurrentVulnerabilities = &CurrentVulnerabilities{
+			CriticalCount: pstats.RecentScans[0].IssueCriticalCount,
+			HighCount:     pstats.RecentScans[0].IssueHighCount,
+			MediumCount:   pstats.RecentScans[0].IssueMediumCount,
+			LowCount:      pstats.RecentScans[0].IssueLowCount,
+		}
+	}
+	return pstats
 }
 
 func (s *ProjectService) getGithubUsername(ctx context.Context, accountId string) (string, error) {
