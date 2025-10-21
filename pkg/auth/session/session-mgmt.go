@@ -171,22 +171,17 @@ func GetSessionExists(r *http.Request) *models.AuthUser {
 		return nil
 	}
 
-	log.Printf("Getting session for request to: %s", r.URL.Path)
-
 	session, err := sessionStore.Get(r, "SESSION")
 	if err != nil {
 		log.Printf("Error getting session in GetSessionExists: %v", err)
 		return nil
 	}
 
-	log.Printf("Session retrieved, checking values...")
 	user := session.Values["user"]
 	if user == nil {
-		log.Printf("No user found in session values")
 		return nil
 	}
 
-	log.Printf("User found in session: %+v", user)
 	if userTmp, ok := user.(models.AuthUser); ok {
 		return &models.AuthUser{
 			Username:      userTmp.Username,

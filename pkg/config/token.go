@@ -1,7 +1,9 @@
 package config
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -140,19 +142,14 @@ func (sm *SessionManager) login() error {
 	}
 	defer resp.Body.Close()
 
-	// Log response details for debugging
-	sm.logger.LogInfo("Login response received", nil)
-
 	// Extract session ID from the initial login response cookies first
 	sessionID := sm.extractSessionFromCookies(resp.Cookies())
 	if sessionID != "" {
-		sm.logger.LogInfo("Session ID found in initial response", nil)
-
 		// Get organization ID
-		orgID, err := sm.getOrganizationID(sessionID)
+		orgID, err := sm.getOrgID(sessionID)
 		if err != nil {
 			sm.logger.LogError(err, "Failed to get organization ID", nil)
-			orgID = ""
+			return err
 		}
 
 		// Update session info
@@ -160,16 +157,12 @@ func (sm *SessionManager) login() error {
 		sm.sessionID = sessionID
 		sm.orgID = orgID
 		sm.mutex.Unlock()
-
-		sm.logger.LogInfo("Login successful", nil)
-
 		return nil
 	}
 
 	// If no session in initial response, check if we got a redirect
 	if resp.StatusCode == http.StatusFound || resp.StatusCode == http.StatusSeeOther || resp.StatusCode == 303 {
 		location := resp.Header.Get("Location")
-		sm.logger.LogInfo("Login redirect received", nil)
 
 		// Handle relative URLs
 		var redirectURL string
@@ -204,8 +197,6 @@ func (sm *SessionManager) login() error {
 			}
 			defer redirectResp.Body.Close()
 
-			sm.logger.LogInfo("Redirect response received", nil)
-
 			// Extract session ID from redirect response cookies
 			sessionID := sm.extractSessionFromCookies(redirectResp.Cookies())
 			if sessionID == "" {
@@ -213,10 +204,10 @@ func (sm *SessionManager) login() error {
 			}
 
 			// Get organization ID
-			orgID, err := sm.getOrganizationID(sessionID)
+			orgID, err := sm.getOrgID(sessionID)
 			if err != nil {
 				sm.logger.LogError(err, "Failed to get organization ID", nil)
-				orgID = ""
+				return err
 			}
 
 			// Update session info
@@ -224,14 +215,87 @@ func (sm *SessionManager) login() error {
 			sm.sessionID = sessionID
 			sm.orgID = orgID
 			sm.mutex.Unlock()
-
-			sm.logger.LogInfo("Login successful via redirect", nil)
-
 			return nil
 		}
 	}
 
 	return fmt.Errorf("login failed with status: %d", resp.StatusCode)
+}
+
+func (sm *SessionManager) getOrgID(sessionID string) (string, error) {
+	query := `query QueryOrganization {
+		queryOrganization {
+			id
+			name
+		}
+	}`
+
+	// Create GraphQL request
+	requestBody := map[string]interface{}{
+		"query": query,
+	}
+
+	jsonBody, err := json.Marshal(requestBody)
+	if err != nil {
+		return "", fmt.Errorf("failed to marshal GraphQL request: %w", err)
+	}
+
+	// Create HTTP request
+	req, err := http.NewRequest("POST", sm.baseURL+"/graphql?req=get-org-id", bytes.NewBuffer(jsonBody))
+	if err != nil {
+		return "", fmt.Errorf("failed to create GraphQL request: %w", err)
+	}
+
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 OPR/119.0.0.0")
+
+	// Set session cookie
+	req.AddCookie(&http.Cookie{
+		Name:  "SESSION",
+		Value: sessionID,
+	})
+
+	// Make request
+	resp, err := sm.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("GraphQL request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("GraphQL request failed with status: %d", resp.StatusCode)
+	}
+
+	// Parse response
+	var graphqlResp struct {
+		Data struct {
+			QueryOrganization []struct {
+				ID   string `json:"id"`
+				Name string `json:"name"`
+			} `json:"queryOrganization"`
+		} `json:"data"`
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors,omitempty"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&graphqlResp); err != nil {
+		return "", fmt.Errorf("failed to decode GraphQL response: %w", err)
+	}
+
+	// Check for GraphQL errors
+	if len(graphqlResp.Errors) > 0 {
+		return "", fmt.Errorf("GraphQL errors: %v", graphqlResp.Errors)
+	}
+
+	// Return the first organization ID
+	if len(graphqlResp.Data.QueryOrganization) > 0 {
+		return graphqlResp.Data.QueryOrganization[0].ID, nil
+	}
+
+	return "", fmt.Errorf("no organizations found in response")
 }
 
 // extractSessionFromCookies extracts session ID from response cookies
@@ -242,15 +306,6 @@ func (sm *SessionManager) extractSessionFromCookies(cookies []*http.Cookie) stri
 		}
 	}
 	return ""
-}
-
-// getOrganizationID retrieves the organization ID using the session
-func (sm *SessionManager) getOrganizationID(sessionID string) (string, error) {
-	orgid := GetUserOrgID()
-	if orgid == "" {
-		return "983ebedf-99e7-4e4d-96c6-7a55a50d335e", nil
-	}
-	return orgid, nil
 }
 
 // refreshLoop runs the refresh loop every 10 minutes

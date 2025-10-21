@@ -36,7 +36,6 @@ type configType struct {
 		BaseURL  string `yaml:"baseURL"`
 		UserName string `yaml:"userName"`
 		Password string `yaml:"password"`
-		OrgID    string `yaml:"orgID"`
 	}
 	S3 struct {
 		BucketName string `yaml:"bucketName"`
@@ -217,10 +216,6 @@ func GetSSDBaseURL() string {
 // GetSSDConfig returns the complete SSD configuration
 func GetSSDConfig() string {
 	return config.SSD.BaseURL
-}
-
-func GetUserOrgID() string {
-	return config.SSD.OrgID
 }
 
 func GetUserOrgName() string {

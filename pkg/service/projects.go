@@ -278,54 +278,6 @@ func (s *ProjectService) ListProjects(ctx context.Context, req *ProjectListReque
 	return result, nil
 }
 
-// ListProjectsWithDetails retrieves projects with related data
-func (s *ProjectService) ListProjectsWithDetails(ctx context.Context, req *ProjectListRequest) (*repository.QueryResult[repository.ProjectWithDetails], error) {
-	// Set defaults
-	if req.Page <= 0 {
-		req.Page = 1
-	}
-	if req.PageSize <= 0 {
-		req.PageSize = 10
-	}
-	if req.PageSize > 100 {
-		req.PageSize = 100
-	}
-	if req.OrderBy == "" {
-		req.OrderBy = "created_at"
-	}
-	if req.OrderDir == "" {
-		req.OrderDir = "DESC"
-	}
-
-	// Build query options
-	options := &repository.QueryOptions{
-		Limit:    req.PageSize,
-		Offset:   (req.Page - 1) * req.PageSize,
-		OrderBy:  req.OrderBy,
-		OrderDir: req.OrderDir,
-		Filters:  make(map[string]interface{}),
-	}
-
-	// Add filters
-	if req.HubID != nil {
-		options.Filters["hub_id"] = *req.HubID
-	}
-	if req.IntegrationID != nil {
-		options.Filters["integration_id"] = *req.IntegrationID
-	}
-
-	// Execute query
-	result, err := s.projectRepo.GetWithDetails(ctx, options)
-	if err != nil {
-		s.logger.LogError(err, "Failed to list projects with details", map[string]interface{}{
-			"request": req,
-		})
-		return nil, fmt.Errorf("failed to list projects with details: %w", err)
-	}
-
-	return result, nil
-}
-
 // GetProject retrieves a project by ID
 func (s *ProjectService) GetProjectStats(ctx context.Context, projectId string) (*ProjectStats, error) {
 	projectRef, err := s.ssdService.GetProjectDetailsCustom(ctx, projectId)

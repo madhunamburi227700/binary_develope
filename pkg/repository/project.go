@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -215,131 +214,6 @@ func (r *ProjectRepository) SearchByName(ctx context.Context, name string, optio
 	}
 
 	return &QueryResult[models.Project]{
-		Data:       projects,
-		Pagination: pagination,
-	}, nil
-}
-
-// GetWithDetails retrieves projects with related data
-func (r *ProjectRepository) GetWithDetails(ctx context.Context, options *QueryOptions) (*QueryResult[ProjectWithDetails], error) {
-	if options == nil {
-		options = &QueryOptions{}
-	}
-
-	// Build SELECT clause
-	selectClause := `
-		p.id, p.hub_id, p.integration_id, p.name, p.repo_url, p.description, 
-		p.created_at, p.updated_at,
-		h.name as hub_name,
-		i.name as integration_name, i.type as integration_type
-	`
-
-	// Build JOIN clause
-	joins := []string{
-		"LEFT JOIN hubs h ON p.hub_id = h.id",
-		"LEFT JOIN integrations i ON p.integration_id = i.id",
-	}
-
-	// Build WHERE clause
-	whereClause, whereArgs := r.buildWhereClause(options.Filters)
-
-	// Build ORDER BY clause
-	orderClause := ""
-	if options.OrderBy != "" {
-		orderDir := "ASC"
-		if options.OrderDir == "DESC" {
-			orderDir = "DESC"
-		}
-		orderClause = fmt.Sprintf(" ORDER BY p.%s %s", options.OrderBy, orderDir)
-	} else {
-		orderClause = " ORDER BY p.created_at DESC"
-	}
-
-	// Build LIMIT and OFFSET clause
-	limitClause := ""
-	args := whereArgs
-	argIndex := len(whereArgs) + 1
-
-	if options.Limit > 0 {
-		limitClause = fmt.Sprintf(" LIMIT $%d", argIndex)
-		args = append(args, options.Limit)
-		argIndex++
-	}
-
-	if options.Offset > 0 {
-		limitClause += fmt.Sprintf(" OFFSET $%d", argIndex)
-		args = append(args, options.Offset)
-		argIndex++
-	}
-
-	// Build main query
-	query := fmt.Sprintf(`
-		SELECT %s 
-		FROM projects p
-		%s%s%s%s`,
-		selectClause,
-		strings.Join(joins, " "),
-		whereClause,
-		orderClause,
-		limitClause,
-	)
-
-	// Execute query
-	rows, err := r.db.Query(ctx, query, args...)
-	if err != nil {
-		r.logger.LogError(err, "Failed to get projects with details", map[string]interface{}{
-			"options": options,
-		})
-		return nil, fmt.Errorf("failed to get projects with details: %w", err)
-	}
-	defer rows.Close()
-
-	// Scan results
-	var projects []ProjectWithDetails
-	for rows.Next() {
-		var p ProjectWithDetails
-		err := rows.Scan(
-			&p.ID, &p.HubID, &p.IntegrationID, &p.Name, &p.RepoURL, &p.Description,
-			&p.CreatedAt, &p.UpdatedAt,
-			&p.HubName, &p.IntegrationName, &p.IntegrationType,
-		)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan project details: %w", err)
-		}
-		projects = append(projects, p)
-	}
-
-	// Get total count for pagination
-	countQuery := fmt.Sprintf(`
-		SELECT COUNT(*) 
-		FROM projects p
-		%s%s`,
-		strings.Join(joins, " "),
-		whereClause,
-	)
-
-	var total int64
-	err = r.db.QueryRow(ctx, countQuery, whereArgs...).Scan(&total)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get total count: %w", err)
-	}
-
-	// Calculate pagination
-	pageSize := options.Limit
-	if pageSize <= 0 {
-		pageSize = 10
-	}
-	page := (options.Offset / pageSize) + 1
-	pages := int((total + int64(pageSize) - 1) / int64(pageSize))
-
-	pagination := &PaginationResult{
-		Total:    total,
-		Page:     page,
-		PageSize: pageSize,
-		Pages:    pages,
-	}
-
-	return &QueryResult[ProjectWithDetails]{
 		Data:       projects,
 		Pagination: pagination,
 	}, nil
