@@ -62,13 +62,6 @@ type configType struct {
 			PKCE         bool     `yaml:"pkce"`
 		} `yaml:"google_oidc"`
 	} `yaml:"auth"`
-	// SSDs integrators Id
-	// TODO: automate internally via API call
-	Integrators struct {
-		Github struct {
-			Id string `yaml:"id"`
-		} `yaml:"github"`
-	} `yaml:"integrators"`
 
 	StartUpMessages  []string `yaml:"startUpMessages"`
 	HomePage         string   `yaml:"homePage"`
@@ -244,8 +237,4 @@ func GetGithubTokenTemp() string {
 	}
 
 	return config.Token
-}
-
-func GetGithubIntegratorID() string {
-	return config.Integrators.Github.Id
 }

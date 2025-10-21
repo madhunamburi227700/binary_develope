@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/opsmx/ai-guardian-api/pkg/config"
 )
 
 // SSDClientInterface defines the interface for SSD operations
@@ -354,12 +352,9 @@ func (c *SSDClient) GetHubByID(ctx context.Context, hubID string) (*Hub, error) 
 }
 
 // CreateGitHubIntegration creates a GitHub integration with the given parameters
-func (c *SSDClient) CreateGitHubIntegration(ctx context.Context, name, token, installationId string,
-	timestamp int64, teamIDs []string) (string, error) {
-	// encryptedToken, err := utils.EncryptToken(token)
-	// if err != nil {
-	// 	return "", fmt.Errorf("failed to encrypt token: %w", err)
-	// }
+func (c *SSDClient) CreateGitHubIntegration(ctx context.Context, name,
+	token, installationId, githubIntegratorId string, timestamp int64,
+	teamIDs []string) (string, error) {
 
 	req := &CreateIntegrationRequest{
 		Name:           name,
@@ -374,9 +369,7 @@ func (c *SSDClient) CreateGitHubIntegration(ctx context.Context, name, token, in
 			"createdAt": fmt.Sprintf("%d", time.Now().Unix()),
 		},
 		Team: make([]TeamAssignment, len(teamIDs)),
-		// this refers to github integrator id of ssd
-		// TODO: automate this via ssd call
-		ID: config.GetGithubIntegratorID(),
+		ID:   githubIntegratorId,
 	}
 
 	if installationId != "" {
@@ -503,6 +496,68 @@ func (c *SSDClient) GetProjectDetails(ctx context.Context, projectId string) (*P
 	}
 
 	return result[0], nil
+}
+
+// GetProjectDetailsCustom get project details based on custom dgraph query
+func (c *SSDClient) GetProjectDetailsCustom(ctx context.Context, projectId string) (*ProjectRef, error) {
+	query := `query GetProject {
+		getProject(id: "` + projectId + `") {
+			id
+			name
+			riskStatus
+			scans {
+				id
+				branch
+				lastScannedTime
+				riskStatus
+				artifact {
+					id
+					artifactName
+					artifactTag
+					artifactSha
+					scanData {
+						id
+						artifactSha
+						artifactNameTag
+						tool
+						lastScannedAt
+						vulnScanState
+						scanState
+						vulnCriticalCount
+						vulnHighCount
+						vulnMediumCount
+						vulnLowCount
+						vulnInfoCount
+						vulnUnknownCount
+						vulnNoneCount
+						vulnTotalCount
+					}
+				}
+			}
+		}
+	}`
+
+	resp, err := c.ExecuteGraphQL(ctx, query, "get-Project-Details-Custom")
+	if err != nil {
+		return nil, err
+	}
+
+	// Fix: Convert interface{} to []byte first, then unmarshal
+	dataBytes, err := json.Marshal(resp.Data)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal response data: %w", err)
+	}
+
+	type project struct {
+		ProjectRef *ProjectRef `json:"getProject"`
+	}
+
+	result := &project{}
+	if err := json.Unmarshal(dataBytes, result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal custom project details response: %w", err)
+	}
+
+	return result.ProjectRef, nil
 }
 
 func (c *SSDClient) CreateProject(ctx context.Context, teamIds string, req *ProjectRef) (string, error) {
@@ -886,6 +941,40 @@ func (c *SSDClient) GetRepoBranchList(ctx context.Context, qparams map[string]st
 	}
 
 	return result, nil
+}
+
+func (c *SSDClient) GetSupportedIntegrators(ctx context.Context, level, teamIds string) ([]*IntegrationStatus, error) {
+	// Build query parameters
+	params := make([]string, 0)
+
+	// Add orgId, level, teamId
+	params = append(params, fmt.Sprintf("orgId=%s", c.orgID))
+	params = append(params, fmt.Sprintf("level=%s", level))
+	params = append(params, fmt.Sprintf("teamId=%s", teamIds))
+
+	// Build endpoint
+	endpoint := "/ssdservice/v1/supportedIntegrations"
+	if len(params) > 0 {
+		endpoint += "?" + strings.Join(params, "&")
+	}
+
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to get supported integrators: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result struct {
+		IntegratorsList []*IntegrationStatus `json:"integrationsStatus"`
+	}
+	if err := resp.ParseJSON(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse supported integrators response: %w", err)
+	}
+
+	return result.IntegratorsList, nil
 }
 
 func (c *SSDClient) DeleteIntegration(ctx context.Context, req *DeleteIntegrationRequest) error {

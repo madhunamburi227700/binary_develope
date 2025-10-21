@@ -109,6 +109,44 @@ func (c *ProjectController) GetProject(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// GetProjectStats retrieves a project stats by its ID
+// @Summary Get project stats by ID
+// @Description Returns the project stats with the specified ID
+// @Tags Projects
+// @Accept  json
+// @Produce  json
+// @Param   id path string true "Project ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid project ID"
+// @Failure 404 {object} map[string]string "Project not found"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/projects/{id}/stats [get]
+func (c *ProjectController) GetProjectStats(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	projectId, ok := vars["id"]
+	if !ok {
+		http.Error(w, "Project ID is required", http.StatusBadRequest)
+		return
+	}
+
+	project, err := c.projectService.GetProjectStats(r.Context(), projectId)
+	if err != nil {
+		c.logger.LogError(err, "Failed to get project stats", map[string]interface{}{
+			"projectId": projectId,
+		})
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    project,
+	})
+}
+
 // // UpdateProject handles PUT /api/v1/projects/{id}
 // func (c *ProjectController) UpdateProject(w http.ResponseWriter, r *http.Request) {
 // 	vars := mux.Vars(r)

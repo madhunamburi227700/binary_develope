@@ -133,6 +133,10 @@ func (s *SSDService) GetProjectDetails(ctx context.Context, projectId string) (*
 	return ssdClient.GetProjectDetails(ctx, projectId)
 }
 
+func (s *SSDService) GetProjectDetailsCustom(ctx context.Context, projectId string) (*client.ProjectRef, error) {
+	return client.NewSSDClient().GetProjectDetailsCustom(ctx, projectId)
+}
+
 func (s *SSDService) GetProjectSummaryCount(ctx context.Context, hubIDs []string) (*client.SourceScanSummaryCount, error) {
 	ssdClient := client.NewSSDClient()
 
@@ -220,9 +224,19 @@ func (s *SSDService) GetGithubOauthUrl(ctx context.Context) (string, error) {
 	return installUrl, nil
 }
 
+func (s *SSDService) CreateGitHubIntegration(ctx context.Context, name, token, installationId, githubIntegratorId string, timestamp int64, teamIDs []string) (string, error) {
+	ssdClient := client.NewSSDClient()
+	return ssdClient.CreateGitHubIntegration(ctx, name, token, installationId, githubIntegratorId, timestamp, teamIDs)
+}
+
 func (s *SSDService) GetRepoBranchList(ctx context.Context, params map[string]string) ([]string, error) {
 	ssdClient := client.NewSSDClient()
 	return ssdClient.GetRepoBranchList(ctx, params)
+}
+
+func (s *SSDService) GetSupportedIntegrators(ctx context.Context, level, teamIds string) ([]*client.IntegrationStatus, error) {
+	ssdClient := client.NewSSDClient()
+	return ssdClient.GetSupportedIntegrators(ctx, level, teamIds)
 }
 
 func (s *SSDService) getIntegratorToken(ctx context.Context, projectId string) (string, error) {

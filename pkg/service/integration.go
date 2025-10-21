@@ -15,11 +15,6 @@ type IntegrationService struct {
 	logger     *utils.ErrorLogger
 }
 
-const (
-	// service name to app with oauth bridge
-	serviceName = "ai-guardian-api"
-)
-
 // NewIntegrationService creates a new integration service
 func NewIntegrationService() *IntegrationService {
 	return &IntegrationService{
@@ -110,9 +105,13 @@ func (s *IntegrationService) CreateGitHubIntegration(ctx context.Context, req Cr
 		return "", err
 	}
 
-	ssdClient := client.NewSSDClient()
+	githubIntegratorId, err := s.getGithubIntegratorId(ctx, "global", strings.Join(req.TeamIDs, ","))
+	if err != nil {
+		return "", err
+	}
 
-	result, err := ssdClient.CreateGitHubIntegration(ctx, req.Name, req.Token, req.InstallationId, req.Timestamp, req.TeamIDs)
+	result, err := s.ssdService.CreateGitHubIntegration(ctx, req.Name, req.Token,
+		req.InstallationId, githubIntegratorId, req.Timestamp, req.TeamIDs)
 	if err != nil {
 		s.logger.LogError(err, "Failed to create GitHub integration", map[string]interface{}{
 			"name":     req.Name,
@@ -264,7 +263,7 @@ func (s *IntegrationService) IntegratorHandler(ctx context.Context, err, integra
 				"integration_name": integrationName,
 				"hub_id":           hubID,
 			})
-			return fmt.Errorf("Internal server error")
+			return fmt.Errorf("internal server error")
 		}
 		return fmt.Errorf("github app is not available, please reinstall the app")
 	}
@@ -335,6 +334,21 @@ func (s *IntegrationService) validateGitHubIntegrationParams(req CreateGitHubInt
 	// 	return fmt.Errorf("auth generation InstallationId required")
 	// }
 	return nil
+}
+
+func (s *IntegrationService) getGithubIntegratorId(ctx context.Context, level,
+	teamIds string) (string, error) {
+	integrators, err := s.ssdService.GetSupportedIntegrators(ctx, level, teamIds)
+	if err != nil {
+		return "", err
+	}
+
+	for _, integrator := range integrators {
+		if integrator.IntegratorType == "github" {
+			return integrator.IntegratorTypeId, nil
+		}
+	}
+	return "", fmt.Errorf("supported integrators not found")
 }
 
 func (s *IntegrationService) DeleteIntegration(ctx context.Context, integrationId, integrationName, hubID string) error {
