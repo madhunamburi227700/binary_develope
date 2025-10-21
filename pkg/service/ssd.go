@@ -47,12 +47,6 @@ func (s *SSDService) GetOrganizationsAndTeams(ctx context.Context) (*client.Orga
 		s.logger.LogError(err, "Failed to get organizations and hubs", map[string]interface{}{})
 		return nil, fmt.Errorf("failed to get organizations and hubs: %w", err)
 	}
-
-	s.logger.LogInfo("Organizations and hubs retrieved successfully", map[string]interface{}{
-		"org_count": len(orgs.QueryOrganization),
-		"hub_count": len(orgs.QueryOrganization[0].Teams),
-	})
-
 	return orgs, nil
 }
 

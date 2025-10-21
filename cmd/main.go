@@ -82,9 +82,6 @@ func main() {
 	}
 	defer config.StopSessionManager() // Ensure session manager is stopped on exit
 
-	log.Info().Msgf("starting appName %s version %s gitBranch %s gitHash %s buildType %s",
-		config.GetAppName(), version.VersionString(), version.GitBranch(), version.GitHash(), version.BuildType())
-
 	// Initialize database connections
 	pgConnStr := config.GetPgConfig()
 	rdUser, rdPassword, rdAddress := config.GetRedisConfig()

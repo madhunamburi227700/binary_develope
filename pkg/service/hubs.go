@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/google/uuid"
 	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
@@ -22,20 +21,6 @@ func NewHubService() *HubService {
 		ssdService: NewSSDService(),
 		logger:     utils.NewErrorLogger("hub_service"),
 	}
-}
-
-// HubListRequest for hub operations
-type HubListRequest struct {
-	ID             *uuid.UUID `json:"id"`
-	Name           *string    `json:"name"`
-	Description    *string    `json:"description"`
-	OwnerEmail     *string    `json:"owner_email"`
-	CollaboratorID *uuid.UUID `json:"collaborator_id"`
-	Search         string     `json:"search"`
-	Page           int        `json:"page"`
-	PageSize       int        `json:"page_size"`
-	OrderBy        string     `json:"order_by"`
-	OrderDir       string     `json:"order_dir"`
 }
 
 // CreateHubRequest represents a request to create a hub

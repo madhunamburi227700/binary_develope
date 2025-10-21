@@ -74,11 +74,6 @@ func (db *DB) initPostgres(connStr string) error {
 	}
 
 	db.Postgres = pool
-	db.logger.LogInfo("PostgreSQL connection established", map[string]interface{}{
-		"max_conns": config.MaxConns,
-		"min_conns": config.MinConns,
-	})
-
 	return nil
 }
 
@@ -103,10 +98,6 @@ func (db *DB) initRedis(user, password, address string) error {
 	}
 
 	db.Redis = rdb
-	db.logger.LogInfo("Redis connection established", map[string]interface{}{
-		"addr": address,
-	})
-
 	return nil
 }
 
