@@ -362,38 +362,53 @@ func (s *ProjectService) calculateProjectStats(projectRef *client.ProjectRef) *P
 	pstats := &ProjectStats{}
 
 	for _, scanTarget := range projectRef.Scans {
-		var totalVuln, criticalVuln, highVuln, mediumVuln, lowVuln *int
-		if len(scanTarget.Artifact.ScanData) > 0 {
-			scanData := scanTarget.Artifact.ScanData[0]
-			criticalVuln = scanData.VulnCriticalCount
-			highVuln = scanData.VulnHighCount
-			mediumVuln = scanData.VulnMediumCount
-			lowVuln = scanData.VulnLowCount
-			totalVuln = scanData.VulnTotalCount
+		var dayDateTime time.Time
+		dayCountLastIdx := 0
+		for _, scanData := range scanTarget.Artifact.ScanData {
+			var criticalVuln, highVuln, mediumVuln, lowVuln *int
+			if len(scanTarget.Artifact.ScanData) > 0 {
+				criticalVuln = scanData.VulnCriticalCount
+				highVuln = scanData.VulnHighCount
+				mediumVuln = scanData.VulnMediumCount
+				lowVuln = scanData.VulnLowCount
+			}
+			pstats.RecentScans = append(pstats.RecentScans, &RecentScan{
+				Branch:             scanTarget.Branch,
+				CommitId:           scanData.ArtifactSha[7:14],
+				ScanTime:           scanData.LastScannedAt,
+				IssueCriticalCount: criticalVuln,
+				IssueHighCount:     highVuln,
+				IssueMediumCount:   mediumVuln,
+				IssueLowCount:      lowVuln,
+			})
+
+			// expecting scandata entries would come in asc order only
+			if dayDateTime.IsZero() || dayDateTime.Format("2006-01-02") != scanData.LastScannedAt.Format("2006-01-02") {
+				outDatetime := *scanData.LastScannedAt
+				outCount := 1
+				pstats.ScanTimeFrequencies = append(pstats.ScanTimeFrequencies, &ScanTimeFrequency{
+					Date:  &outDatetime,
+					Count: &outCount,
+				})
+				dayDateTime = *scanData.LastScannedAt
+				dayCountLastIdx = len(pstats.ScanTimeFrequencies) - 1
+			} else if dayDateTime.Format("2006-01-02") == scanData.LastScannedAt.Format("2006-01-02") {
+				prevCount := *pstats.ScanTimeFrequencies[dayCountLastIdx].Count
+				prevCount++
+				pstats.ScanTimeFrequencies[dayCountLastIdx].Count = &prevCount
+			}
 		}
-
-		pstats.RecentScans = append(pstats.RecentScans, &RecentScan{
-			Branch:             scanTarget.Branch,
-			CommitId:           scanTarget.Artifact.ArtifactSha[:7],
-			ScanTime:           scanTarget.LastScannedTime,
-			IssueCriticalCount: criticalVuln,
-			IssueHighCount:     highVuln,
-			IssueMediumCount:   mediumVuln,
-			IssueLowCount:      lowVuln,
-		})
-
-		pstats.ScanTimeFrequencies = append(pstats.ScanTimeFrequencies, &ScanTimeFrequency{
-			Date:  scanTarget.LastScannedTime,
-			Count: totalVuln,
-		})
 	}
 
 	if len(pstats.RecentScans) > 0 {
+		// picking up most recent scan vulns
+		// here entries are coming in asc order date time wise
+		mostRecentScan := pstats.RecentScans[len(pstats.RecentScans)-1]
 		pstats.CurrentVulnerabilities = &CurrentVulnerabilities{
-			CriticalCount: pstats.RecentScans[0].IssueCriticalCount,
-			HighCount:     pstats.RecentScans[0].IssueHighCount,
-			MediumCount:   pstats.RecentScans[0].IssueMediumCount,
-			LowCount:      pstats.RecentScans[0].IssueLowCount,
+			CriticalCount: mostRecentScan.IssueCriticalCount,
+			HighCount:     mostRecentScan.IssueHighCount,
+			MediumCount:   mostRecentScan.IssueMediumCount,
+			LowCount:      mostRecentScan.IssueLowCount,
 		}
 	}
 	return pstats
