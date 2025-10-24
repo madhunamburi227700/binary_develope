@@ -510,6 +510,14 @@ func (c *SSDClient) GetProjectDetailsCustom(ctx context.Context, projectId strin
 				branch
 				lastScannedTime
 				riskStatus
+				scanResults {
+					id
+					scanType
+					resultFile
+					scanTool
+					riskStatus
+					error
+				}
 				artifact {
 					id
 					artifactName
@@ -558,6 +566,38 @@ func (c *SSDClient) GetProjectDetailsCustom(ctx context.Context, projectId strin
 	}
 
 	return result.ProjectRef, nil
+}
+
+func (c *SSDClient) GetSASTScanResults(ctx context.Context,
+	scanType, projectId, scanId string, sastReq *SASTScanRequest,
+) ([]*SASTScanResult, error) {
+	// Build query parameters
+	params := make([]string, 0)
+	params = append(params, fmt.Sprintf("type=%s", scanType))
+	params = append(params, fmt.Sprintf("projectId=%s", projectId))
+	params = append(params, fmt.Sprintf("scanId=%s", scanId))
+
+	// Build endpoint
+	endpoint := "/gate/ssdservice/v1/scan/filedata"
+	if len(params) > 0 {
+		endpoint += "?" + strings.Join(params, "&")
+	}
+
+	resp, err := c.restClient.Post(ctx, endpoint, sastReq, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to get sast scan results: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result []*SASTScanResult
+	if err := resp.ParseJSON(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse sast scan results response: %w", err)
+	}
+
+	return result, nil
 }
 
 func (c *SSDClient) CreateProject(ctx context.Context, teamIds string, req *ProjectRef) (string, error) {

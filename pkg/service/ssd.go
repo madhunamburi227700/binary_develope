@@ -137,6 +137,10 @@ func (s *SSDService) GetProjectDetailsCustom(ctx context.Context, projectId stri
 	return client.NewSSDClient().GetProjectDetailsCustom(ctx, projectId)
 }
 
+func (s *SSDService) GetSASTScanResults(ctx context.Context, scanType, projectId, scanId string, sastReq *client.SASTScanRequest) ([]*client.SASTScanResult, error) {
+	return client.NewSSDClient().GetSASTScanResults(ctx, scanType, projectId, scanId, sastReq)
+}
+
 func (s *SSDService) GetProjectSummaryCount(ctx context.Context, hubIDs []string) (*client.SourceScanSummaryCount, error) {
 	ssdClient := client.NewSSDClient()
 

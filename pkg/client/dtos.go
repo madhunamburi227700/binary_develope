@@ -235,20 +235,36 @@ type ProjectConfigRef struct {
 }
 
 type ScanTargetRef struct {
-	Id                *string       `json:"id"`
-	Projects          []*ProjectRef `json:"projects,omitempty"`
-	Organization      string        `json:"organization"`
-	Repository        string        `json:"repository"`
-	Branch            string        `json:"branch"`
-	LastTriggeredBy   string        `json:"lastTriggeredBy"`
-	LastScannedTime   *time.Time    `json:"lastScannedTime"`
-	LastAttemptedTime *time.Time    `json:"lastAttemptedTime"`
-	CreatedAt         *time.Time    `json:"createdAt"`
-	UpdatedAt         *time.Time    `json:"updatedAt"`
-	// ScanResults       []*ScanResultRef `json:"scanResults,omitempty"`
-	Artifact   *ArtifactRef `json:"artifact,omitempty"`
-	Error      string       `json:"error"`
-	RiskStatus RiskStatus   `json:"riskStatus"`
+	Id                *string          `json:"id"`
+	Projects          []*ProjectRef    `json:"projects,omitempty"`
+	Organization      string           `json:"organization"`
+	Repository        string           `json:"repository"`
+	Branch            string           `json:"branch"`
+	LastTriggeredBy   string           `json:"lastTriggeredBy"`
+	LastScannedTime   *time.Time       `json:"lastScannedTime"`
+	LastAttemptedTime *time.Time       `json:"lastAttemptedTime"`
+	CreatedAt         *time.Time       `json:"createdAt"`
+	UpdatedAt         *time.Time       `json:"updatedAt"`
+	ScanResults       []*ScanResultRef `json:"scanResults,omitempty"`
+	Artifact          *ArtifactRef     `json:"artifact,omitempty"`
+	Error             string           `json:"error"`
+	RiskStatus        RiskStatus       `json:"riskStatus"`
+}
+
+type ScanResultRef struct {
+	Id           *string        `json:"id"`
+	Group        string         `json:"group"`
+	HeadCommit   string         `json:"headCommit"`
+	TriggerdBy   string         `json:"triggerdBy"`
+	TriggerType  string         `json:"triggerType"`
+	ScanType     string         `json:"scanType"`
+	ResultFile   string         `json:"resultFile"`
+	ScanTool     string         `json:"scanTool"`
+	ScannedAt    *time.Time     `json:"scannedAt"`
+	ScanDuration *time.Time     `json:"scanDuration"`
+	RiskStatus   RiskStatus     `json:"riskStatus"`
+	ScanTarget   *ScanTargetRef `json:"scanTarget,omitempty"`
+	Error        string         `json:"error"`
 }
 
 type ArtifactRef struct {
@@ -548,4 +564,22 @@ type DeleteIntegrationRequest struct {
 	IntegrationType string `json:"integrationType"`
 	Level           string `json:"level"`
 	TeamID          string `json:"teamId"`
+}
+
+type SASTScanRequest struct {
+	Semgrep SASTScanToolDetails `json:"semgrep"`
+}
+
+type SASTScanToolDetails struct {
+	ScanName   string `json:"scanName"`
+	ScanTool   string `json:"scanTool"`
+	ResultFile string `json:"resultFile"`
+	Status     string `json:"status"`
+}
+
+type SASTScanResult struct {
+	ScanName string `json:"scanName"`
+	Data     []struct {
+		Severity string `json:"severity"`
+	} `json:"data"`
 }

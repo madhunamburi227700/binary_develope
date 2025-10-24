@@ -54,12 +54,13 @@ type ProjectListRequest struct {
 }
 
 type ProjectStats struct {
-	ScanTimeFrequencies    []*ScanTimeFrequency    `json:"scans_time_frequencies"`
-	CurrentVulnerabilities *CurrentVulnerabilities `json:"current_vulnerabilities"`
-	RecentScans            []*RecentScan           `json:"recent_scans"`
+	ScanTimeFrequencies []*ScanTimeFrequency `json:"scans_time_frequencies"`
+	SCAVulnerabilities  *VulnerabilityCounts `json:"sca_vulnerabilities"`
+	SASTVulnerabilities *VulnerabilityCounts `json:"sast_vulnerabilities"`
+	RecentScans         []*RecentScan        `json:"recent_scans"`
 }
 
-type CurrentVulnerabilities struct {
+type VulnerabilityCounts struct {
 	CriticalCount *int `json:"critical_count"`
 	HighCount     *int `json:"high_count"`
 	MediumCount   *int `json:"medium_count"`
@@ -288,7 +289,7 @@ func (s *ProjectService) GetProjectStats(ctx context.Context, projectId string) 
 		return nil, fmt.Errorf("failed to get project details: %w", err)
 	}
 
-	return s.calculateProjectStats(projectRef), nil
+	return s.calculateProjectStats(ctx, projectRef)
 }
 
 // GetProjectsByHub retrieves projects by hub ID
@@ -358,12 +359,65 @@ func (s *ProjectService) GetProjectSummaryCount(ctx context.Context, hubIDs []st
 	return s.ssdService.GetProjectSummaryCount(ctx, hubIDs)
 }
 
-func (s *ProjectService) calculateProjectStats(projectRef *client.ProjectRef) *ProjectStats {
+func (s *ProjectService) calculateProjectStats(ctx context.Context,
+	projectRef *client.ProjectRef) (*ProjectStats, error) {
 	pstats := &ProjectStats{}
+	// picking up semgrep sast findings now
+	sastTool := "semgrep"
 
 	for _, scanTarget := range projectRef.Scans {
 		var dayDateTime time.Time
 		dayCountLastIdx := 0
+
+		// expecting only one sast results for now
+		if pstats.SASTVulnerabilities == nil {
+			for _, scanResult := range scanTarget.ScanResults {
+				if scanResult.ScanTool == sastTool {
+					sastResults, err := s.ssdService.GetSASTScanResults(ctx,
+						"sourceScan", projectRef.ID, *scanTarget.Id, &client.SASTScanRequest{
+							Semgrep: client.SASTScanToolDetails{
+								ScanName:   scanResult.ScanType,
+								ScanTool:   scanResult.ScanTool,
+								ResultFile: scanResult.ResultFile,
+								Status:     string(scanResult.RiskStatus),
+							},
+						})
+					if err != nil {
+						s.logger.LogError(err, "Failed to get sast findings", map[string]interface{}{
+							"projectId": projectRef.ID,
+							"scanId":    *scanTarget.Id,
+						})
+						return nil, fmt.Errorf("failed to get sast findings: %w", err)
+					}
+
+					var criticalCount, highCount, mediumCount, lowCount int
+					for _, sr := range sastResults {
+						if sr.ScanName == sastTool {
+							for _, srd := range sr.Data {
+								switch srd.Severity {
+								case "critical":
+									criticalCount++
+								case "high":
+									highCount++
+								case "medium":
+									mediumCount++
+								case "low":
+									lowCount++
+								}
+							}
+							break
+						}
+					}
+					pstats.SASTVulnerabilities = &VulnerabilityCounts{
+						CriticalCount: &criticalCount,
+						HighCount:     &highCount,
+						MediumCount:   &mediumCount,
+						LowCount:      &lowCount,
+					}
+				}
+			}
+		}
+
 		for _, scanData := range scanTarget.Artifact.ScanData {
 			var criticalVuln, highVuln, mediumVuln, lowVuln *int
 			if len(scanTarget.Artifact.ScanData) > 0 {
@@ -404,14 +458,14 @@ func (s *ProjectService) calculateProjectStats(projectRef *client.ProjectRef) *P
 		// picking up most recent scan vulns
 		// here entries are coming in asc order date time wise
 		mostRecentScan := pstats.RecentScans[len(pstats.RecentScans)-1]
-		pstats.CurrentVulnerabilities = &CurrentVulnerabilities{
+		pstats.SCAVulnerabilities = &VulnerabilityCounts{
 			CriticalCount: mostRecentScan.IssueCriticalCount,
 			HighCount:     mostRecentScan.IssueHighCount,
 			MediumCount:   mostRecentScan.IssueMediumCount,
 			LowCount:      mostRecentScan.IssueLowCount,
 		}
 	}
-	return pstats
+	return pstats, nil
 }
 
 func (s *ProjectService) getGithubUsername(ctx context.Context, accountId string) (string, error) {
