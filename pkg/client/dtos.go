@@ -433,9 +433,10 @@ type VulnerabilityDataRequest struct {
 
 // VulnerabilityDataResponse represents the response for vulnerability data
 type VulnerabilityDataResponse struct {
-	Results  []VulnerabilityScanResult `json:"results"`
-	ScanID   string                    `json:"scanId"`
-	Platform string                    `json:"platform"`
+	Results   []VulnerabilityScanResult `json:"results"`
+	ScanID    string                    `json:"scanId"`
+	Platform  string                    `json:"platform"`
+	TotalSize int                       `json:"totalSize"`
 }
 
 // VulnerabilityScanResult represents a single scan result
