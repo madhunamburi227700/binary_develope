@@ -65,6 +65,7 @@ type VulnerabilityCounts struct {
 	HighCount     *int `json:"high_count"`
 	MediumCount   *int `json:"medium_count"`
 	LowCount      *int `json:"low_count"`
+	UnknownCount  *int `json:"unknown_count"`
 }
 
 type ScanTimeFrequency struct {
@@ -80,6 +81,7 @@ type RecentScan struct {
 	IssueHighCount     *int       `json:"issue_high_count"`
 	IssueMediumCount   *int       `json:"issue_medium_count"`
 	IssueLowCount      *int       `json:"issue_low_count"`
+	IssueUnkownCount   *int       `json:"issue_unknown_count"`
 }
 
 // CreateProject creates a new project
@@ -390,7 +392,7 @@ func (s *ProjectService) calculateProjectStats(ctx context.Context,
 						return nil, fmt.Errorf("failed to get sast findings: %w", err)
 					}
 
-					var criticalCount, highCount, mediumCount, lowCount int
+					var criticalCount, highCount, mediumCount, lowCount, unknownCount int
 					for _, sr := range sastResults {
 						if sr.ScanName == sastTool {
 							for _, srd := range sr.Data {
@@ -403,6 +405,8 @@ func (s *ProjectService) calculateProjectStats(ctx context.Context,
 									mediumCount++
 								case "low":
 									lowCount++
+								case "undefined":
+									unknownCount++
 								}
 							}
 							break
@@ -413,43 +417,59 @@ func (s *ProjectService) calculateProjectStats(ctx context.Context,
 						HighCount:     &highCount,
 						MediumCount:   &mediumCount,
 						LowCount:      &lowCount,
+						UnknownCount:  &unknownCount,
 					}
 				}
 			}
 		}
 
-		for _, scanData := range scanTarget.Artifact.ScanData {
-			var criticalVuln, highVuln, mediumVuln, lowVuln *int
-			if len(scanTarget.Artifact.ScanData) > 0 {
-				criticalVuln = scanData.VulnCriticalCount
-				highVuln = scanData.VulnHighCount
-				mediumVuln = scanData.VulnMediumCount
-				lowVuln = scanData.VulnLowCount
-			}
-			pstats.RecentScans = append(pstats.RecentScans, &RecentScan{
-				Branch:             scanTarget.Branch,
-				CommitId:           scanData.ArtifactSha[7:14],
-				ScanTime:           scanData.LastScannedAt,
-				IssueCriticalCount: criticalVuln,
-				IssueHighCount:     highVuln,
-				IssueMediumCount:   mediumVuln,
-				IssueLowCount:      lowVuln,
-			})
+		if scanTarget.Artifact != nil {
+			for _, scanData := range scanTarget.Artifact.ScanData {
+				var criticalVuln, highVuln, mediumVuln, lowVuln, unknownVuln int
+				if scanData.VulnCriticalCount != nil {
+					criticalVuln = *scanData.VulnCriticalCount
+				}
+				if scanData.VulnHighCount != nil {
+					highVuln = *scanData.VulnHighCount
+				}
+				if scanData.VulnMediumCount != nil {
+					mediumVuln = *scanData.VulnMediumCount
+				}
+				if scanData.VulnLowCount != nil {
+					lowVuln = *scanData.VulnLowCount
+				}
+				if scanData.VulnUnknownCount != nil {
+					unknownVuln = *scanData.VulnUnknownCount
+				}
 
-			// expecting scandata entries would come in asc order only
-			if dayDateTime.IsZero() || dayDateTime.Format("2006-01-02") != scanData.LastScannedAt.Format("2006-01-02") {
-				outDatetime := *scanData.LastScannedAt
-				outCount := 1
-				pstats.ScanTimeFrequencies = append(pstats.ScanTimeFrequencies, &ScanTimeFrequency{
-					Date:  &outDatetime,
-					Count: &outCount,
+				pstats.RecentScans = append(pstats.RecentScans, &RecentScan{
+					Branch:             scanTarget.Branch,
+					CommitId:           scanData.ArtifactSha[7:14],
+					ScanTime:           scanData.LastScannedAt,
+					IssueCriticalCount: &criticalVuln,
+					IssueHighCount:     &highVuln,
+					IssueMediumCount:   &mediumVuln,
+					IssueLowCount:      &lowVuln,
+					IssueUnkownCount:   &unknownVuln,
 				})
-				dayDateTime = *scanData.LastScannedAt
-				dayCountLastIdx = len(pstats.ScanTimeFrequencies) - 1
-			} else if dayDateTime.Format("2006-01-02") == scanData.LastScannedAt.Format("2006-01-02") {
-				prevCount := *pstats.ScanTimeFrequencies[dayCountLastIdx].Count
-				prevCount++
-				pstats.ScanTimeFrequencies[dayCountLastIdx].Count = &prevCount
+
+				// expecting scandata entries would come in asc order only
+				if scanData.LastScannedAt != nil {
+					if dayDateTime.IsZero() || dayDateTime.Format("2006-01-02") != scanData.LastScannedAt.Format("2006-01-02") {
+						outDatetime := *scanData.LastScannedAt
+						outCount := 1
+						pstats.ScanTimeFrequencies = append(pstats.ScanTimeFrequencies, &ScanTimeFrequency{
+							Date:  &outDatetime,
+							Count: &outCount,
+						})
+						dayDateTime = *scanData.LastScannedAt
+						dayCountLastIdx = len(pstats.ScanTimeFrequencies) - 1
+					} else if dayDateTime.Format("2006-01-02") == scanData.LastScannedAt.Format("2006-01-02") {
+						prevCount := *pstats.ScanTimeFrequencies[dayCountLastIdx].Count
+						prevCount++
+						pstats.ScanTimeFrequencies[dayCountLastIdx].Count = &prevCount
+					}
+				}
 			}
 		}
 	}
@@ -463,6 +483,7 @@ func (s *ProjectService) calculateProjectStats(ctx context.Context,
 			HighCount:     mostRecentScan.IssueHighCount,
 			MediumCount:   mostRecentScan.IssueMediumCount,
 			LowCount:      mostRecentScan.IssueLowCount,
+			UnknownCount:  mostRecentScan.IssueUnkownCount,
 		}
 	}
 	return pstats, nil
