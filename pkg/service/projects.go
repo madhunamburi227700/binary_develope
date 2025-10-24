@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -423,8 +424,24 @@ func (s *ProjectService) calculateProjectStats(ctx context.Context,
 			}
 		}
 
+		var lastScannedTime time.Time
+		// expecting scandata entries would come in asc order only
+		if scanTarget.LastScannedTime != nil {
+			lastScannedTime = *scanTarget.LastScannedTime
+		}
+
 		if scanTarget.Artifact != nil {
+			sort.SliceStable(scanTarget.Artifact.ScanData, func(i, j int) bool {
+				if scanTarget.Artifact.ScanData[i].LastScannedAt == nil &&
+					scanTarget.Artifact.ScanData[j].LastScannedAt == nil {
+					return false
+				}
+				return scanTarget.Artifact.ScanData[i].LastScannedAt.UnixNano() > scanTarget.Artifact.ScanData[j].LastScannedAt.UnixNano()
+			})
 			for _, scanData := range scanTarget.Artifact.ScanData {
+				if scanData.Tool != "syft" {
+					continue
+				}
 				var criticalVuln, highVuln, mediumVuln, lowVuln, unknownVuln int
 				if scanData.VulnCriticalCount != nil {
 					criticalVuln = *scanData.VulnCriticalCount
@@ -442,36 +459,37 @@ func (s *ProjectService) calculateProjectStats(ctx context.Context,
 					unknownVuln = *scanData.VulnUnknownCount
 				}
 
+				if dayDateTime.IsZero() || dayDateTime.Format("2006-01-02") != lastScannedTime.Format("2006-01-02") {
+					outDatetime := *scanTarget.LastScannedTime
+					outCount := 1
+					pstats.ScanTimeFrequencies = append(pstats.ScanTimeFrequencies, &ScanTimeFrequency{
+						Date:  &outDatetime,
+						Count: &outCount,
+					})
+					// dayDateTime = *scanTarget.LastScannedTime
+					// dayCountLastIdx = len(pstats.ScanTimeFrequencies) - 1
+				} else if dayDateTime.Format("2006-01-02") == lastScannedTime.Format("2006-01-02") {
+					prevCount := *pstats.ScanTimeFrequencies[dayCountLastIdx].Count
+					prevCount++
+					pstats.ScanTimeFrequencies[dayCountLastIdx].Count = &prevCount
+				}
+
 				pstats.RecentScans = append(pstats.RecentScans, &RecentScan{
 					Branch:             scanTarget.Branch,
 					CommitId:           scanData.ArtifactSha[7:14],
-					ScanTime:           scanData.LastScannedAt,
+					ScanTime:           &lastScannedTime,
 					IssueCriticalCount: &criticalVuln,
 					IssueHighCount:     &highVuln,
 					IssueMediumCount:   &mediumVuln,
 					IssueLowCount:      &lowVuln,
 					IssueUnkownCount:   &unknownVuln,
 				})
-
-				// expecting scandata entries would come in asc order only
-				if scanData.LastScannedAt != nil {
-					if dayDateTime.IsZero() || dayDateTime.Format("2006-01-02") != scanData.LastScannedAt.Format("2006-01-02") {
-						outDatetime := *scanData.LastScannedAt
-						outCount := 1
-						pstats.ScanTimeFrequencies = append(pstats.ScanTimeFrequencies, &ScanTimeFrequency{
-							Date:  &outDatetime,
-							Count: &outCount,
-						})
-						dayDateTime = *scanData.LastScannedAt
-						dayCountLastIdx = len(pstats.ScanTimeFrequencies) - 1
-					} else if dayDateTime.Format("2006-01-02") == scanData.LastScannedAt.Format("2006-01-02") {
-						prevCount := *pstats.ScanTimeFrequencies[dayCountLastIdx].Count
-						prevCount++
-						pstats.ScanTimeFrequencies[dayCountLastIdx].Count = &prevCount
-					}
-				}
+				// only keeping 1 entr for latest scan now
+				break
 			}
 		}
+		// only keeping 1 entr for latest scan now
+		break
 	}
 
 	if len(pstats.RecentScans) > 0 {
