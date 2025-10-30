@@ -66,6 +66,15 @@ type configType struct {
 	StartUpMessages  []string `yaml:"startUpMessages"`
 	HomePage         string   `yaml:"homePage"`
 	SessionStoreType string   `yaml:"sessionStoreType"`
+	Feedback         struct {
+		SMTPHost          string   `yaml:"smtpHost"`
+		SMTPPort          string   `yaml:"smtpPort"`
+		SMTPUser          string   `yaml:"smtpUser"`
+		SMTPPassword      string   `yaml:"smtpPassword"`
+		AdminEmails       []string `yaml:"adminEmails"`
+		EmailSubject      string   `yaml:"emailSubject"`
+		EmailBodyTemplate string   `yaml:"emailBodyTemplate"`
+	} `yaml:"feedback"`
 }
 
 var config configType
@@ -237,4 +246,15 @@ func GetGithubTokenTemp() string {
 	}
 
 	return config.Token
+}
+
+// GetFeedbackConfig returns feedback email configuration
+func GetFeedbackConfig() (smtpHost, smtpPort, smtpUser, smtpPassword, emailSubject, emailBodyTemplate string, adminEmails []string) {
+	return config.Feedback.SMTPHost,
+		config.Feedback.SMTPPort,
+		config.Feedback.SMTPUser,
+		config.Feedback.SMTPPassword,
+		config.Feedback.EmailSubject,
+		config.Feedback.EmailBodyTemplate,
+		config.Feedback.AdminEmails
 }
