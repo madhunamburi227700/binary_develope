@@ -2,9 +2,9 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";   -- for gen_random_uuid() if preferred
 
 -- ENUMs
-CREATE TYPE remediation_status_t AS ENUM ('OPEN','IN_PROGRESS','FIXED','FAILED','IGNORED');
 CREATE TYPE verification_status_t AS ENUM ('FIXED','UNFIXED');
 CREATE TYPE scan_status_t AS ENUM ('pending','fail','completed','scanning');
+CREATE TYPE remediation_status_t AS ENUM ('STARTED','FIX_PENDING','FIX_GENERATED','PR_RAISED','COMPLETED');
 
 CREATE TABLE IF NOT EXISTS hubs (
   id              varchar(64)    PRIMARY KEY,     -- SSD team id (bounded to save space)
@@ -100,24 +100,21 @@ CREATE INDEX IF NOT EXISTS idx_vuln_severity ON vulnerabilities(severity);
 CREATE INDEX IF NOT EXISTS idx_vuln_metadata_gin ON vulnerabilities USING GIN (metadata);
 
 CREATE TABLE IF NOT EXISTS remediations (
-  id               uuid                PRIMARY KEY DEFAULT gen_random_uuid(),
+  id               uuid                PRIMARY KEY,
   vulnerability_id uuid                NOT NULL,
-  status           remediation_status_t NOT NULL DEFAULT 'OPEN',
+  status           remediation_status_t NOT NULL,
   fix_commit_sha   varchar(128),
   fix_branch       varchar(256),
   pr_link          varchar(1024),
   prompt_id        uuid,
-  conversation     jsonb,                   -- AI-assisted conversation / comments
-  started_at       timestamptz,
-  completed_at     timestamptz,
-  created_at       timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT fk_remediation_vuln FOREIGN KEY (vulnerability_id) REFERENCES vulnerabilities(id) ON DELETE CASCADE
+  conversation     TEXT[] DEFAULT ARRAY[]::TEXT[],                   -- AI-assisted conversation / comments
+  created_at       timestamptz,
+  updated_at       timestamptz,
+  completed_at     timestamptz
 );
 
 CREATE INDEX IF NOT EXISTS idx_remediations_vuln ON remediations(vulnerability_id);
 CREATE INDEX IF NOT EXISTS idx_remediations_status ON remediations(status);
-CREATE INDEX IF NOT EXISTS idx_remediations_prompt ON remediations(prompt_id);
-CREATE INDEX IF NOT EXISTS idx_remediations_conv_gin ON remediations USING GIN (conversation);
 
 CREATE TABLE IF NOT EXISTS remediation_verification (
   id                 uuid                PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -159,8 +156,3 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at timestamptz  NOT NULL DEFAULT now(),
   CONSTRAINT fk_audit_hub FOREIGN KEY (hub_id) REFERENCES hubs(id) ON DELETE SET NULL
 );
-
-CREATE INDEX IF NOT EXISTS idx_audit_user ON audit_logs(user_email);
-CREATE INDEX IF NOT EXISTS idx_audit_hub ON audit_logs(hub_id);
-CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at);
-CREATE INDEX IF NOT EXISTS idx_audit_metadata_gin ON audit_logs USING GIN (metadata);

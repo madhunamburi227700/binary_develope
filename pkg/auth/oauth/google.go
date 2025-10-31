@@ -121,10 +121,6 @@ func (g *GoogleOAuth) HandleCallback(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		g.logger.LogInfo("Using PKCE config for state", map[string]interface{}{
-			"state": state,
-		})
-
 		// Exchange with PKCE code verifier
 		token, err = g.config.Exchange(ctx, code, oauth2.SetAuthURLParam("code_verifier", pkce.CodeVerifier))
 
