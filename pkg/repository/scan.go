@@ -110,7 +110,7 @@ func (r *ScanRepository) UpdateScanStatus(ctx context.Context, scanID string, sc
 	// Update scans table
 	now := time.Now()
 	var endTime *time.Time
-	if scanData.Status == "completed" || scanData.Status == "failed" {
+	if scanData.Status == "completed" || scanData.Status == "fail" {
 		endTime = &now
 	}
 
@@ -144,6 +144,21 @@ func (r *ScanRepository) UpdateScanStatus(ctx context.Context, scanID string, sc
 		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	return nil
+}
+
+// update scan status in bulk
+func (r *ScanRepository) UpdateScanStatusInBulk(ctx context.Context, scanIDs []string, status string, endTime time.Time) error {
+	query := `
+		UPDATE scans
+		SET status = $1
+		end_time = $2
+		WHERE id = ANY($2)
+	`
+	_, err := r.db.Exec(ctx, query, status, endTime, scanIDs)
+	if err != nil {
+		return fmt.Errorf("failed to update scan status in bulk: %w", err)
+	}
 	return nil
 }
 

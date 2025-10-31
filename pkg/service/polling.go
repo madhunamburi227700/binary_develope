@@ -114,6 +114,16 @@ func (ps *PollingService) pollScans(ctx context.Context) {
 
 	if len(projectStatuses) == 0 {
 		log.Error().Msgf("No project statuses found for project ids: %v", projectIds)
+		// mark scans as failed if not found in project statuses
+		scanIDs := make([]string, len(scansMap))
+		for _, scan := range scansMap {
+			scanIDs = append(scanIDs, scan.ID)
+		}
+		if err := ps.updateScanStatusInBulk(ctx, scanIDs, string(client.RiskStatusFail)); err != nil {
+			ps.logger.LogError(err, "Failed to update scan status in bulk", map[string]interface{}{
+				"scan_ids": scanIDs,
+			})
+		}
 		return
 	}
 
@@ -153,13 +163,17 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 			Branch:     scan.Branch,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to get scan result data: %w", err)
+			ps.logger.LogError(err, "Failed to get scan result data", map[string]interface{}{
+				"scan_id": scan.ID,
+			})
+			if err := ps.updateScanStatus(ctx, scan.ID, string(client.RiskStatusFail)); err != nil {
+				return fmt.Errorf("failed to update scan in database: %w", err)
+			}
+			return nil
 		}
 
-		scanData.Status = string(client.RiskStatusCompleted)
-
 		// Update scan status using repository
-		if err := ps.scanRepository.UpdateScanStatus(ctx, scan.ID, scanData); err != nil {
+		if err := ps.updateScanStatus(ctx, scan.ID, string(client.RiskStatusCompleted)); err != nil {
 			return fmt.Errorf("failed to update scan in database: %w", err)
 		}
 
@@ -173,13 +187,8 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 		// Failed: Update scans and scan_types with failed status
 		log.Info().Msgf("Scan %s failed, updating database with failed status", scan.ID)
 
-		// Create a minimal scan data structure for failed scans
-		scanData := &client.ScanResultDataResponse{
-			Status: string(client.RiskStatusFail),
-		}
-
 		// Update scan status using repository
-		if err := ps.scanRepository.UpdateScanStatus(ctx, scan.ID, scanData); err != nil {
+		if err := ps.updateScanStatus(ctx, scan.ID, string(client.RiskStatusFail)); err != nil {
 			return fmt.Errorf("failed to update scan in database: %w", err)
 		}
 
@@ -192,6 +201,24 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 		log.Warn().Msgf("Unknown status '%s' for scan %s, will check again in next cycle", projectStatus, scan.ID)
 	}
 
+	return nil
+}
+
+// update scan status in database
+func (ps *PollingService) updateScanStatus(ctx context.Context, scanID string, status string) error {
+	if err := ps.scanRepository.UpdateScanStatus(ctx, scanID, &client.ScanResultDataResponse{
+		Status: status,
+	}); err != nil {
+		return fmt.Errorf("failed to update scan in database: %w", err)
+	}
+	return nil
+}
+
+// update scan status in bulk
+func (ps *PollingService) updateScanStatusInBulk(ctx context.Context, scanIDs []string, status string) error {
+	if err := ps.scanRepository.UpdateScanStatusInBulk(ctx, scanIDs, status, time.Now()); err != nil {
+		return fmt.Errorf("failed to update scan status in bulk: %w", err)
+	}
 	return nil
 }
 
