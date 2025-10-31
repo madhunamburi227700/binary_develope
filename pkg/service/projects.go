@@ -568,11 +568,11 @@ func (s *ProjectService) getProjectStats(ctx context.Context, projectId string) 
 			Branch:             entry.Branch,
 			CommitId:           commitSha,
 			ScanTime:           &scanTime,
-			IssueCriticalCount: sastStats.CriticalCount,
-			IssueHighCount:     sastStats.HighCount,
-			IssueMediumCount:   sastStats.MediumCount,
-			IssueLowCount:      sastStats.LowCount,
-			IssueUnknownCount:  sastStats.UnknownCount,
+			IssueCriticalCount: scaStats.CriticalCount,
+			IssueHighCount:     scaStats.HighCount,
+			IssueMediumCount:   scaStats.MediumCount,
+			IssueLowCount:      scaStats.LowCount,
+			IssueUnknownCount:  scaStats.UnknownCount,
 		})
 	}
 	return pStats, nil
