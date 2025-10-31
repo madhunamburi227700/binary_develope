@@ -72,9 +72,6 @@ func (g *GoogleOAuth) GetAuthURL(state string) string {
 
 		// Store PKCE config with state for later validation
 		g.pkceStore[state] = pkce
-		g.logger.LogInfo("PKCE config stored", map[string]interface{}{
-			"state": state,
-		})
 
 		return g.config.AuthCodeURL(state,
 			oauth2.AccessTypeOffline,

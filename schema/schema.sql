@@ -98,6 +98,8 @@ CREATE TABLE IF NOT EXISTS vulnerabilities (
 CREATE INDEX IF NOT EXISTS idx_vuln_scanid ON vulnerabilities(scan_id);
 CREATE INDEX IF NOT EXISTS idx_vuln_severity ON vulnerabilities(severity);
 CREATE INDEX IF NOT EXISTS idx_vuln_metadata_gin ON vulnerabilities USING GIN (metadata);
+CREATE UNIQUE INDEX IF NOT EXISTS unique_idx_vuln_scanid_name_scan_type_tool_package_version
+ON vulnerabilities (scan_id, name, scan_type, tool, package, version);
 
 CREATE TABLE IF NOT EXISTS remediations (
   id               uuid                PRIMARY KEY,

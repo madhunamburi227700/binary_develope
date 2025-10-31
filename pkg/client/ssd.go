@@ -780,7 +780,7 @@ func (c *SSDClient) GetScanResultData(ctx context.Context, req *ScanResultDataRe
 
 	var result ScanResultDataResponse
 	if err := resp.ParseJSON(&result); err != nil {
-		return nil, fmt.Errorf("internal server error")
+		return nil, fmt.Errorf("failed to parse scan result data response: %w", err)
 	}
 
 	return &result, nil

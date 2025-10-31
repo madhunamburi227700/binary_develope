@@ -90,7 +90,6 @@ func (ps *PollingService) pollScans(ctx context.Context) {
 	}
 
 	if len(scans) == 0 {
-		log.Debug().Msg("No pending scans to poll")
 		return
 	}
 
@@ -166,14 +165,18 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 			ps.logger.LogError(err, "Failed to get scan result data", map[string]interface{}{
 				"scan_id": scan.ID,
 			})
-			if err := ps.updateScanStatus(ctx, scan.ID, string(client.RiskStatusFail)); err != nil {
+			if err := ps.updateScanStatus(ctx, scan.ID, &client.ScanResultDataResponse{
+				Status: string(client.RiskStatusFail),
+			}); err != nil {
 				return fmt.Errorf("failed to update scan in database: %w", err)
 			}
 			return nil
 		}
 
+		scanData.Status = string(client.RiskStatusCompleted)
+
 		// Update scan status using repository
-		if err := ps.updateScanStatus(ctx, scan.ID, string(client.RiskStatusCompleted)); err != nil {
+		if err := ps.updateScanStatus(ctx, scan.ID, scanData); err != nil {
 			return fmt.Errorf("failed to update scan in database: %w", err)
 		}
 
@@ -188,7 +191,9 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 		log.Info().Msgf("Scan %s failed, updating database with failed status", scan.ID)
 
 		// Update scan status using repository
-		if err := ps.updateScanStatus(ctx, scan.ID, string(client.RiskStatusFail)); err != nil {
+		if err := ps.updateScanStatus(ctx, scan.ID, &client.ScanResultDataResponse{
+			Status: string(client.RiskStatusFail),
+		}); err != nil {
 			return fmt.Errorf("failed to update scan in database: %w", err)
 		}
 
@@ -205,10 +210,8 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 }
 
 // update scan status in database
-func (ps *PollingService) updateScanStatus(ctx context.Context, scanID string, status string) error {
-	if err := ps.scanRepository.UpdateScanStatus(ctx, scanID, &client.ScanResultDataResponse{
-		Status: status,
-	}); err != nil {
+func (ps *PollingService) updateScanStatus(ctx context.Context, scanID string, scanData *client.ScanResultDataResponse) error {
+	if err := ps.scanRepository.UpdateScanStatus(ctx, scanID, scanData); err != nil {
 		return fmt.Errorf("failed to update scan in database: %w", err)
 	}
 	return nil
@@ -236,36 +239,19 @@ func (ps *PollingService) insertVulnerabilities(ctx context.Context, scan reposi
 	log.Info().Msgf("Fetching vulnerabilities for scan %s", scan.ID)
 
 	// Fetch SAST vulnerabilities if SAST scan is available
-	var sastVulnData *client.VulnerabilityDataResponse
+	sastVulnData := &client.VulnerabilityDataResponse{}
 	if scanData.ScannedFiledData.SAST.Semgrep.ScanName != "" {
-
-		// Fetch all SAST vulnerabilities with pagination
-		sastVulnData = &client.VulnerabilityDataResponse{Results: []client.VulnerabilityScanResult{}}
-		pageNo := 0
-		pageLimit := 99 // API requires less than 100
-
-		for {
-			pageData, err := ps.vulnService.GetSastVulnerabilities(ctx, scan.ProjectID, teamID, scan.Repository, scan.Branch, pageNo, pageLimit)
-			if err != nil {
-				log.Error().Err(err).Msgf("Failed to fetch SAST vulnerabilities page %d for scan %s", pageNo, scan.ID)
-				break
-			}
-
-			if pageData == nil || len(pageData.Results) == 0 {
-				break
-			}
-
-			sastVulnData.Results = append(sastVulnData.Results, pageData.Results...)
-			log.Debug().Msgf("Fetched page %d with %d SAST vulnerabilities for scan %s", pageNo, len(pageData.Results), scan.ID)
-
-			// If we got fewer results than the page limit, we've reached the end
-			if len(pageData.Results) < pageLimit {
-				break
-			}
-
-			pageNo++
+		scanData, err := ps.vulnService.GetSastVulnerabilities(ctx, scan.ProjectID, teamID, scan.Repository, scan.Branch)
+		if err != nil {
+			log.Error().Err(err).Msgf("Failed to fetch SAST vulnerabilities for scan %s", scan.ID)
+			return fmt.Errorf("failed to fetch SAST vulnerabilities: %w", err)
 		}
 
+		if scanData == nil || len(scanData.Results) == 0 {
+			return fmt.Errorf("no SAST vulnerabilities found for scan %s", scan.ID)
+		}
+
+		sastVulnData.Results = scanData.Results
 	}
 
 	// Fetch SCA vulnerabilities if SCA scans are available
