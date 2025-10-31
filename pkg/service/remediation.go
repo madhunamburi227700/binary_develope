@@ -31,21 +31,25 @@ func NewRemediationService() *RemediationService {
 }
 
 type SASTRemediationRequest struct {
-	ScanResultID string `json:"scan_result_id"`
-	Platform     string `json:"platform"`
-	Organization string `json:"organization"`
-	Repository   string `json:"repository"`
-	Token        string `json:"token"`
-	Branch       string `json:"branch"`
-	Rule         string `json:"rule"`
-	RuleMessage  string `json:"rule_message"`
-	FilePath     string `json:"file_path"`
-	LineNo       *int   `json:"line_no"`
+	ID              string `json:"id"`
+	VulnerabilityID string `json:"vulnerability_id"`
+	Platform        string `json:"platform"`
+	Organization    string `json:"organization"`
+	Repository      string `json:"repository"`
+	Token           string `json:"token"`
+	Branch          string `json:"branch"`
+	Rule            string `json:"rule"`
+	RuleMessage     string `json:"rule_message"`
+	FilePath        string `json:"file_path"`
+	LineNo          *int   `json:"line_no"`
 }
 
 func (s *RemediationService) ValidateSASTRequest(req *SASTRemediationRequest) error {
-	if req.ScanResultID == "" {
-		return fmt.Errorf("scan_result_id is required")
+	if req.ID == "" {
+		return fmt.Errorf("id is required")
+	}
+	if req.VulnerabilityID == "" {
+		return fmt.Errorf("vulnerability_id is required")
 	}
 	if req.Platform == "" {
 		return fmt.Errorf("platform is required")
@@ -92,22 +96,26 @@ func (s *RemediationService) SAST(ctx context.Context, req *SASTRemediationReque
 }
 
 type CVERemediationRequest struct {
-	SessionID    *string `json:"session_id,omitempty"`
-	ScanResultID string  `json:"scan_result_id"`
-	Token        string  `json:"token"`
-	Platform     string  `json:"platform"`
-	Organization string  `json:"organization"`
-	Repository   string  `json:"repository"`
-	CVEID        string  `json:"cve_id"`
-	Package      string  `json:"package"`
-	Branch       *string `json:"branch,omitempty"`
-	MessageType  string  `json:"message_type"`
-	UserMessage  *string `json:"user_message,omitempty"`
+	ID              string  `json:"id"`
+	VulnerabilityID string  `json:"vulnerability_id"`
+	SessionID       *string `json:"session_id,omitempty"`
+	Token           string  `json:"token"`
+	Platform        string  `json:"platform"`
+	Organization    string  `json:"organization"`
+	Repository      string  `json:"repository"`
+	CVEID           string  `json:"cve_id"`
+	Package         string  `json:"package"`
+	Branch          *string `json:"branch,omitempty"`
+	MessageType     string  `json:"message_type"`
+	UserMessage     *string `json:"user_message,omitempty"`
 }
 
 func (s *RemediationService) ValidateCVERequest(req *CVERemediationRequest) error {
-	if req.ScanResultID == "" {
-		return fmt.Errorf("scan_result_id is required")
+	if req.ID == "" {
+		return fmt.Errorf("id is required")
+	}
+	if req.VulnerabilityID == "" {
+		return fmt.Errorf("vulnerability_id is required")
 	}
 	if req.Platform == "" {
 		return fmt.Errorf("platform is required")
