@@ -8,11 +8,14 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/OpsMx/go-app-base/version"
+	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/config"
 	"github.com/opsmx/ai-guardian-api/pkg/database"
 	"github.com/opsmx/ai-guardian-api/pkg/handlers"
+	"github.com/opsmx/ai-guardian-api/pkg/service"
 	"github.com/rs/zerolog/log"
 
 	// Swagger imports
@@ -102,6 +105,22 @@ func main() {
 		log.Fatal().Err(err).Msg("error configuring Session store")
 	}
 
+	// Initialize and start polling service if enabled
+	var pollingService *service.PollingService
+	if config.GetPollingEnabled() {
+		// Create SSD client for polling service
+		ssdClient := client.NewSSDClient()
+		
+		pollingInterval := time.Duration(config.GetPollingIntervalSeconds()) * time.Second
+		pollingService = service.NewPollingService(ssdClient, pollingInterval)
+		
+		// Start polling service in background
+		go pollingService.Start(ctx)
+		log.Info().Msgf("Polling service started with interval: %v", pollingInterval)
+	} else {
+		log.Info().Msg("Polling service is disabled")
+	}
+
 	// Setup routes
 	router := handlers.SetupRoutes()
 
@@ -122,6 +141,12 @@ func main() {
 	go func() {
 		<-sigChan
 		log.Info().Msg("Shutdown signal received, stopping services...")
+
+		// Stop polling service if running
+		if pollingService != nil {
+			pollingService.Stop()
+			log.Info().Msg("Polling service stopped")
+		}
 
 		// Stop session manager
 		config.StopSessionManager()

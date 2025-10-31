@@ -48,6 +48,11 @@ type configType struct {
 		Addr string `yaml:"addr"`
 	} `yaml:"remediation_service"`
 
+	Polling struct {
+		Enabled         bool `yaml:"enabled"`
+		IntervalSeconds int  `yaml:"intervalSeconds"`
+	} `yaml:"polling"`
+
 	Google struct {
 		ClientID     string `yaml:"clientID"`
 		ClientSecret string `yaml:"clientSecret"`
@@ -246,6 +251,19 @@ func GetGithubTokenTemp() string {
 	}
 
 	return config.Token
+}
+
+// GetPollingEnabled returns whether polling is enabled
+func GetPollingEnabled() bool {
+	return config.Polling.Enabled
+}
+
+// GetPollingIntervalSeconds returns the polling interval in seconds
+func GetPollingIntervalSeconds() int {
+	if config.Polling.IntervalSeconds <= 0 {
+		return 300 // Default to 5 minutes
+	}
+	return config.Polling.IntervalSeconds
 }
 
 // GetFeedbackConfig returns feedback email configuration

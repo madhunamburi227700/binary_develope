@@ -133,6 +133,11 @@ func (s *SSDService) GetProjectDetails(ctx context.Context, projectId string) (*
 	return ssdClient.GetProjectDetails(ctx, projectId)
 }
 
+func (s *SSDService) GetProjectStatuses(ctx context.Context, projectIds []string) ([]client.ProjectDetailsResponse, error) {
+	ssdClient := client.NewSSDClient()
+	return ssdClient.GetProjectStatuses(ctx, projectIds)
+}
+
 func (s *SSDService) GetProjectDetailsCustom(ctx context.Context, projectId string) (*client.ProjectRef, error) {
 	return client.NewSSDClient().GetProjectDetailsCustom(ctx, projectId)
 }
@@ -186,7 +191,6 @@ func (s *SSDService) Rescan(ctx context.Context, req *RescanRequest, scanResult 
 	}
 
 	return resp.Message, nil
-
 }
 
 func (s *SSDService) GetVulnerabilityList(ctx context.Context, req *client.VulnerabilityListRequest) (*client.VulnerabilityListResponse, error) {

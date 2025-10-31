@@ -75,7 +75,6 @@ func (r *BaseRepository) Create(ctx context.Context, table string, data map[stri
 	now := time.Now()
 	data["id"] = uuid.New()
 	data["created_at"] = now
-	data["updated_at"] = now
 
 	// Build query
 	columns := make([]string, 0, len(data))

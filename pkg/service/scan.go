@@ -5,17 +5,22 @@ import (
 	"fmt"
 
 	"github.com/opsmx/ai-guardian-api/pkg/client"
+	"github.com/opsmx/ai-guardian-api/pkg/models"
+	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
 
 type ScanService struct {
-	ssdService *SSDService
-	logger     *utils.ErrorLogger
+	ssdService     *SSDService
+	scanRepository *repository.ScanRepository
+	logger         *utils.ErrorLogger
 }
 
 func NewScanService() *ScanService {
 	return &ScanService{
-		logger: utils.NewErrorLogger("scan_service"),
+		ssdService:     NewSSDService(),
+		logger:         utils.NewErrorLogger("scan_service"),
+		scanRepository: repository.NewScanRepository(),
 	}
 }
 
@@ -51,6 +56,21 @@ func (s *ScanService) Rescan(ctx context.Context, req *RescanRequest) (string, e
 
 	if scanResult.ScanID == "" {
 		return "", fmt.Errorf("scan result not found")
+	}
+
+	// CREATE SCANS ENTRY FOR POLLING
+	scan := &models.Scan{
+		ProjectID:  req.ProjectID,
+		Branch:     req.Branch,
+		Repository: req.Repository,
+		CommitSHA:  scanResult.HeadCommit,
+		Tag:        scanResult.ArtifactTag,
+		Status:     string(client.RiskStatusPending),
+		HubID:      req.HubID,
+	}
+
+	if err := s.scanRepository.Create(ctx, scan); err != nil {
+		return "", err
 	}
 
 	return s.ssdService.Rescan(ctx, req, scanResult)

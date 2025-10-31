@@ -219,6 +219,23 @@ type ProjectRef struct {
 	UpdatedAt     *time.Time         `json:"updatedAt,omitempty" yaml:"updatedAt,omitempty"`
 }
 
+type ProjectDetailsResponse struct {
+	RiskStatus RiskStatus   `json:"riskStatus"`
+	Error      string       `json:"error,omitempty"`
+	ID         string       `json:"id,omitempty"`
+	Team       *TeamDetails `json:"team,omitempty"`
+	Scans      []*Scans     `json:"scans,omitempty"`
+}
+
+type Scans struct {
+	Branch string `json:"branch"`
+}
+
+type TeamDetails struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
 type ProjectConfigRef struct {
 	ID                 string     `json:"id,omitempty" yaml:"id,omitempty"`
 	Organisation       string     `json:"organisation,omitempty" yaml:"organisation,omitempty"`
