@@ -14,7 +14,7 @@ import (
 const (
 	MaxTotalSize = 15 * 1024 * 1024 // 15 MB total
 	MaxFileSize  = 8 * 1024 * 1024  // 8 MB per file
-	MaxFiles     = 10                // Maximum number of files
+	MaxFiles     = 10               // Maximum number of files
 )
 
 var AllowedFileTypes = map[string]bool{
@@ -57,19 +57,11 @@ func (c *FeedbackController) SendFeedback(w http.ResponseWriter, r *http.Request
 	// Get user email from session
 	userEmail, err := session.GetSession(r)
 	if err != nil {
-		// TEMPORARY: For testing, use a default email if not authenticated
-		// TODO: Remove this and uncomment the auth check below for production
-		userEmail = "test-user@example.com"
-		c.logger.LogWarning("Using test email for unauthenticated request", map[string]interface{}{
+		c.logger.LogWarning("User not authenticated", map[string]interface{}{
 			"request_ip": r.RemoteAddr,
 		})
-		
-		// Uncomment for production:
-		// c.logger.LogWarning("User not authenticated", map[string]interface{}{
-		// 	"request_ip": r.RemoteAddr,
-		// })
-		// utils.SendErrorResponse(w, http.StatusUnauthorized, "Authentication required")
-		// return
+		utils.SendErrorResponse(w, http.StatusUnauthorized, "Authentication required")
+		return
 	}
 	// Parse multipart form with max memory of 32MB
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
@@ -95,9 +87,9 @@ func (c *FeedbackController) SendFeedback(w http.ResponseWriter, r *http.Request
 
 	if r.MultipartForm != nil && r.MultipartForm.File != nil {
 		files := r.MultipartForm.File["attachments"]
-		
+
 		if len(files) > MaxFiles {
-			utils.SendErrorResponse(w, http.StatusBadRequest, 
+			utils.SendErrorResponse(w, http.StatusBadRequest,
 				fmt.Sprintf("Too many files. Maximum %d files allowed", MaxFiles))
 			return
 		}
@@ -106,7 +98,7 @@ func (c *FeedbackController) SendFeedback(w http.ResponseWriter, r *http.Request
 			// Check individual file size
 			if fileHeader.Size > MaxFileSize {
 				utils.SendErrorResponse(w, http.StatusRequestEntityTooLarge,
-					fmt.Sprintf("File '%s' exceeds maximum size of %d MB", 
+					fmt.Sprintf("File '%s' exceeds maximum size of %d MB",
 						fileHeader.Filename, MaxFileSize/(1024*1024)))
 				return
 			}
@@ -124,7 +116,7 @@ func (c *FeedbackController) SendFeedback(w http.ResponseWriter, r *http.Request
 			// Check total size
 			if totalSize > MaxTotalSize {
 				utils.SendErrorResponse(w, http.StatusRequestEntityTooLarge,
-					fmt.Sprintf("Total attachments exceed maximum size of %d MB", 
+					fmt.Sprintf("Total attachments exceed maximum size of %d MB",
 						MaxTotalSize/(1024*1024)))
 				return
 			}
