@@ -279,7 +279,7 @@ func (s *ScanRepository) GetHubScansVulns(ctx context.Context, hubId string) ([]
 	s.commit_sha, s.end_time, v.scan_id, v.name, v.scan_type, v.tool, v.severity
 	FROM scans s
 	LEFT JOIN vulnerabilities v ON v.scan_id = s.id
-	WHERE s.hub_id = $1
+	WHERE s.status = 'completed' AND s.hub_id = $1
 	ORDER BY s.project_id DESC, s.id, s.end_time DESC, v.name DESC`
 
 	rows, err := s.db.Query(ctx, query, hubId)
@@ -338,7 +338,7 @@ func (s *ScanRepository) GetProjectScansVulns(ctx context.Context, projectId str
 	s.commit_sha, s.end_time, v.scan_id, v.name, v.scan_type, v.tool, v.severity
 	FROM scans s
 	LEFT JOIN vulnerabilities v ON v.scan_id = s.id
-	WHERE s.project_id = $1
+	WHERE s.status = 'completed' AND s.project_id = $1
 	ORDER BY s.id, s.end_time DESC, v.name DESC`
 
 	rows, err := s.db.Query(ctx, query, projectId)
