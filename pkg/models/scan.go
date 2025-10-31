@@ -5,6 +5,16 @@ import (
 	"time"
 )
 
+// ScanStatus represents the possible states of a process.
+type ScanStatus string
+
+const (
+	ScanStatusPending   ScanStatus = "pending"
+	ScanStatusFail      ScanStatus = "fail"
+	ScanStatusCompleted ScanStatus = "completed"
+	ScanStatusScanning  ScanStatus = "scanning"
+)
+
 type Scan struct {
 	ID            string          `json:"id" db:"id"`
 	ProjectID     string          `json:"project_id" db:"project_id"`
@@ -37,4 +47,14 @@ type ScanType struct {
 	HighCount     int             `json:"high_count" db:"high_count"`
 	MediumCount   int             `json:"medium_count" db:"medium_count"`
 	LowCount      int             `json:"low_count" db:"low_count"`
+}
+
+type ScanExt struct {
+	ScanId         string    `db:"scan_id"`
+	ProjectId      string    `db:"project_id"`
+	Status         string    `db:"status"`
+	Branch         string    `db:"branch"`
+	CommitSHA      string    `db:"commit_sha"`
+	EndTime        time.Time `db:"end_time"`
+	Vulnerabilites []*Vulnerability
 }

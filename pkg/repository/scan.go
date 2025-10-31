@@ -256,3 +256,108 @@ func (r *ScanRepository) UpdateScanTypeCountsForType(ctx context.Context, scanID
 	}
 	return nil
 }
+
+func (s *ScanRepository) GetHubScansVulns(ctx context.Context, hubId string) ([]*models.ProjectExt, error) {
+	var projects []*models.ProjectExt
+
+	query := `SELECT s.id AS scan_id, s.project_id, s.status, s.branch, 
+	s.commit_sha, s.end_time, v.scan_id, v.name, v.scan_type, v.tool, v.severity
+	FROM scans s
+	LEFT JOIN vulnerabilities v ON v.scan_id = s.id
+	WHERE s.hub_id = $1
+	ORDER BY s.project_id DESC, s.id, s.end_time DESC, v.name DESC`
+
+	rows, err := s.db.Query(ctx, query, hubId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	projectsIdx := map[string]int{}
+	scansIdx := map[string]int{}
+	for rows.Next() {
+		var scan models.ScanExt
+		var vuln models.Vulnerability
+		if err := rows.Scan(
+			&scan.ScanId,
+			&scan.ProjectId,
+			&scan.Status,
+			&scan.Branch,
+			&scan.CommitSHA,
+			&scan.EndTime,
+			&vuln.ScanID,
+			&vuln.Name,
+			&vuln.ScanType,
+			&vuln.Tool,
+			&vuln.Severity,
+		); err != nil {
+			return nil, err
+		}
+		if pIdx, pok := projectsIdx[scan.ProjectId]; pok {
+			if sIdx, ok := scansIdx[scan.ScanId]; ok {
+				projects[pIdx].Scans[sIdx].Vulnerabilites = append(projects[pIdx].Scans[sIdx].Vulnerabilites, &vuln)
+			} else {
+				scan.Vulnerabilites = append(scan.Vulnerabilites, &vuln)
+				projects[pIdx].Scans = append(projects[pIdx].Scans, &scan)
+				scansIdx[scan.ScanId] = len(projects[pIdx].Scans) - 1
+			}
+		} else {
+			scan.Vulnerabilites = append(scan.Vulnerabilites, &vuln)
+			projects = append(projects, &models.ProjectExt{
+				ProjectId: scan.ProjectId,
+				Scans: []*models.ScanExt{
+					&scan,
+				},
+			})
+			projectsIdx[scan.ProjectId] = len(projects) - 1
+			scansIdx[scan.ScanId] = 0
+		}
+	}
+	return projects, nil
+}
+
+func (s *ScanRepository) GetProjectScansVulns(ctx context.Context, projectId string) ([]*models.ScanExt, error) {
+	var scans []*models.ScanExt
+
+	query := `SELECT s.id AS scan_id, s.project_id, s.status, s.branch, 
+	s.commit_sha, s.end_time, v.scan_id, v.name, v.scan_type, v.tool, v.severity
+	FROM scans s
+	LEFT JOIN vulnerabilities v ON v.scan_id = s.id
+	WHERE s.project_id = $1
+	ORDER BY s.id, s.end_time DESC, v.name DESC`
+
+	rows, err := s.db.Query(ctx, query, projectId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	scansIdx := map[string]int{}
+	for rows.Next() {
+		var p models.ScanExt
+		var v models.Vulnerability
+		if err := rows.Scan(
+			&p.ScanId,
+			&p.ProjectId,
+			&p.Status,
+			&p.Branch,
+			&p.CommitSHA,
+			&p.EndTime,
+			&v.ScanID,
+			&v.Name,
+			&v.ScanType,
+			&v.Tool,
+			&v.Severity,
+		); err != nil {
+			return nil, err
+		}
+		if idx, ok := scansIdx[p.ScanId]; ok {
+			scans[idx].Vulnerabilites = append(scans[idx].Vulnerabilites, &v)
+		} else {
+			p.Vulnerabilites = append(p.Vulnerabilites, &v)
+			scans = append(scans, &p)
+			scansIdx[p.ScanId] = len(scans) - 1
+		}
+	}
+	return scans, nil
+}

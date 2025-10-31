@@ -6,12 +6,20 @@ import (
 	"strings"
 
 	"github.com/opsmx/ai-guardian-api/pkg/client"
+	"github.com/opsmx/ai-guardian-api/pkg/models"
+	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
+
+type HubStats struct {
+	SCAVulnerabilities  *VulnerabilityCounts `json:"sca_vulnerabilities"`
+	SASTVulnerabilities *VulnerabilityCounts `json:"sast_vulnerabilities"`
+}
 
 // HubService handles hub operations using SSD APIs
 type HubService struct {
 	ssdService *SSDService
+	scanRepo   *repository.ScanRepository
 	logger     *utils.ErrorLogger
 }
 
@@ -19,6 +27,7 @@ type HubService struct {
 func NewHubService() *HubService {
 	return &HubService{
 		ssdService: NewSSDService(),
+		scanRepo:   repository.NewScanRepository(),
 		logger:     utils.NewErrorLogger("hub_service"),
 	}
 }
@@ -166,6 +175,126 @@ func (s *HubService) GetByName(ctx context.Context, hubName string) (*client.Hub
 	})
 
 	return hub, nil
+}
+
+// GetHubStats retrieves a project by ID
+func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, error) {
+	projects, err := s.scanRepo.GetHubScansVulns(ctx, hubId)
+	if err != nil {
+		s.logger.LogError(err, "Failed to get scans details", map[string]interface{}{
+			"hubId": hubId,
+		})
+		return nil, fmt.Errorf("failed to get scans details: %w", err)
+	}
+	var sastAllCount, sastCriticalCount, sastHighCount, sastMediumCount, sastLowCount, sastUnknownCount int
+	var scaAllCount, scaCriticalCount, scaHighCount, scaMediumCount, scaLowCount, scaUnknownCount int
+	uniqueSCAVulns := map[string]bool{}
+	for _, project := range projects {
+		for _, entry := range project.Scans {
+			if models.ScanStatus(entry.Status) != models.ScanStatusCompleted {
+				continue
+			}
+			var sastStats, scaStats *VulnerabilityCounts
+			sastStats, scaStats, uniqueSCAVulns = calculateHubVulnStats(entry.Vulnerabilites, uniqueSCAVulns)
+			sastAllCount += *sastStats.AllCount
+			sastCriticalCount += *sastStats.CriticalCount
+			sastMediumCount += *sastStats.MediumCount
+			sastHighCount += *sastStats.HighCount
+			sastLowCount += *sastStats.LowCount
+			sastUnknownCount += *sastStats.UnknownCount
+
+			scaAllCount += *scaStats.AllCount
+			scaCriticalCount += *scaStats.CriticalCount
+			scaMediumCount += *scaStats.MediumCount
+			scaHighCount += *scaStats.HighCount
+			scaLowCount += *scaStats.LowCount
+			scaUnknownCount += *scaStats.UnknownCount
+			// for hub stats would use only latest scan of each project
+			break
+		}
+	}
+
+	sastVuln := &VulnerabilityCounts{
+		AllCount:      &sastAllCount,
+		CriticalCount: &sastCriticalCount,
+		HighCount:     &sastHighCount,
+		MediumCount:   &sastMediumCount,
+		LowCount:      &sastLowCount,
+		UnknownCount:  &sastUnknownCount,
+	}
+	scaUniqueCount := len(uniqueSCAVulns)
+	scaVulns := &VulnerabilityCounts{
+		AllCount:      &scaAllCount,
+		UniqueCount:   &scaUniqueCount,
+		CriticalCount: &scaCriticalCount,
+		HighCount:     &scaHighCount,
+		MediumCount:   &scaMediumCount,
+		LowCount:      &scaLowCount,
+		UnknownCount:  &scaUnknownCount,
+	}
+	return &HubStats{SASTVulnerabilities: sastVuln, SCAVulnerabilities: scaVulns}, nil
+}
+
+func calculateHubVulnStats(vulns []*models.Vulnerability, uniqueSCAVulns map[string]bool) (*VulnerabilityCounts, *VulnerabilityCounts, map[string]bool) {
+	var sastStats, scaStats VulnerabilityCounts
+	// sast tool
+	sastTool := "semgrep"
+	// sca tool
+	scaTool := "syft"
+	var sastAllCounts, sastCriticalCount, sastHighCount, sastMediumCount, sastLowCount, sastUnknownCount int
+	var scaAllCounts, scaCriticalCount, scaHighCount, scaMediumCount, scaLowCount, scaUnknownCount int
+	for _, vuln := range vulns {
+		if vuln.Tool == sastTool {
+			sastAllCounts++
+			switch vuln.Severity {
+			case "critical":
+				sastCriticalCount++
+			case "high":
+				sastHighCount++
+			case "medium":
+				sastMediumCount++
+			case "low":
+				sastLowCount++
+			default:
+				sastUnknownCount++
+			}
+		}
+		if vuln.Tool == scaTool {
+			scaAllCounts++
+			uniqueSCAVulns[vuln.Name] = true
+			switch vuln.Severity {
+			case "critical":
+				scaCriticalCount++
+			case "high":
+				scaHighCount++
+			case "medium":
+				scaMediumCount++
+			case "low":
+				scaLowCount++
+			default:
+				scaUnknownCount++
+			}
+		}
+	}
+
+	sastStats = VulnerabilityCounts{
+		AllCount:      &sastAllCounts,
+		CriticalCount: &sastCriticalCount,
+		HighCount:     &sastHighCount,
+		MediumCount:   &sastMediumCount,
+		LowCount:      &sastLowCount,
+		UnknownCount:  &sastUnknownCount,
+	}
+
+	scaStats = VulnerabilityCounts{
+		AllCount:      &scaAllCounts,
+		CriticalCount: &scaCriticalCount,
+		HighCount:     &scaHighCount,
+		MediumCount:   &scaMediumCount,
+		LowCount:      &scaLowCount,
+		UnknownCount:  &scaUnknownCount,
+	}
+	return &sastStats, &scaStats, uniqueSCAVulns
 }
 
 // ValidateHubExists checks if a hub exists

@@ -76,6 +76,8 @@ func SetupRoutes() *mux.Router {
 			hubRouter.HandleFunc("", hubController.CreateHub).Methods(http.MethodPost) //working
 			// get hub by id for settings
 			hubRouter.HandleFunc("/{id}", hubController.GetHub).Methods(http.MethodGet) //working
+			// get hub stats
+			hubRouter.HandleFunc("/{id}/stats", hubController.GetHubStats).Methods(http.MethodGet) //working
 			// list hubs by owner for left sidebar
 			hubRouter.HandleFunc("/user/list", hubController.ListHubsByOwner).Methods(http.MethodGet) //working
 		}

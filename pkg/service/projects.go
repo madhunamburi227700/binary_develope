@@ -64,6 +64,8 @@ type ProjectStats struct {
 }
 
 type VulnerabilityCounts struct {
+	AllCount      *int `json:"all_count,omitempty"`
+	UniqueCount   *int `json:"unique_count,omitempty"`
 	CriticalCount *int `json:"critical_count"`
 	HighCount     *int `json:"high_count"`
 	MediumCount   *int `json:"medium_count"`
@@ -84,7 +86,7 @@ type RecentScan struct {
 	IssueHighCount     *int       `json:"issue_high_count"`
 	IssueMediumCount   *int       `json:"issue_medium_count"`
 	IssueLowCount      *int       `json:"issue_low_count"`
-	IssueUnkownCount   *int       `json:"issue_unknown_count"`
+	IssueUnknownCount  *int       `json:"issue_unknown_count"`
 }
 
 // CreateProject creates a new project
@@ -301,8 +303,12 @@ func (s *ProjectService) ListProjects(ctx context.Context, req *ProjectListReque
 	return result, nil
 }
 
-// GetProject retrieves a project by ID
-func (s *ProjectService) GetProjectStats(ctx context.Context, projectId string) (*ProjectStats, error) {
+// GetProjectStats retrieves a project stats by ID
+func (s *ProjectService) GetProjectStats(ctx context.Context, projectId, db string) (*ProjectStats, error) {
+	// send stats from postgres
+	if db == "new" {
+		return s.getProjectStats(ctx, projectId)
+	}
 	projectRef, err := s.ssdService.GetProjectDetailsCustom(ctx, projectId)
 	if err != nil {
 		s.logger.LogError(err, "Failed to get custom project details", map[string]interface{}{
@@ -483,7 +489,7 @@ func (s *ProjectService) calculateProjectStats(ctx context.Context,
 					IssueHighCount:     &highVuln,
 					IssueMediumCount:   &mediumVuln,
 					IssueLowCount:      &lowVuln,
-					IssueUnkownCount:   &unknownVuln,
+					IssueUnknownCount:  &unknownVuln,
 				})
 				// only keeping 1 entr for latest scan now
 				break
@@ -502,7 +508,7 @@ func (s *ProjectService) calculateProjectStats(ctx context.Context,
 			HighCount:     mostRecentScan.IssueHighCount,
 			MediumCount:   mostRecentScan.IssueMediumCount,
 			LowCount:      mostRecentScan.IssueLowCount,
-			UnknownCount:  mostRecentScan.IssueUnkownCount,
+			UnknownCount:  mostRecentScan.IssueUnknownCount,
 		}
 	}
 	return pstats, nil
@@ -526,4 +532,108 @@ func (s *ProjectService) getGithubUsername(ctx context.Context, accountId string
 	}
 	// based on installation id token org should always be one
 	return userNames[0], nil
+}
+
+// getProjectStats: gets project stats
+func (s *ProjectService) getProjectStats(ctx context.Context, projectId string) (*ProjectStats, error) {
+	pStats := &ProjectStats{}
+	scansVulns, err := s.scanRepo.GetProjectScansVulns(ctx, projectId)
+	if err != nil {
+		s.logger.LogError(err, "Failed to get scans details", map[string]interface{}{
+			"projectId": projectId,
+		})
+		return nil, fmt.Errorf("failed to get scans details: %w", err)
+	}
+
+	for _, entry := range scansVulns {
+		if models.ScanStatus(entry.Status) != models.ScanStatusCompleted {
+			continue
+		}
+
+		sastStats, scaStats := calculatePorjectVulnStats(entry.Vulnerabilites)
+		if pStats.SASTVulnerabilities == nil {
+			pStats.SASTVulnerabilities = sastStats
+		}
+		if pStats.SCAVulnerabilities == nil {
+			pStats.SCAVulnerabilities = scaStats
+		}
+
+		scanTime := entry.EndTime
+		pStats.RecentScans = append(pStats.RecentScans, &RecentScan{
+			Branch:             entry.Branch,
+			CommitId:           entry.CommitSHA[7:14],
+			ScanTime:           &scanTime,
+			IssueCriticalCount: sastStats.CriticalCount,
+			IssueHighCount:     sastStats.HighCount,
+			IssueMediumCount:   sastStats.MediumCount,
+			IssueLowCount:      sastStats.LowCount,
+			IssueUnknownCount:  sastStats.UnknownCount,
+		})
+	}
+	return pStats, nil
+}
+
+func calculatePorjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCounts, *VulnerabilityCounts) {
+	var sastStats, scaStats VulnerabilityCounts
+	// sast tool
+	sastTool := "semgrep"
+	// sca tool
+	scaTool := "syft"
+	uniqueSCAVulns := map[string]bool{}
+	var sastAllCounts, sastCriticalCount, sastHighCount, sastMediumCount, sastLowCount, sastUnknownCount int
+	var scaAllCounts, scaCriticalCount, scaHighCount, scaMediumCount, scaLowCount, scaUnknownCount int
+	for _, vuln := range vulns {
+		if vuln.Tool == sastTool {
+			sastAllCounts++
+			switch vuln.Severity {
+			case "critical":
+				sastCriticalCount++
+			case "high":
+				sastHighCount++
+			case "medium":
+				sastMediumCount++
+			case "low":
+				sastLowCount++
+			default:
+				sastUnknownCount++
+			}
+		}
+		if vuln.Tool == scaTool {
+			scaAllCounts++
+			uniqueSCAVulns[vuln.Name] = true
+			switch vuln.Severity {
+			case "critical":
+				scaCriticalCount++
+			case "high":
+				scaHighCount++
+			case "medium":
+				scaMediumCount++
+			case "low":
+				scaLowCount++
+			default:
+				scaUnknownCount++
+			}
+		}
+	}
+
+	sastStats = VulnerabilityCounts{
+		AllCount:      &sastAllCounts,
+		CriticalCount: &sastCriticalCount,
+		HighCount:     &sastHighCount,
+		MediumCount:   &sastMediumCount,
+		LowCount:      &sastLowCount,
+		UnknownCount:  &sastUnknownCount,
+	}
+
+	scanUniqueCounts := len(uniqueSCAVulns)
+	scaStats = VulnerabilityCounts{
+		AllCount:      &scaAllCounts,
+		UniqueCount:   &scanUniqueCounts,
+		CriticalCount: &scaCriticalCount,
+		HighCount:     &scaHighCount,
+		MediumCount:   &scaMediumCount,
+		LowCount:      &scaLowCount,
+		UnknownCount:  &scaUnknownCount,
+	}
+	return &sastStats, &scaStats
 }

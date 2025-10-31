@@ -130,7 +130,7 @@ func (c *ProjectController) GetProjectStats(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	project, err := c.projectService.GetProjectStats(r.Context(), projectId)
+	project, err := c.projectService.GetProjectStats(r.Context(), projectId, r.URL.Query().Get("db"))
 	if err != nil {
 		c.logger.LogError(err, "Failed to get project stats", map[string]interface{}{
 			"projectId": projectId,
