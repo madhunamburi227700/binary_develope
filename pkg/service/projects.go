@@ -558,10 +558,15 @@ func (s *ProjectService) getProjectStats(ctx context.Context, projectId string) 
 			pStats.SCAVulnerabilities = scaStats
 		}
 
+		commitSha := entry.CommitSHA
+		if len(entry.CommitSHA) >= 14 {
+			commitSha = entry.CommitSHA[7:14]
+		}
+
 		scanTime := entry.EndTime
 		pStats.RecentScans = append(pStats.RecentScans, &RecentScan{
 			Branch:             entry.Branch,
-			CommitId:           entry.CommitSHA[7:14],
+			CommitId:           commitSha,
 			ScanTime:           &scanTime,
 			IssueCriticalCount: sastStats.CriticalCount,
 			IssueHighCount:     sastStats.HighCount,
