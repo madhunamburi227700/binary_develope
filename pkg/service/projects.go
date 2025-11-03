@@ -545,9 +545,27 @@ func (s *ProjectService) getProjectStats(ctx context.Context, projectId string) 
 		return nil, fmt.Errorf("failed to get scans details: %w", err)
 	}
 
+	scanFreqIdx := map[string]int{}
 	for _, entry := range scansVulns {
 		if models.ScanStatus(entry.Status) != models.ScanStatusCompleted {
 			continue
+		}
+
+		if !entry.EndTime.IsZero() {
+			formattedDate := entry.EndTime.Format("2006-01-02")
+			if idx, idxOk := scanFreqIdx[formattedDate]; idxOk {
+				prevCount := *pStats.ScanTimeFrequencies[idx].Count
+				prevCount++
+				pStats.ScanTimeFrequencies[idx].Count = &prevCount
+			} else {
+				endTime := entry.EndTime
+				defCount := 1
+				pStats.ScanTimeFrequencies = append(pStats.ScanTimeFrequencies, &ScanTimeFrequency{
+					Count: &defCount,
+					Date:  &endTime,
+				})
+				scanFreqIdx[formattedDate] = len(pStats.ScanTimeFrequencies) - 1
+			}
 		}
 
 		sastStats, scaStats := calculatePorjectVulnStats(entry.Vulnerabilites)
@@ -564,22 +582,26 @@ func (s *ProjectService) getProjectStats(ctx context.Context, projectId string) 
 		}
 
 		scanTime := entry.EndTime
+		totalCriticalCount := *sastStats.CriticalCount + *scaStats.CriticalCount
+		totalHighCount := *sastStats.HighCount + *scaStats.HighCount
+		totalMediumCount := *sastStats.MediumCount + *scaStats.MediumCount
+		totalLowCount := *sastStats.LowCount + *scaStats.LowCount
+		totalUnknownCount := *sastStats.UnknownCount + *scaStats.UnknownCount
 		pStats.RecentScans = append(pStats.RecentScans, &RecentScan{
 			Branch:             entry.Branch,
 			CommitId:           commitSha,
 			ScanTime:           &scanTime,
-			IssueCriticalCount: scaStats.CriticalCount,
-			IssueHighCount:     scaStats.HighCount,
-			IssueMediumCount:   scaStats.MediumCount,
-			IssueLowCount:      scaStats.LowCount,
-			IssueUnknownCount:  scaStats.UnknownCount,
+			IssueCriticalCount: &totalCriticalCount,
+			IssueHighCount:     &totalHighCount,
+			IssueMediumCount:   &totalMediumCount,
+			IssueLowCount:      &totalLowCount,
+			IssueUnknownCount:  &totalUnknownCount,
 		})
 	}
 	return pStats, nil
 }
 
 func calculatePorjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCounts, *VulnerabilityCounts) {
-	var sastStats, scaStats VulnerabilityCounts
 	// sast tool
 	sastTool := "semgrep"
 	// sca tool
@@ -621,7 +643,7 @@ func calculatePorjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCou
 		}
 	}
 
-	sastStats = VulnerabilityCounts{
+	sastStats := VulnerabilityCounts{
 		AllCount:      &sastAllCounts,
 		CriticalCount: &sastCriticalCount,
 		HighCount:     &sastHighCount,
@@ -631,7 +653,7 @@ func calculatePorjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCou
 	}
 
 	scanUniqueCounts := len(uniqueSCAVulns)
-	scaStats = VulnerabilityCounts{
+	scaStats := VulnerabilityCounts{
 		AllCount:      &scaAllCounts,
 		UniqueCount:   &scanUniqueCounts,
 		CriticalCount: &scaCriticalCount,

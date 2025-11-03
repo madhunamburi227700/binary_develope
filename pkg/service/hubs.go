@@ -177,7 +177,7 @@ func (s *HubService) GetByName(ctx context.Context, hubName string) (*client.Hub
 	return hub, nil
 }
 
-// GetHubStats retrieves a project by ID
+// GetHubStats retrieves a hub stats by ID
 func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, error) {
 	projects, err := s.scanRepo.GetHubScansVulns(ctx, hubId)
 	if err != nil {
