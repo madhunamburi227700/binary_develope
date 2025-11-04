@@ -289,7 +289,7 @@ func (ps *PollingService) insertVulnerabilities(ctx context.Context, scan reposi
 	}
 
 	// Insert SAST vulnerabilities into database using repository
-	if sastVulnData != nil && len(sastVulnData.Results) > 0 {
+	if len(sastVulnData.Results) > 0 {
 		if err := ps.vulnRepository.InsertVulnerabilities(ctx, scan.ID, sastVulnData); err != nil {
 			log.Error().Err(err).Msgf("Failed to insert SAST vulnerabilities for scan %s", scan.ID)
 		}

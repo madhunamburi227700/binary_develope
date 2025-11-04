@@ -84,14 +84,14 @@ CREATE TABLE IF NOT EXISTS vulnerabilities (
   id           uuid           PRIMARY KEY DEFAULT gen_random_uuid(),
   scan_id      varchar(64)    NOT NULL,                 -- refers to scans.id (SSD)
   name         varchar(800)   NOT NULL,                 -- rule/file/line or CVE id or hashed composite
-  scan_type    varchar(32),                              -- 'sast' or 'sca' etc
-  tool         varchar(128),
-  package      varchar(128),
-  version      varchar(128),
-  metadata     jsonb,
-  severity     varchar(32),
-  description  text,
-  created_at   timestamptz   NOT NULL DEFAULT now(),
+  scan_type    varchar(32),   NOT NULL,                           -- 'sast' or 'sca' etc
+  tool         varchar(128)   NOT NULL,
+  package      varchar(128)   NOT NULL,
+  version      varchar(128)   NOT NULL,
+  metadata     jsonb          NOT NULL,
+  severity     varchar(32)    NOT NULL,
+  description  text         ,
+  created_at   timestamptz    NOT NULL DEFAULT now(),
   CONSTRAINT fk_vuln_scan FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE
 );
 
