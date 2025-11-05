@@ -568,7 +568,7 @@ func (s *ProjectService) getProjectStats(ctx context.Context, projectId string) 
 			}
 		}
 
-		sastStats, scaStats := calculatePorjectVulnStats(entry.Vulnerabilites)
+		sastStats, scaStats := calculateProjectVulnStats(entry.Vulnerabilites)
 		if pStats.SASTVulnerabilities == nil {
 			pStats.SASTVulnerabilities = sastStats
 		}
@@ -601,7 +601,7 @@ func (s *ProjectService) getProjectStats(ctx context.Context, projectId string) 
 	return pStats, nil
 }
 
-func calculatePorjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCounts, *VulnerabilityCounts) {
+func calculateProjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCounts, *VulnerabilityCounts) {
 	// sast tool
 	sastTool := "semgrep"
 	// sca tool
@@ -610,9 +610,9 @@ func calculatePorjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCou
 	var sastAllCounts, sastCriticalCount, sastHighCount, sastMediumCount, sastLowCount, sastUnknownCount int
 	var scaAllCounts, scaCriticalCount, scaHighCount, scaMediumCount, scaLowCount, scaUnknownCount int
 	for _, vuln := range vulns {
-		if vuln.Tool == sastTool {
+		if vuln.Tool.String == sastTool {
 			sastAllCounts++
-			switch vuln.Severity {
+			switch vuln.Severity.String {
 			case "critical":
 				sastCriticalCount++
 			case "high":
@@ -625,10 +625,10 @@ func calculatePorjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCou
 				sastUnknownCount++
 			}
 		}
-		if vuln.Tool == scaTool {
+		if vuln.Tool.String == scaTool {
 			scaAllCounts++
-			uniqueSCAVulns[vuln.Name] = true
-			switch vuln.Severity {
+			uniqueSCAVulns[vuln.Name.String] = true
+			switch vuln.Severity.String {
 			case "critical":
 				scaCriticalCount++
 			case "high":
