@@ -241,7 +241,21 @@ func (s *IntegrationService) GetGithubAppInstallationURL(ctx context.Context) (s
 
 // GetGithubIntegrationsDetails
 // getting details related to orgs/users/repos via github APIs
-func (s *IntegrationService) GetGithubIntegrationsDetails(ctx context.Context, params map[string]string, integrationId, integrationName, hubID string) ([]string, error) {
+func (s *IntegrationService) GetGithubIntegrationsDetails(ctx context.Context, params map[string]string, integrationId, integrationName, hubID, repository string) ([]string, error) {
+
+	if repository != "" {
+		params["repository"] = repository
+		params["scanLevel"] = "branch"
+	}
+
+	orgName, err := s.getGithubUsername(ctx, integrationId)
+	if err != nil {
+		s.logger.LogError(err, "Failed to get user", nil)
+		return nil, fmt.Errorf("failed to get user")
+	}
+
+	params["orgName"] = orgName
+
 	details, err := s.ssdService.GetRepoBranchList(ctx, params)
 	if err != nil {
 		err := s.IntegratorHandler(ctx, err.Error(), integrationId, integrationName, hubID)
@@ -251,6 +265,21 @@ func (s *IntegrationService) GetGithubIntegrationsDetails(ctx context.Context, p
 		return nil, err
 	}
 	return details, nil
+}
+
+func (s *IntegrationService) getGithubUsername(ctx context.Context, accountId string) (string, error) {
+	userNames, err := s.ssdService.GetRepoBranchList(ctx, map[string]string{
+		"accountId": accountId,
+		"platform":  "github",
+		"scanLevel": "org",
+		"type":      "user",
+	})
+	if err != nil {
+		return "", err
+	} else if len(userNames) == 0 {
+		return "", fmt.Errorf("user not found")
+	}
+	return userNames[0], nil
 }
 
 func (s *IntegrationService) IntegratorHandler(ctx context.Context, err, integrationId, integrationName, hubID string) error {

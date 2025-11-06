@@ -191,8 +191,8 @@ func (r *ScanRepository) updateScanTypes(ctx context.Context, tx *Transaction, s
 	// 	}
 	// }
 
-	if scanData.ScannedFiledData.SCA.Sbom.ScanName != "" {
-		if err := r.upsertScanType(ctx, tx, scanID, "sca", &scanData.ScannedFiledData.SCA.Sbom); err != nil {
+	if scanData.ScannedFiledData.SBOM.SBOM.ScanName != "" {
+		if err := r.upsertScanType(ctx, tx, scanID, "sca", &scanData.ScannedFiledData.SBOM.SBOM); err != nil {
 			return err
 		}
 	}
