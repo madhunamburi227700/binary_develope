@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -617,7 +616,7 @@ func calculateProjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCou
 	// sast tool
 	sastTool := "semgrep"
 	// sca tool
-	scaTools := []string{"syft", "trivy"}
+	scaTool := "syft"
 	uniqueSCAVulns := map[string]bool{}
 	var sastAllCounts, sastCriticalCount, sastHighCount, sastMediumCount, sastLowCount, sastUnknownCount int
 	var scaAllCounts, scaCriticalCount, scaHighCount, scaMediumCount, scaLowCount, scaUnknownCount int
@@ -637,7 +636,7 @@ func calculateProjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCou
 				sastUnknownCount++
 			}
 		}
-		if slices.Contains(scaTools, vuln.Tool.String) {
+		if vuln.Tool.String == scaTool {
 			scaAllCounts++
 			uniqueSCAVulns[vuln.Name.String] = true
 			switch vuln.Severity.String {
