@@ -412,6 +412,11 @@ type ScannedFiledData struct {
 	OpenSSF OpenSSFData `json:"OpenSSF"`
 	SAST    SASTData    `json:"SAST"`
 	SCA     SCAData     `json:"SCA"`
+	SBOM    SBOMData    `json:"SBOM"`
+}
+
+type SBOMData struct {
+	SBOM ScanFiles `json:"sbom"`
 }
 
 // OpenSSFData represents OpenSSF scan data
@@ -437,7 +442,7 @@ type ScanFiles struct {
 type SCAData struct {
 	CodeLicense ScanFiles `json:"codelicense"`
 	CodeSecret  ScanFiles `json:"codesecret"`
-	Sbom        ScanFiles `json:"sbom"`
+	// Sbom        ScanFiles `json:"sbom"`
 }
 
 // vuln findings

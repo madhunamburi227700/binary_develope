@@ -154,6 +154,7 @@ func (c *IntegratorController) GetIntegrationsGithubDetails(w http.ResponseWrite
 		return
 	}
 
+	repository := r.URL.Query().Get("repository")
 	queryParams := map[string]string{
 		// automated param from UI
 		"accountId": integrationId,
@@ -164,10 +165,9 @@ func (c *IntegratorController) GetIntegrationsGithubDetails(w http.ResponseWrite
 		"platform":  "github", // automate platform in future release
 		"scanLevel": "repository",
 		"type":      "user",
-		"orgName":   "",
 	}
 
-	details, err := c.integratorService.GetGithubIntegrationsDetails(r.Context(), queryParams, integrationId, integrationName, hubID)
+	details, err := c.integratorService.GetGithubIntegrationsDetails(r.Context(), queryParams, integrationId, integrationName, hubID, repository)
 	if err != nil {
 		c.logger.LogError(err, "Failed to get github integrations details", nil)
 		utils.SendErrorResponse(w, http.StatusNotFound, err.Error())

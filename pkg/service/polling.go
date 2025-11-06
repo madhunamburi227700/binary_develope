@@ -150,8 +150,6 @@ func (ps *PollingService) pollScans(ctx context.Context) {
 
 // processScan processes a single scan by querying SSD API and updating the database
 func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanRecord, projectStatus, teamID string) error {
-	log.Info().Msgf("Processing scan %s for project %s", scan.ID, scan.ProjectID)
-
 	// Handle scan status based on completion state
 	switch projectStatus {
 	case string(client.RiskStatusCompleted):
@@ -259,7 +257,7 @@ func (ps *PollingService) insertVulnerabilities(ctx context.Context, scan reposi
 	// if scanData.ScannedFiledData.SCA.CodeLicense.ScanName != "" ||
 	// 	scanData.ScannedFiledData.SCA.CodeSecret.ScanName != "" ||
 	// 	scanData.ScannedFiledData.SCA.Sbom.ScanName != "" {
-	if scanData.ScannedFiledData.SCA.Sbom.ScanName != "" {
+	if scanData.ScannedFiledData.SBOM.SBOM.ScanName != "" {
 		// Fetch all SCA vulnerabilities with pagination
 		scaVulnData = &client.VulnerabilityListResponse{VulnerabilityList: []client.VulnerabilityItem{}}
 		pageNo := 0

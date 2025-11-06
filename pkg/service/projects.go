@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"slices"
 	"sort"
 	"time"
 
@@ -361,8 +362,12 @@ func (s *ProjectService) validateUpdateRequest(req *UpdateProjectRequest) error 
 }
 
 // /////////New//////////////
-func (s *ProjectService) GetProjectSummariesForTeams(ctx context.Context, req *GetProjectSummariesForTeamsRequest) (*client.ProjectSummaryResponse, error) {
-	return s.ssdService.GetProjectSummariesForTeams(ctx, req)
+func (s *ProjectService) GetProjectSummariesForTeams(ctx context.Context, hubID string, pageNo int, pageLimit int) (*client.ProjectSummaryResponse, error) {
+	return s.ssdService.GetProjectSummariesForTeams(ctx, &GetProjectSummariesForTeamsRequest{
+		HubID:     hubID,
+		PageNo:    pageNo,
+		PageLimit: pageLimit,
+	})
 }
 
 func (s *ProjectService) GetProjectSummaryCount(ctx context.Context, hubIDs []string) (*client.SourceScanSummaryCount, error) {
@@ -605,7 +610,7 @@ func calculatePorjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCou
 	// sast tool
 	sastTool := "semgrep"
 	// sca tool
-	scaTool := "syft"
+	scaTools := []string{"syft", "trivy"}
 	uniqueSCAVulns := map[string]bool{}
 	var sastAllCounts, sastCriticalCount, sastHighCount, sastMediumCount, sastLowCount, sastUnknownCount int
 	var scaAllCounts, scaCriticalCount, scaHighCount, scaMediumCount, scaLowCount, scaUnknownCount int
@@ -625,7 +630,7 @@ func calculatePorjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCou
 				sastUnknownCount++
 			}
 		}
-		if vuln.Tool == scaTool {
+		if slices.Contains(scaTools, vuln.Tool) {
 			scaAllCounts++
 			uniqueSCAVulns[vuln.Name] = true
 			switch vuln.Severity {

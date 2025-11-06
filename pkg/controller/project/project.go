@@ -388,26 +388,32 @@ func (c *ProjectController) buildListRequest(r *http.Request) *service.GetProjec
 // @Security ApiKeyAuth
 // @Router /api/v1/hubs/{hub_id}/projects/summaries [get]
 func (c *ProjectController) GetProjectSummariesForHub(w http.ResponseWriter, r *http.Request) {
-	req := c.buildListRequest(r)
+	query := r.URL.Query()
+
 	vars := mux.Vars(r)
-	hubIDStr, ok := vars["hub_id"]
+	hubID, ok := vars["hub_id"]
 	if !ok {
 		http.Error(w, "Hub ID is required", http.StatusBadRequest)
 		return
 	}
 
-	hubID, err := uuid.Parse(hubIDStr)
-	if err != nil {
-		http.Error(w, "Invalid hub ID", http.StatusBadRequest)
-		return
+	pageNo := utils.StringToInt(query.Get("pageNo"), 1)
+	pageLimit := utils.StringToInt(query.Get("pageLimit"), 10)
+
+	if pageNo < 1 {
+		pageNo = 1
 	}
 
-	req.HubID = hubID.String()
+	if pageLimit < 1 {
+		pageLimit = 10
+	}
 
-	result, err := c.projectService.GetProjectSummariesForTeams(r.Context(), req)
+	result, err := c.projectService.GetProjectSummariesForTeams(r.Context(), hubID, pageNo, pageLimit)
 	if err != nil {
 		c.logger.LogError(err, "Failed to get project summaries for hub", map[string]interface{}{
-			"request": req,
+			"hubID":     hubID,
+			"pageNo":    pageNo,
+			"pageLimit": pageLimit,
 		})
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
