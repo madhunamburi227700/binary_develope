@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -37,6 +38,7 @@ type CreateProjectRequest struct {
 	IntegrationID string `json:"integration_id"`
 	Name          string `json:"name" validate:"required,min=1,max=255"`
 	RepoName      string `json:"repoName" validate:"required,min=1,max=255"`
+	Branch        string `json:"branch"`
 }
 
 // UpdateProjectRequest represents the request to update a project
@@ -107,6 +109,11 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 		return "", fmt.Errorf("failed to get user")
 	}
 
+	branch := "onlyMain"
+	if strings.TrimSpace(req.Branch) != "" {
+		branch = req.Branch
+	}
+
 	// Create project
 	scheduleTime := 0
 	scanUpto := 0
@@ -119,7 +126,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 		// TODO: automate below fields
 		ProjectConfig: []client.ProjectConfigRef{{
 			Repository:   req.RepoName,
-			Branch:       []string{"onlyMain"},
+			Branch:       []string{branch},
 			ScheduleTime: &scheduleTime,
 			ScanUpto:     &scanUpto,
 		}},
@@ -141,7 +148,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 	scan := &models.Scan{
 		ProjectID:     projectId,
 		Repository:    req.RepoName,
-		Branch:        "main",
+		Branch:        branch,
 		CommitSHA:     "",
 		PullRequestID: "",
 		Tag:           "",
