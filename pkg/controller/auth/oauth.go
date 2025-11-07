@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/opsmx/ai-guardian-api/pkg/auth/oauth"
 	"github.com/opsmx/ai-guardian-api/pkg/auth/session"
+	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
 
@@ -15,6 +17,8 @@ type OAuthController struct {
 	googleOAuth *oauth.GoogleOAuth
 	githubOAuth *oauth.GithubOAuth
 	logger      *utils.ErrorLogger
+
+	userRepo *repository.UserRepository
 }
 
 // NewOAuthController creates a new OAuth controller
@@ -23,6 +27,7 @@ func NewOAuthController() *OAuthController {
 		googleOAuth: oauth.NewGoogleOAuth(),
 		githubOAuth: oauth.NewGithubOAuth(),
 		logger:      utils.NewErrorLogger("oauth_controller"),
+		userRepo:    repository.NewUserRepository(),
 	}
 }
 
@@ -120,12 +125,17 @@ func (ctrl *OAuthController) GetProfile(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Get user details from database
-	// TODO: Implement user details retrieval
+	dbUser, err := ctrl.userRepo.GetByProviderUserID(context.TODO(), username)
+	if err != nil {
+		http.Error(w, "User not found", http.StatusNotFound)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"username":      username,
+		"name":          dbUser.Name.String,
 		"authenticated": true,
 	})
 }

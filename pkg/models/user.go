@@ -1,9 +1,8 @@
 package models
 
 import (
+	"database/sql"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 type AuthUser struct {
@@ -11,13 +10,13 @@ type AuthUser struct {
 	Authenticated bool
 }
 
+// User represents a row in the "users" table.
 type User struct {
-    ID        uuid.UUID  `json:"id" db:"id"`
-    Email     string     `json:"email" db:"email"`
-    Name      *string    `json:"name" db:"name"`
-    GoogleID  *string    `json:"google_id" db:"google_id"`
-    Picture   *string    `json:"picture" db:"picture"`
-    Status    *string    `json:"status" db:"status"`
-    CreatedAt *time.Time `json:"created_at" db:"created_at"`
-    UpdatedAt *time.Time `json:"updated_at" db:"updated_at"`
+	ID             int64          `db:"id" json:"id"`
+	Email          sql.NullString `db:"email" json:"email"`
+	Name           sql.NullString `db:"name" json:"name"`
+	Provider       string         `db:"provider" json:"provider"`
+	ProviderUserID string         `db:"provider_user_id" json:"provider_user_id"`
+	CreatedAt      time.Time      `db:"created_at" json:"created_at"`
+	UpdatedAt      time.Time      `db:"updated_at" json:"updated_at"`
 }

@@ -1,14 +1,19 @@
 package oauth
 
 import (
+	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 
 	oauthBridge "github.com/OpsMx/oauth-bridge-client"
+	"github.com/jackc/pgx/v5"
 	"github.com/opsmx/ai-guardian-api/pkg/auth/session"
 	"github.com/opsmx/ai-guardian-api/pkg/config"
+	"github.com/opsmx/ai-guardian-api/pkg/models"
+	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
 
@@ -18,7 +23,7 @@ type GithubLoginData struct {
 	Timestamp int64  `json:"timestamp"`
 }
 
-// GitHubEmail represents a github user details
+// GitHubUser represents a github user details
 type GitHubUser struct {
 	Login string `json:"login"`
 	ID    int    `json:"id"`
@@ -27,15 +32,26 @@ type GitHubUser struct {
 	Email string `json:"email"`
 }
 
+// GitHubEmail represents a github user email
+type GitHubEmail struct {
+	Email    string `json:"email"`
+	Primary  bool   `json:"primary"`
+	Verified bool   `json:"verified"`
+}
+
 type GithubOAuth struct {
 	uiAddr string
 	logger *utils.ErrorLogger
+
+	userRepo *repository.UserRepository
 }
 
 func NewGithubOAuth() *GithubOAuth {
 	return &GithubOAuth{
 		uiAddr: config.GetUIAddress(),
 		logger: utils.NewErrorLogger("github_oauth"),
+
+		userRepo: repository.NewUserRepository(),
 	}
 }
 
@@ -63,10 +79,65 @@ func (g *GithubOAuth) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if githubUser.Email == "" {
+		// fetching email if not present
+		emails, err := getGithubUserEmails(dToken)
+		if err != nil {
+			g.logger.LogError(err, "failed to fetch user emails", nil)
+		} else {
+			// assigning email id giving priority to verified
+			// primary email
+			for _, email := range emails {
+				if githubUser.Email == "" {
+					githubUser.Email = email.Email
+				}
+				if email.Primary && email.Verified {
+					githubUser.Email = email.Email
+					break
+				}
+			}
+		}
+	}
+
 	// making github email id based on id
 	// id for a user would always be same
 	// whereas username, login, email can update
 	userEmail := fmt.Sprintf("%d@github.com", githubUser.ID)
+
+	// making user exits in db
+	ctx := context.TODO()
+	dbUser, err := g.userRepo.GetByProviderUserID(ctx, userEmail)
+	if err != nil {
+		if err != pgx.ErrNoRows {
+			g.logger.LogError(err, "failed to get user", nil)
+			http.Error(w, "failed to authenticate", http.StatusInternalServerError)
+			return
+		}
+		// Handling new user case
+		dbUser = &models.User{
+			Email:          sql.NullString{String: githubUser.Email, Valid: githubUser.Email != ""},
+			Name:           sql.NullString{String: githubUser.Name, Valid: true},
+			Provider:       "github",
+			ProviderUserID: userEmail,
+		}
+		err = g.userRepo.Create(ctx, dbUser)
+		if err != nil {
+			g.logger.LogError(err, "failed to create user", nil)
+			http.Error(w, "failed to authenticate", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	// if on first user creation email wasn't set then we will update
+	if !dbUser.Email.Valid && githubUser.Email != "" {
+		dbUser.Email = sql.NullString{String: githubUser.Email, Valid: githubUser.Email != ""}
+		err = g.userRepo.Update(ctx, dbUser)
+		if err != nil {
+			g.logger.LogError(err, "failed to update user", nil)
+			http.Error(w, "failed to authenticate", http.StatusInternalServerError)
+			return
+		}
+	}
 
 	// Create session using your existing session management
 	session.CreateSession(w, r, "", userEmail)
@@ -128,4 +199,36 @@ func getGithubUser(dtoken string) (*GitHubUser, error) {
 	}
 
 	return user, nil
+}
+
+func getGithubUserEmails(dtoken string) ([]GitHubEmail, error) {
+	url := "https://api.github.com/user/emails"
+
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("error creating request: %s", err.Error())
+	}
+
+	req.Header.Set("Authorization", "Bearer "+dtoken)
+	req.Header.Set("Accept", "application/vnd.github+json")
+	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("error sending request: %s", err.Error())
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("gitHub API error: %s Response body: %s", resp.Status, string(body))
+	}
+
+	var emails []GitHubEmail
+	if err := json.NewDecoder(resp.Body).Decode(&emails); err != nil {
+		return nil, fmt.Errorf("error decoding response: %s", err.Error())
+	}
+
+	return emails, nil
 }

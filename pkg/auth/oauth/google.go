@@ -4,17 +4,18 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
-	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/opsmx/ai-guardian-api/pkg/auth/session"
 	"github.com/opsmx/ai-guardian-api/pkg/config"
 	"github.com/opsmx/ai-guardian-api/pkg/models"
+	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -25,6 +26,8 @@ type GoogleOAuth struct {
 	logger *utils.ErrorLogger
 	// Store PKCE configs temporarily (in production, use Redis)
 	pkceStore map[string]*PKCEConfig
+
+	userRepository *repository.UserRepository
 }
 
 type GoogleUserInfo struct {
@@ -57,6 +60,8 @@ func NewGoogleOAuth() *GoogleOAuth {
 		config:    conf,
 		logger:    utils.NewErrorLogger("google_oauth"),
 		pkceStore: make(map[string]*PKCEConfig),
+
+		userRepository: repository.NewUserRepository(),
 	}
 }
 
@@ -168,15 +173,14 @@ func (g *GoogleOAuth) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create session using your existing session management
-	session.CreateSession(w, r, token.RefreshToken, user.Email)
+	session.CreateSession(w, r, token.RefreshToken, user.Email.String)
 
 	g.logger.LogInfo("User authenticated successfully", map[string]interface{}{
-		"user_id": user.ID,
-		"email":   user.Email,
+		"email": user.Email,
 	})
 
 	// Return success response
-	frontendUrl := fmt.Sprintf("%s/callback?success=true&email=%s", config.GetUIAddress(), user.Email)
+	frontendUrl := fmt.Sprintf("%s/callback?success=true&email=%s", config.GetUIAddress(), user.Email.String)
 	http.Redirect(w, r, frontendUrl, http.StatusFound)
 }
 
@@ -226,22 +230,23 @@ func (g *GoogleOAuth) getUserInfo(ctx context.Context, token *oauth2.Token) (*Go
 }
 
 func (g *GoogleOAuth) createOrGetUser(userInfo *GoogleUserInfo) (*models.User, error) {
-	// TODO: Implement database operations
-	// This should interact with your user repository
-
-	// For now, return a mock user
-	now := time.Now()
-	status := "active"
-
-	user := &models.User{
-		ID:        uuid.New(),
-		Email:     userInfo.Email,
-		Name:      &userInfo.Name,
-		GoogleID:  &userInfo.ID,
-		Picture:   &userInfo.Picture,
-		Status:    &status,
-		CreatedAt: &now,
-		UpdatedAt: &now,
+	ctx := context.TODO()
+	dbUser, err := g.userRepository.GetByProviderUserID(ctx, userInfo.Email)
+	if err != nil {
+		if err != pgx.ErrNoRows {
+			return nil, err
+		}
+		// Handling new user case
+		dbUser = &models.User{
+			Email:          sql.NullString{String: userInfo.Email, Valid: true},
+			Name:           sql.NullString{String: userInfo.Name, Valid: true},
+			Provider:       "google",
+			ProviderUserID: userInfo.Email,
+		}
+		err = g.userRepository.Create(ctx, dbUser)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	g.logger.LogInfo("User created/retrieved", map[string]interface{}{
@@ -250,5 +255,5 @@ func (g *GoogleOAuth) createOrGetUser(userInfo *GoogleUserInfo) (*models.User, e
 		"google_id": userInfo.ID,
 	})
 
-	return user, nil
+	return dbUser, nil
 }

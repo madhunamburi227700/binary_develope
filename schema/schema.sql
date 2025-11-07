@@ -158,3 +158,14 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at timestamptz  NOT NULL DEFAULT now(),
   CONSTRAINT fk_audit_hub FOREIGN KEY (hub_id) REFERENCES hubs(id) ON DELETE SET NULL
 );
+
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255),
+    name VARCHAR(255),
+    provider VARCHAR(50) NOT NULL,           -- e.g. 'github', 'google', etc.
+    provider_user_id VARCHAR(255) NOT NULL,  -- unique ID from provider
+    created_at timestamptz NOT NULL DEFAULT now(),
+    updated_at timestamptz NOT NULL DEFAULT now(),
+    CONSTRAINT unique_idx_provider_user_id UNIQUE (provider_user_id)
+);
