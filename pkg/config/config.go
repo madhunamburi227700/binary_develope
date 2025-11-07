@@ -80,6 +80,7 @@ type configType struct {
 		EmailSubject      string   `yaml:"emailSubject"`
 		EmailBodyTemplate string   `yaml:"emailBodyTemplate"`
 	} `yaml:"feedback"`
+	AuditUsers []string `yaml:"auditUsers"`
 }
 
 var config configType
@@ -275,4 +276,9 @@ func GetFeedbackConfig() (smtpHost, smtpPort, smtpUser, smtpPassword, emailSubje
 		config.Feedback.EmailSubject,
 		config.Feedback.EmailBodyTemplate,
 		config.Feedback.AdminEmails
+}
+
+// GetAuditUsers the users which are allowed to do audit
+func GetAuditUsers() []string {
+	return config.AuditUsers
 }

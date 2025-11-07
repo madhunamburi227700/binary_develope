@@ -8,6 +8,7 @@ import (
 )
 
 const (
+	// keep this in sync with models.HeaderXUser
 	HeaderXUser = "X-User"
 )
 
