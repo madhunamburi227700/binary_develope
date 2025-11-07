@@ -150,13 +150,19 @@ CREATE INDEX IF NOT EXISTS idx_feedback_rem ON remediation_feedback(remediation_
 CREATE INDEX IF NOT EXISTS idx_feedback_vuln ON remediation_feedback(vulnerability_id);
 
 CREATE TABLE IF NOT EXISTS audit_logs (
-  id         uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_email varchar(254)  NOT NULL,
-  hub_id     varchar(64),                          -- reference to hubs.id
-  action     varchar(128) NOT NULL,                -- consider enumerating if small set
-  metadata   jsonb,
-  created_at timestamptz  NOT NULL DEFAULT now(),
-  CONSTRAINT fk_audit_hub FOREIGN KEY (hub_id) REFERENCES hubs(id) ON DELETE SET NULL
+  id BIGSERIAL PRIMARY KEY,
+  user_id VARCHAR(255) NOT NULL,         -- ID of the authenticated user
+  http_method VARCHAR(10),               -- HTTP method (e.g., GET, POST, etc.)
+  action VARCHAR(100),                   -- Action (e.g. LOGIN, LOGOUT, SCAN_INITIATED)
+  endpoint TEXT,                         -- The API endpoint (e.g., /api/v1/hubs)
+  entity_name TEXT,                      -- Extracted entity name (e.g. 'projects', 'hubs')
+  entity_id TEXT,                        -- Extracted entity ID (e.g. '123', '456')
+  request_body TEXT,                     -- Request payload as string
+  response_status SMALLINT,              -- HTTP response status code (e.g., 200, 404, 500)
+  response_body TEXT,                    -- Response payload as string
+  duration_ms INT,                       -- Time taken for the request (in ms)
+  service_name VARCHAR(100),             -- Service name (for microservices)
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW() -- Timestamp of the log
 );
 
 CREATE TABLE IF NOT EXISTS users (

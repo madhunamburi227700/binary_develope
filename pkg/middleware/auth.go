@@ -7,6 +7,10 @@ import (
 	"github.com/opsmx/ai-guardian-api/pkg/auth/session"
 )
 
+const (
+	HeaderXUser = "X-User"
+)
+
 // RequireAuth middleware checks if user is authenticated
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -22,7 +26,7 @@ func RequireAuth(next http.Handler) http.Handler {
 			return
 		}
 		// Add user info to request context
-		r.Header.Set("X-User", username)
+		r.Header.Set(HeaderXUser, username)
 		next.ServeHTTP(w, r)
 	})
 }
@@ -32,7 +36,7 @@ func OptionalAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		username, err := session.GetSession(r)
 		if err == nil {
-			r.Header.Set("X-User", username)
+			r.Header.Set(HeaderXUser, username)
 			r.Header.Set("X-Authenticated", "true")
 		} else {
 			r.Header.Set("X-Authenticated", "false")

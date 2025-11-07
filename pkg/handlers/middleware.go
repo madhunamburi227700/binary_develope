@@ -9,8 +9,9 @@ import (
 // SetupMiddleware configures all middleware for the HTTP server
 func SetupMiddleware() []func(http.Handler) http.Handler {
 	return []func(http.Handler) http.Handler{
-		middleware.Logging,
+		middleware.AuditLog,
 		middleware.CORS,
+		middleware.Logging,
 	}
 }
 
