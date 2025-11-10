@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/opsmx/ai-guardian-api/pkg/auth/session"
+	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/service"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
@@ -28,12 +29,14 @@ var AllowedFileTypes = map[string]bool{
 
 type FeedbackController struct {
 	feedbackService *service.FeedbackService
+	userRepo        *repository.UserRepository
 	logger          *utils.ErrorLogger
 }
 
 func NewFeedbackController() *FeedbackController {
 	return &FeedbackController{
 		feedbackService: service.NewFeedbackService(),
+		userRepo:        repository.NewUserRepository(),
 		logger:          utils.NewErrorLogger("feedback_controller"),
 	}
 }
@@ -54,15 +57,33 @@ func NewFeedbackController() *FeedbackController {
 // @Security ApiKeyAuth
 // @Router /api/feedback/send [post]
 func (c *FeedbackController) SendFeedback(w http.ResponseWriter, r *http.Request) {
-	// Get user email from session
-	userEmail, err := session.GetSession(r)
-	if err != nil {
+	// Get user from session
+	sessionUser := session.GetSessionExists(r)
+	if sessionUser == nil {
 		c.logger.LogWarning("User not authenticated", map[string]interface{}{
 			"request_ip": r.RemoteAddr,
 		})
 		utils.SendErrorResponse(w, http.StatusUnauthorized, "Authentication required")
 		return
 	}
+
+	// Fetch user email from database
+	dbUser, err := c.userRepo.GetByProviderUserID(r.Context(), sessionUser.Username)
+	if err != nil {
+		c.logger.LogError(err, "Failed to fetch user from database", map[string]interface{}{
+			"username": sessionUser.Username,
+		})
+		utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to fetch user information")
+		return
+	}
+
+	// Get email from database
+	userEmail := dbUser.Email.String
+	if userEmail == "" {
+		utils.SendErrorResponse(w, http.StatusNotFound, "User email not found")
+		return
+	}
+
 	// Parse multipart form with max memory of 32MB
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		c.logger.LogWarning("Failed to parse multipart form", map[string]interface{}{
