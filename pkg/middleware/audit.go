@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"io"
 	"log"
 	"net/http"
 	"strings"
 	"time"
 
+	"github.com/opsmx/ai-guardian-api/pkg/auth/session"
 	"github.com/opsmx/ai-guardian-api/pkg/models"
 	"github.com/opsmx/ai-guardian-api/pkg/repository"
 )
@@ -51,7 +53,8 @@ func shouldAudit(path string) bool {
 		strings.Contains(path, "/projects") ||
 		strings.Contains(path, "/remediation") ||
 		strings.Contains(path, "/login") ||
-		strings.Contains(path, "/logout")
+		strings.Contains(path, "/logout") ||
+		strings.Contains(path, "/callback")
 }
 
 // AuditLog middleware logs user requests to database
@@ -61,7 +64,7 @@ func AuditLog(next http.Handler) http.Handler {
 		path := r.URL.Path
 
 		// Only process POST, PUT, PATCH, DELETE requests and auditable entities
-		if (method != "POST" && method != "PUT" && method != "PATCH" && method != "DELETE") || !shouldAudit(path) {
+		if (method != "POST" && method != "PUT" && method != "PATCH" && method != "DELETE" && !strings.Contains(r.URL.Path, "/callback")) || !shouldAudit(path) {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -93,15 +96,11 @@ func AuditLog(next http.Handler) http.Handler {
 			responseBody:   &bytes.Buffer{},
 		}
 
+		// Get username from request
+		username, _ := session.GetSession(r)
+
 		// Process the request
 		next.ServeHTTP(wrapped, r)
-
-		// Get user from header
-		// x-user header comes after request auth process
-		username := r.Header.Get(HeaderXUser)
-		if username == "" {
-			username = "anonymous"
-		}
 
 		// Calculate duration
 		durationMs := time.Since(start).Milliseconds()
@@ -114,6 +113,33 @@ func AuditLog(next http.Handler) http.Handler {
 
 		// Determine action (pass query params for remediation)
 		action := determineAction(r)
+
+		// complex logic for non-auth endpoints
+		if username == "" {
+			username = "anonymous"
+			if strings.Contains(path, "/auth/github/login") {
+				s := []byte(responseBodyStr)
+				var v struct {
+					Data struct {
+						Email string `json:"email"`
+					} `json:"data"`
+				}
+				json.Unmarshal(s, &v)
+				if v.Data.Email != "" {
+					username = v.Data.Email
+				}
+			} else if strings.Contains(r.URL.Path, "/callback") {
+				location := w.Header().Get("Location")
+				// "http://localhost:8080/callback?success=true&email=actualemail@gmail.com"
+				if location != "" {
+					pts := strings.Split(location, "email=")
+					if len(pts) > 1 {
+						username = pts[1]
+						action = "LOGIN"
+					}
+				}
+			}
+		}
 
 		// Save to database asynchronously
 		go func() {
@@ -153,7 +179,7 @@ func extractEntity(path string) (entityName, entityID string) {
 
 	// Extract entity from path
 	for i, part := range parts {
-		if part == "scans" || part == "projects" || part == "remediation" {
+		if part == "scans" || part == "projects" || part == "remediation" || part == "auth" {
 			entityName = part
 			// Try to get ID from next part if exists
 			if i+1 < len(parts) && parts[i+1] != "" && parts[i+1] != "rescan" {
