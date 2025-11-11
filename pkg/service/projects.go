@@ -102,10 +102,13 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 	// current they do not have any api to check project via name
 
 	// getting username from ssd based on account id
-	username, err := s.getGithubUsername(ctx, req.IntegrationID)
+	username, err := s.ssdService.GetGithubUsername(ctx, req.IntegrationID)
 	if err != nil {
-		s.logger.LogError(err, "Failed to get user", nil)
-		return "", fmt.Errorf("failed to get user")
+		err := s.ssdService.IntegratorHandler(ctx, err.Error(), req.IntegrationID, "", req.HubID)
+		if err != nil {
+			return "", err
+		}
+		return "", err
 	}
 
 	branch := "onlyMain"

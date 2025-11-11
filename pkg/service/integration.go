@@ -248,56 +248,27 @@ func (s *IntegrationService) GetGithubIntegrationsDetails(ctx context.Context, p
 		params["scanLevel"] = "branch"
 	}
 
-	orgName, err := s.getGithubUsername(ctx, integrationId)
+	orgName, err := s.ssdService.GetGithubUsername(ctx, integrationId)
 	if err != nil {
-		s.logger.LogError(err, "Failed to get user", nil)
-		return nil, fmt.Errorf("failed to get user")
+		err := s.ssdService.IntegratorHandler(ctx, err.Error(), integrationId, integrationName, hubID)
+		if err != nil {
+			return nil, err
+		}
+		return nil, err
 	}
 
 	params["orgName"] = orgName
 
 	details, err := s.ssdService.GetRepoBranchList(ctx, params)
 	if err != nil {
-		err := s.IntegratorHandler(ctx, err.Error(), integrationId, integrationName, hubID)
+		err := s.ssdService.IntegratorHandler(ctx, err.Error(), integrationId, integrationName, hubID)
 		if err != nil {
 			return nil, err
 		}
 		return nil, err
 	}
+
 	return details, nil
-}
-
-func (s *IntegrationService) getGithubUsername(ctx context.Context, accountId string) (string, error) {
-	userNames, err := s.ssdService.GetRepoBranchList(ctx, map[string]string{
-		"accountId": accountId,
-		"platform":  "github",
-		"scanLevel": "org",
-		"type":      "user",
-	})
-	if err != nil {
-		return "", err
-	} else if len(userNames) == 0 {
-		return "", fmt.Errorf("user not found")
-	}
-	return userNames[0], nil
-}
-
-func (s *IntegrationService) IntegratorHandler(ctx context.Context, err, integrationId, integrationName, hubID string) error {
-	if utils.ContainsString(err, []string{"404 Not Found", "GITHUB_API_ERROR"}) {
-		// delete the integration
-		err := s.DeleteIntegration(ctx, integrationId, integrationName, hubID)
-		if err != nil {
-			s.logger.LogError(err, "Failed to delete integration", map[string]interface{}{
-				"integration_id":   integrationId,
-				"integration_name": integrationName,
-				"hub_id":           hubID,
-			})
-			return fmt.Errorf("internal server error")
-		}
-		return fmt.Errorf("github app is not available, please reinstall the app")
-	}
-	s.logger.LogError(nil, "Failed to get repo branch list", nil)
-	return fmt.Errorf("internal server error")
 }
 
 // Helper method to create team assignments
@@ -381,13 +352,5 @@ func (s *IntegrationService) getGithubIntegratorId(ctx context.Context, level,
 }
 
 func (s *IntegrationService) DeleteIntegration(ctx context.Context, integrationId, integrationName, hubID string) error {
-	ssdClient := client.NewSSDClient()
-
-	return ssdClient.DeleteIntegration(ctx, &client.DeleteIntegrationRequest{
-		IntegrationID:   integrationId,
-		IntegrationName: integrationName,
-		IntegrationType: "github",
-		Level:           "global",
-		TeamID:          hubID,
-	})
+	return s.ssdService.DeleteIntegration(ctx, integrationId, integrationName, hubID)
 }
