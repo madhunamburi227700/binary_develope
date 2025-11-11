@@ -2,23 +2,29 @@ package remediation
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
 
+	"github.com/opsmx/ai-guardian-api/pkg/auth/session"
 	"github.com/opsmx/ai-guardian-api/pkg/client"
+	"github.com/opsmx/ai-guardian-api/pkg/config"
+	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/service"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
 
 type RemediationController struct {
 	remediationService *service.RemediationService
+	userRepo           *repository.UserRepository
 	logger             *utils.ErrorLogger
 }
 
 func NewRemediationsController() *RemediationController {
 	return &RemediationController{
 		remediationService: service.NewRemediationService(),
+		userRepo:           repository.NewUserRepository(),
 		logger:             utils.NewErrorLogger("remediations_controller"),
 	}
 }
@@ -58,6 +64,14 @@ func (c *RemediationController) SASTRemediation(w http.ResponseWriter, r *http.R
 	if err := c.remediationService.ValidateSASTRequest(&payload); err != nil {
 		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
+	}
+
+	if config.GetNotificationEnabled() {
+		userEmail, err := fetchUserEmail(r, c.userRepo, c.logger)
+		if err != nil {
+			c.logger.LogError(err, err.Error(), nil)
+		}
+		payload.UserEmail = userEmail
 	}
 
 	resp, err := c.remediationService.SAST(r.Context(), &payload, projectId, r.Header, r.URL.Query())
@@ -112,6 +126,15 @@ func (c *RemediationController) CVERemediation(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	if config.GetNotificationEnabled() {
+		userEmail, err := fetchUserEmail(r, c.userRepo, c.logger)
+		if err != nil {
+			// Just log here
+			c.logger.LogError(err, err.Error(), nil)
+		}
+		payload.UserEmail = userEmail
+	}
+
 	resp, err := c.remediationService.CVE(r.Context(), &payload, projectId, r.Header, r.URL.Query())
 	if err != nil {
 		c.logger.LogError(err, err.Error(), nil)
@@ -124,4 +147,26 @@ func (c *RemediationController) CVERemediation(w http.ResponseWriter, r *http.Re
 		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+}
+
+func fetchUserEmail(r *http.Request, userRepo *repository.UserRepository, logger *utils.ErrorLogger) (string, error) {
+	// Get user from session
+	sessionUser := session.GetSessionExists(r)
+	if sessionUser == nil {
+		return "", errors.New("Authentication required")
+	}
+
+	// Fetch user email from database
+	dbUser, err := userRepo.GetByProviderUserID(r.Context(), sessionUser.Username)
+	if err != nil {
+		return "", errors.New("Failed to fetch user information")
+	}
+
+	// Get email from database
+	userEmail := dbUser.Email.String
+	if userEmail == "" {
+		return "", errors.New("User email not found")
+	}
+
+	return userEmail, nil
 }

@@ -71,15 +71,22 @@ type configType struct {
 	StartUpMessages  []string `yaml:"startUpMessages"`
 	HomePage         string   `yaml:"homePage"`
 	SessionStoreType string   `yaml:"sessionStoreType"`
-	Feedback         struct {
-		SMTPHost          string   `yaml:"smtpHost"`
-		SMTPPort          string   `yaml:"smtpPort"`
-		SMTPUser          string   `yaml:"smtpUser"`
-		SMTPPassword      string   `yaml:"smtpPassword"`
+	SMTP             struct {
+		Host     string `yaml:"host"`
+		Port     string `yaml:"port"`
+		User     string `yaml:"user"`
+		Password string `yaml:"password"`
+	} `yaml:"smtp"`
+	Feedback struct {
 		AdminEmails       []string `yaml:"adminEmails"`
 		EmailSubject      string   `yaml:"emailSubject"`
 		EmailBodyTemplate string   `yaml:"emailBodyTemplate"`
 	} `yaml:"feedback"`
+	Notification struct {
+		Enabled bool     `yaml:"enabled"`
+		Type    string   `yaml:"type"` // "email"
+		Emails  []string `yaml:"emails"`
+	} `yaml:"notification"`
 	AuditUsers []string `yaml:"auditUsers"`
 }
 
@@ -247,10 +254,6 @@ func GetRemediationURL() string {
 
 // TODO: Remove later on
 func GetGithubTokenTemp() string {
-	if config.Token == "" {
-		fmt.Println("Token is empty")
-	}
-
 	return config.Token
 }
 
@@ -267,15 +270,30 @@ func GetPollingIntervalSeconds() int {
 	return config.Polling.IntervalSeconds
 }
 
-// GetFeedbackConfig returns feedback email configuration
-func GetFeedbackConfig() (smtpHost, smtpPort, smtpUser, smtpPassword, emailSubject, emailBodyTemplate string, adminEmails []string) {
-	return config.Feedback.SMTPHost,
-		config.Feedback.SMTPPort,
-		config.Feedback.SMTPUser,
-		config.Feedback.SMTPPassword,
-		config.Feedback.EmailSubject,
+// GetSMTPConfig returns smtp configuration
+func GetSMTPConfig() (smtpHost, smtpPort, smtpUser, smtpPassword string) {
+	return config.SMTP.Host,
+		config.SMTP.Port,
+		config.SMTP.User,
+		config.SMTP.Password
+}
+
+// GetFeedbackConfig returns feedback configuration
+func GetFeedbackConfig() (emailSubject, emailBodyTemplate string, adminEmails []string) {
+	return config.Feedback.EmailSubject,
 		config.Feedback.EmailBodyTemplate,
 		config.Feedback.AdminEmails
+}
+
+// GetNotificationEnabled returns whether polling is enabled
+func GetNotificationEnabled() bool {
+	return config.Notification.Enabled
+}
+
+// GetNotificationConfig returns notification configuration
+func GetNotificationConfig() (string, []string) {
+	return config.Notification.Type,
+		config.Notification.Emails
 }
 
 // GetAuditUsers the users which are allowed to do audit

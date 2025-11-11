@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/opsmx/ai-guardian-api/pkg/client"
+	"github.com/opsmx/ai-guardian-api/pkg/config"
 	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 	"github.com/rs/zerolog/log"
@@ -14,14 +15,15 @@ import (
 
 // PollingService handles polling of scan statuses from SSD API
 type PollingService struct {
-	ssdClient       *client.SSDClient
-	ssdService      *SSDService
-	vulnService     *VulnService
-	scanRepository  *repository.ScanRepository
-	vulnRepository  *repository.VulnerabilityRepository
-	pollingInterval time.Duration
-	stopChan        chan struct{}
-	logger          *utils.ErrorLogger
+	ssdClient           *client.SSDClient
+	ssdService          *SSDService
+	vulnService         *VulnService
+	scanRepository      *repository.ScanRepository
+	vulnRepository      *repository.VulnerabilityRepository
+	notificationService *NotificationService
+	pollingInterval     time.Duration
+	stopChan            chan struct{}
+	logger              *utils.ErrorLogger
 }
 
 // NewPollingService creates a new polling service
@@ -31,14 +33,15 @@ func NewPollingService(ssdClient *client.SSDClient, pollingInterval time.Duratio
 	vulnService.ssdService = ssdService
 
 	return &PollingService{
-		ssdClient:       ssdClient,
-		ssdService:      ssdService,
-		vulnService:     vulnService,
-		scanRepository:  repository.NewScanRepository(),
-		vulnRepository:  repository.NewVulnerabilityRepository(),
-		pollingInterval: pollingInterval,
-		stopChan:        make(chan struct{}),
-		logger:          utils.NewErrorLogger("polling_service"),
+		ssdClient:           ssdClient,
+		ssdService:          ssdService,
+		vulnService:         vulnService,
+		scanRepository:      repository.NewScanRepository(),
+		vulnRepository:      repository.NewVulnerabilityRepository(),
+		notificationService: NewNotificationService(NewEmailNotifier()),
+		pollingInterval:     pollingInterval,
+		stopChan:            make(chan struct{}),
+		logger:              utils.NewErrorLogger("polling_service"),
 	}
 }
 
@@ -136,7 +139,7 @@ func (ps *PollingService) pollScans(ctx context.Context) {
 
 		if len(projectStatus.Scans) > 0 {
 			scan.Branch = projectStatus.Scans[0].Branch
-			if err := ps.processScan(ctx, scan, string(projectStatus.RiskStatus), projectStatus.Team.ID); err != nil {
+			if err := ps.processScan(ctx, scan, string(projectStatus.RiskStatus), projectStatus.Team.ID, projectStatus.Team.Name); err != nil {
 				ps.logger.LogError(err, fmt.Sprintf("Failed to process scan %s", scan.ID), map[string]interface{}{
 					"scan_id": scan.ID,
 				})
@@ -149,7 +152,7 @@ func (ps *PollingService) pollScans(ctx context.Context) {
 }
 
 // processScan processes a single scan by querying SSD API and updating the database
-func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanRecord, projectStatus, teamID string) error {
+func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanRecord, projectStatus, teamID, projectName string) error {
 	// Handle scan status based on completion state
 	switch projectStatus {
 	case string(client.RiskStatusCompleted):
@@ -182,6 +185,15 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 		if err := ps.insertVulnerabilities(ctx, scan, scanData, teamID); err != nil {
 			log.Error().Err(err).Msgf("Failed to insert vulnerabilities for scan %s", scan.ID)
 			// Don't fail the entire process if vulnerability insertion fails
+		}
+
+		if config.GetNotificationEnabled() {
+			// Derive the email ID from here
+			email := utils.ExtractEmail(projectName)
+
+			if err := ps.notificationService.NotifyScanCompletion(ctx, email, scan.ProjectID, scan.Repository, scan.Branch, scan.CommitSHA); err != nil {
+				log.Error().Err(err).Msgf("failed to notify user for a completed scan %s", scan.ID)
+			}
 		}
 
 	case string(client.RiskStatusFail):

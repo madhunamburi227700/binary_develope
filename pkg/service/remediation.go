@@ -42,6 +42,7 @@ type SASTRemediationRequest struct {
 	RuleMessage     string `json:"rule_message"`
 	FilePath        string `json:"file_path"`
 	LineNo          *int   `json:"line_no"`
+	UserEmail       string `json:"user_email,omitempty"`
 }
 
 func (s *RemediationService) ValidateSASTRequest(req *SASTRemediationRequest) error {
@@ -108,6 +109,7 @@ type CVERemediationRequest struct {
 	Branch          *string `json:"branch,omitempty"`
 	MessageType     string  `json:"message_type"`
 	UserMessage     *string `json:"user_message,omitempty"`
+	UserEmail       string  `json:"user_email,omitempty"`
 }
 
 func (s *RemediationService) ValidateCVERequest(req *CVERemediationRequest) error {
