@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/models"
 )
@@ -26,6 +27,7 @@ func NewScanRepository() *ScanRepository {
 func (r *ScanRepository) Create(ctx context.Context, scan *models.Scan) error {
 	// Prepare data for creation with only required fields
 	data := map[string]interface{}{
+		"id":         uuid.New().String(),
 		"project_id": scan.ProjectID,
 		"repository": scan.Repository,
 		"branch":     scan.Branch,
@@ -42,7 +44,7 @@ func (r *ScanRepository) Create(ctx context.Context, scan *models.Scan) error {
 		return err
 	}
 
-	scan.ID = id.String()
+	scan.ID = id
 	return nil
 }
 

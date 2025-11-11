@@ -70,10 +70,9 @@ type Repository[T any] interface {
 }
 
 // Create inserts a new record
-func (r *BaseRepository) Create(ctx context.Context, table string, data map[string]interface{}) (uuid.UUID, error) {
-	// Add timestamps
+func (r *BaseRepository) Create(ctx context.Context, table string, data map[string]interface{}) (string, error) {
+
 	now := time.Now()
-	data["id"] = uuid.New()
 	data["created_at"] = now
 
 	// Build query
@@ -98,14 +97,14 @@ func (r *BaseRepository) Create(ctx context.Context, table string, data map[stri
 		strings.Join(placeholders, ", "),
 	)
 
-	var id uuid.UUID
+	var id string
 	err := r.db.QueryRow(ctx, query, values...).Scan(&id)
 	if err != nil {
 		r.logger.LogError(err, "Failed to create record", map[string]interface{}{
 			"table": table,
 			"data":  data,
 		})
-		return uuid.Nil, fmt.Errorf("failed to create record: %w", err)
+		return "", fmt.Errorf("failed to create record: %w", err)
 	}
 
 	r.logger.LogInfo("Record created successfully", map[string]interface{}{
@@ -117,7 +116,7 @@ func (r *BaseRepository) Create(ctx context.Context, table string, data map[stri
 }
 
 // GetByID retrieves a record by ID
-func (r *BaseRepository) GetByID(ctx context.Context, table string, id uuid.UUID, dest interface{}) error {
+func (r *BaseRepository) GetByID(ctx context.Context, table string, id string, dest interface{}) error {
 	query := fmt.Sprintf("SELECT * FROM %s WHERE id = $1", table)
 
 	row := r.db.QueryRow(ctx, query, id)

@@ -30,6 +30,15 @@ CREATE TABLE IF NOT EXISTS settings (
 
 CREATE UNIQUE INDEX IF NOT EXISTS ux_settings_hub_key ON settings(hub_id, key);
 
+CREATE TABLE IF NOT EXISTS projects (
+  id              varchar(64)    PRIMARY KEY,
+  name            varchar(255)   NOT NULL,
+  hub_id          varchar(64)    NOT NULL,
+  integration_id  varchar(255)   NOT NULL,
+  created_at      timestamptz    NOT NULL DEFAULT now(),
+  updated_at      timestamptz    NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS scans (
   id              varchar(64)    PRIMARY KEY,       -- SSD scan id
   parent_scan_id  varchar(64),                         -- parent SSD scan id

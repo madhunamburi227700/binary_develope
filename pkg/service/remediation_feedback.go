@@ -40,18 +40,18 @@ type UpdateFeedbackRequest struct {
 
 // FeedbackResponse represents the response for feedback operations
 type FeedbackResponse struct {
-	ID              uuid.UUID  `json:"id"`
-	RemediationID   uuid.UUID  `json:"remediation_id"`
-	VulnerabilityID uuid.UUID  `json:"vulnerability_id"`
-	Comments        *string    `json:"comments"`
-	Rating          *float64   `json:"rating"`
-	CreatedAt       *string    `json:"created_at"`
+	ID              uuid.UUID `json:"id"`
+	RemediationID   uuid.UUID `json:"remediation_id"`
+	VulnerabilityID uuid.UUID `json:"vulnerability_id"`
+	Comments        *string   `json:"comments"`
+	Rating          *float64  `json:"rating"`
+	CreatedAt       *string   `json:"created_at"`
 }
 
 // FeedbackListResponse represents the response for listing feedback
 type FeedbackListResponse struct {
-	Feedbacks  []*FeedbackResponse           `json:"feedbacks"`
-	Pagination *repository.PaginationResult  `json:"pagination,omitempty"`
+	Feedbacks  []*FeedbackResponse          `json:"feedbacks"`
+	Pagination *repository.PaginationResult `json:"pagination,omitempty"`
 }
 
 // FeedbackStatsResponse represents statistics for feedback
@@ -114,7 +114,7 @@ func (s *RemediationFeedbackService) CreateFeedback(ctx context.Context, req *Cr
 
 // GetFeedbackByID retrieves feedback by ID
 func (s *RemediationFeedbackService) GetFeedbackByID(ctx context.Context, id uuid.UUID) (*FeedbackResponse, error) {
-	feedback, err := s.repo.GetByID(ctx, id)
+	feedback, err := s.repo.GetByID(ctx, id.String())
 	if err != nil {
 		s.logger.LogError(err, "Failed to get feedback by ID", map[string]interface{}{
 			"feedback_id": id,

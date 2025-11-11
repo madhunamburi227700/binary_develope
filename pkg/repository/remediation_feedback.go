@@ -23,6 +23,7 @@ func NewRemediationFeedbackRepository() *RemediationFeedbackRepository {
 // Create creates a new remediation feedback record
 func (r *RemediationFeedbackRepository) Create(ctx context.Context, feedback *models.RemediationFeedback) (*models.RemediationFeedback, error) {
 	data := map[string]interface{}{
+		"id":               uuid.New().String(),
 		"remediation_id":   feedback.RemediationID,
 		"vulnerability_id": feedback.VulnerabilityID,
 	}
@@ -44,7 +45,7 @@ func (r *RemediationFeedbackRepository) Create(ctx context.Context, feedback *mo
 }
 
 // GetByID retrieves a remediation feedback by ID
-func (r *RemediationFeedbackRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.RemediationFeedback, error) {
+func (r *RemediationFeedbackRepository) GetByID(ctx context.Context, id string) (*models.RemediationFeedback, error) {
 	var feedback models.RemediationFeedback
 	err := r.BaseRepository.GetByID(ctx, "remediation_feedback", id, &feedback)
 	if err != nil {

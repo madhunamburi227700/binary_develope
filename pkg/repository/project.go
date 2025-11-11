@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/opsmx/ai-guardian-api/pkg/models"
@@ -24,24 +23,22 @@ func NewProjectRepository() *ProjectRepository {
 // Create creates a new project
 func (r *ProjectRepository) Create(ctx context.Context, project *models.Project) error {
 	data := map[string]interface{}{
+		"id":             project.ID,
+		"name":           project.Name,
 		"hub_id":         project.HubID,
 		"integration_id": project.IntegrationID,
-		"name":           project.Name,
-		"repo_url":       project.RepoURL,
-		"description":    project.Description,
 	}
 
-	id, err := r.BaseRepository.Create(ctx, "projects", data)
+	_, err := r.BaseRepository.Create(ctx, "projects", data)
 	if err != nil {
 		return err
 	}
 
-	project.ID = id
 	return nil
 }
 
 // GetByID retrieves a project by ID
-func (r *ProjectRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.Project, error) {
+func (r *ProjectRepository) GetByID(ctx context.Context, id string) (*models.Project, error) {
 	var project models.Project
 	err := r.BaseRepository.GetByID(ctx, "projects", id, &project)
 	if err != nil {
@@ -217,19 +214,4 @@ func (r *ProjectRepository) SearchByName(ctx context.Context, name string, optio
 		Data:       projects,
 		Pagination: pagination,
 	}, nil
-}
-
-// ProjectWithDetails represents a project with related data
-type ProjectWithDetails struct {
-	ID              uuid.UUID  `json:"id" db:"id"`
-	HubID           *uuid.UUID `json:"hub_id" db:"hub_id"`
-	IntegrationID   *uuid.UUID `json:"integration_id" db:"integration_id"`
-	Name            *string    `json:"name" db:"name"`
-	RepoURL         *string    `json:"repo_url" db:"repo_url"`
-	Description     *string    `json:"description" db:"description"`
-	CreatedAt       *time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt       *time.Time `json:"updated_at" db:"updated_at"`
-	HubName         *string    `json:"hub_name" db:"hub_name"`
-	IntegrationName *string    `json:"integration_name" db:"integration_name"`
-	IntegrationType *string    `json:"integration_type" db:"integration_type"`
 }

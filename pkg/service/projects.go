@@ -166,10 +166,19 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 		// Don't fail the entire operation if scan creation fails
 	}
 
-	s.logger.LogInfo("Project created successfully", map[string]interface{}{
-		"project_id": projectId,
-	})
+	projectModel := &models.Project{
+		ID:            projectId,
+		Name:          req.Name,
+		HubID:         req.HubID,
+		IntegrationID: req.IntegrationID,
+	}
 
+	if err := s.projectRepo.Create(ctx, projectModel); err != nil {
+		s.logger.LogError(err, "Failed to create project record", map[string]interface{}{
+			"project_id": projectId,
+		})
+		return "", fmt.Errorf("failed to create project record: %w", err)
+	}
 	return projectId, nil
 }
 
@@ -183,36 +192,29 @@ func (s *ProjectService) GetProject(ctx context.Context, projectId string) (*cli
 		return nil, fmt.Errorf("failed to get project: %w", err)
 	}
 
-	// logic
 	return project, nil
 }
 
 // UpdateProject updates a project
-func (s *ProjectService) UpdateProject(ctx context.Context, id uuid.UUID, req *UpdateProjectRequest) (*models.Project, error) {
+func (s *ProjectService) UpdateProject(ctx context.Context, id uuid.UUID, req *UpdateProjectRequest) (string, error) {
 	// Validate request
 	if err := s.validateUpdateRequest(req); err != nil {
-		return nil, fmt.Errorf("validation failed: %w", err)
+		return "", fmt.Errorf("validation failed: %w", err)
 	}
 
 	// Check if project exists
 	exists, err := s.projectRepo.Exists(ctx, id)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check project existence: %w", err)
+		return "", fmt.Errorf("failed to check project existence: %w", err)
 	}
 	if !exists {
-		return nil, fmt.Errorf("project not found")
+		return "", fmt.Errorf("project not found")
 	}
 
 	// Build updates map
 	updates := make(map[string]interface{})
 	if req.Name != nil {
 		updates["name"] = *req.Name
-	}
-	if req.RepoURL != nil {
-		updates["repo_url"] = *req.RepoURL
-	}
-	if req.Description != nil {
-		updates["description"] = *req.Description
 	}
 
 	// Update project
@@ -222,21 +224,10 @@ func (s *ProjectService) UpdateProject(ctx context.Context, id uuid.UUID, req *U
 			"project_id": id,
 			"updates":    updates,
 		})
-		return nil, fmt.Errorf("failed to update project: %w", err)
+		return "", fmt.Errorf("failed to update project: %w", err)
 	}
 
-	// Get updated project
-	project, err := s.projectRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get updated project: %w", err)
-	}
-
-	s.logger.LogInfo("Project updated successfully", map[string]interface{}{
-		"project_id": id,
-		"updates":    updates,
-	})
-
-	return project, nil
+	return id.String(), nil
 }
 
 // DeleteProject deletes a project
