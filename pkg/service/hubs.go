@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/models"
@@ -14,6 +15,22 @@ import (
 type HubStats struct {
 	SCAVulnerabilities  *VulnerabilityCounts `json:"sca_vulnerabilities"`
 	SASTVulnerabilities *VulnerabilityCounts `json:"sast_vulnerabilities"`
+	RecentScans         []ProjectRecentScan  `json:"recent_scans"`
+	TotalProjects       int                  `json:"total_projects"`
+	TotalCompletedScans int                  `json:"total_completed_scans"`
+}
+
+type ScanSummary struct {
+	Branch    string         `json:"branch"`
+	CommitID  string         `json:"commit_id"`
+	Timestamp time.Time      `json:"timestamp"`
+	Issues    map[string]int `json:"issues"`
+}
+
+type ProjectRecentScan struct {
+	ProjectID   string       `json:"project_id"`
+	ProjectName string       `json:"project_name"`
+	Scan        *ScanSummary `json:"scan"`
 }
 
 // HubService handles hub operations using SSD APIs
@@ -189,9 +206,15 @@ func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, 
 	var sastAllCount, sastCriticalCount, sastHighCount, sastMediumCount, sastLowCount, sastUnknownCount int
 	var scaAllCount, scaCriticalCount, scaHighCount, scaMediumCount, scaLowCount, scaUnknownCount int
 	uniqueSCAVulns := map[string]bool{}
+
+	var recentScans []ProjectRecentScan
+	var totalCompletedScans int
+
 	for _, project := range projects {
+		totalCompletedScans += len(project.Scans)
 		for _, entry := range project.Scans {
 			if models.ScanStatus(entry.Status) != models.ScanStatusCompleted {
+				totalCompletedScans--
 				continue
 			}
 			var sastStats, scaStats *VulnerabilityCounts
@@ -209,7 +232,33 @@ func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, 
 			scaHighCount += *scaStats.HighCount
 			scaLowCount += *scaStats.LowCount
 			scaUnknownCount += *scaStats.UnknownCount
+
+			// Count vulnerabilities by severity
+			issues := make(map[string]int)
+			issues["critical"] = sastCriticalCount + scaCriticalCount
+			issues["high"] = sastHighCount + scaHighCount
+			issues["medium"] = sastMediumCount + scaMediumCount
+			issues["unknown"] = sastUnknownCount + scaUnknownCount
+
+			// Create a summary of the scan
+			scanSummary := &ScanSummary{
+				Branch:    entry.Branch,
+				CommitID:  entry.CommitSHA,
+				Timestamp: entry.EndTime,
+				Issues:    issues,
+			}
+
+			// Extract 7 characters from index 0 to 6
+			if len(scanSummary.CommitID) >= 7 {
+				scanSummary.CommitID = scanSummary.CommitID[0:7]
+			}
+
 			// for hub stats would use only latest scan of each project
+			recentScans = append(recentScans, ProjectRecentScan{
+				ProjectID:   project.ProjectId,
+				ProjectName: project.ProjectName,
+				Scan:        scanSummary,
+			})
 			break
 		}
 	}
@@ -232,7 +281,14 @@ func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, 
 		LowCount:      &scaLowCount,
 		UnknownCount:  &scaUnknownCount,
 	}
-	return &HubStats{SASTVulnerabilities: sastVuln, SCAVulnerabilities: scaVulns}, nil
+
+	return &HubStats{
+		SASTVulnerabilities: sastVuln,
+		SCAVulnerabilities:  scaVulns,
+		RecentScans:         recentScans,
+		TotalProjects:       len(projects),
+		TotalCompletedScans: totalCompletedScans,
+	}, nil
 }
 
 func calculateHubVulnStats(vulns []*models.Vulnerability, uniqueSCAVulns map[string]bool) (*VulnerabilityCounts, *VulnerabilityCounts, map[string]bool) {

@@ -277,9 +277,11 @@ func (r *ScanRepository) UpdateScanTypeCountsForType(ctx context.Context, scanID
 func (s *ScanRepository) GetHubScansVulns(ctx context.Context, hubId string) ([]*models.ProjectExt, error) {
 	var projects []*models.ProjectExt
 
-	query := `SELECT s.id AS scan_id, s.project_id, s.status, s.branch, 
+	// Get scans with vulnerabilities and project info
+	query := `SELECT s.id AS scan_id, s.project_id, p.name as project_name, s.status, s.branch, 
 	s.commit_sha, s.end_time, v.scan_id, v.name, v.scan_type, v.tool, v.severity
 	FROM scans s
+	LEFT JOIN projects p ON s.project_id = p.id
 	LEFT JOIN vulnerabilities v ON v.scan_id = s.id
 	WHERE s.status = 'completed' AND s.hub_id = $1
 	ORDER BY s.end_time DESC, s.project_id DESC, s.id, v.name DESC`
@@ -295,9 +297,11 @@ func (s *ScanRepository) GetHubScansVulns(ctx context.Context, hubId string) ([]
 	for rows.Next() {
 		var scan models.ScanExt
 		var vuln models.Vulnerability
+		var projectName string
 		if err := rows.Scan(
 			&scan.ScanId,
 			&scan.ProjectId,
+			&projectName,
 			&scan.Status,
 			&scan.Branch,
 			&scan.CommitSHA,
@@ -321,7 +325,8 @@ func (s *ScanRepository) GetHubScansVulns(ctx context.Context, hubId string) ([]
 		} else {
 			scan.Vulnerabilites = append(scan.Vulnerabilites, &vuln)
 			projects = append(projects, &models.ProjectExt{
-				ProjectId: scan.ProjectId,
+				ProjectId:   scan.ProjectId,
+				ProjectName: projectName,
 				Scans: []*models.ScanExt{
 					&scan,
 				},

@@ -14,6 +14,7 @@ type Project struct {
 }
 
 type ProjectExt struct {
-	ProjectId string `db:"project_id"`
-	Scans     []*ScanExt
+	ProjectId   string `db:"project_id"`
+	ProjectName string `db:"project_name"`
+	Scans       []*ScanExt
 }
