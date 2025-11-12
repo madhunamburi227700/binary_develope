@@ -378,3 +378,80 @@ func (s *ScanRepository) GetProjectScansVulns(ctx context.Context, projectId str
 	}
 	return scans, nil
 }
+
+// taking all data for audit
+func (s *ScanRepository) GetScansVulns(ctx context.Context) ([]*models.Hub, error) {
+	var hubs []*models.Hub
+	query := `SELECT s.id AS scan_id, s.project_id, s.hub_id, s.status, 
+	s.created_at, v.id, v.scan_id
+	FROM scans s
+	LEFT JOIN vulnerabilities v ON v.scan_id = s.id
+	WHERE s.status = 'completed'
+	ORDER BY s.hub_id, s.project_id, s.end_time DESC, s.id DESC, v.name`
+
+	rows, err := s.db.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	hubIdx := map[string]int{}
+	projectsIdx := map[string]int{}
+	scansIdx := map[string]int{}
+	for rows.Next() {
+		var scan models.ScanExt
+		var vuln models.Vulnerability
+		var hubId uuid.UUID
+		if err := rows.Scan(
+			&scan.ScanId,
+			&scan.ProjectId,
+			&hubId,
+			&scan.Status,
+			&scan.CreatedAt,
+			&vuln.ID,
+			&vuln.ScanID,
+		); err != nil {
+			return nil, err
+		}
+		pKey := hubId.String() + scan.ProjectId
+		sKey := hubId.String() + scan.ProjectId + scan.ScanId
+		if hIdx, hok := hubIdx[hubId.String()]; hok {
+			if pIdx, pok := projectsIdx[pKey]; pok {
+				if sIdx, sok := scansIdx[sKey]; sok {
+					hubs[hIdx].Projects[pIdx].Scans[sIdx].Vulnerabilites = append(hubs[hIdx].Projects[pIdx].Scans[sIdx].Vulnerabilites, &vuln)
+				} else {
+					scan.Vulnerabilites = append(scan.Vulnerabilites, &vuln)
+					hubs[hIdx].Projects[pIdx].Scans = append(hubs[hIdx].Projects[pIdx].Scans, &scan)
+					scansIdx[sKey] = len(hubs[hIdx].Projects[pIdx].Scans) - 1
+				}
+			} else {
+				scan.Vulnerabilites = append(scan.Vulnerabilites, &vuln)
+				hubs[hIdx].Projects = append(hubs[hIdx].Projects, &models.ProjectExt{
+					ProjectId: scan.ProjectId,
+					Scans: []*models.ScanExt{
+						&scan,
+					},
+				})
+				projectsIdx[pKey] = len(hubs[hIdx].Projects) - 1
+				scansIdx[sKey] = 0
+			}
+		} else {
+			scan.Vulnerabilites = append(scan.Vulnerabilites, &vuln)
+			hubs = append(hubs, &models.Hub{
+				ID: hubId,
+				Projects: []*models.ProjectExt{
+					{
+						ProjectId: scan.ProjectId,
+						Scans: []*models.ScanExt{
+							&scan,
+						},
+					},
+				},
+			})
+			projectsIdx[pKey] = 0
+			scansIdx[sKey] = 0
+			hubIdx[hubId.String()] = len(hubs) - 1
+		}
+	}
+	return hubs, nil
+}

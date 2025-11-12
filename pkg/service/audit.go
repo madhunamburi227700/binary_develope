@@ -3,12 +3,16 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
+	"github.com/rs/zerolog/log"
+
+	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/models"
 	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
-	"github.com/rs/zerolog/log"
 )
 
 type AuditService interface {
@@ -16,8 +20,12 @@ type AuditService interface {
 }
 
 type auditService struct {
-	logger    *utils.ErrorLogger
-	auditRepo *repository.AuditRepository
+	logger          *utils.ErrorLogger
+	ssdService      *SSDService
+	auditRepo       *repository.AuditRepository
+	userRepo        *repository.UserRepository
+	scanRepo        *repository.ScanRepository
+	remediationRepo *repository.RemediationRepository
 }
 
 type UserReport struct {
@@ -34,12 +42,19 @@ type UserReport struct {
 
 func NewAuditService() AuditService {
 	return &auditService{
-		logger:    utils.NewErrorLogger("audit_service"),
-		auditRepo: repository.NewAuditRepository(),
+		logger:          utils.NewErrorLogger("audit_service"),
+		ssdService:      NewSSDService(),
+		auditRepo:       repository.NewAuditRepository(),
+		userRepo:        repository.NewUserRepository(),
+		remediationRepo: repository.NewRemediationRepository(),
+		scanRepo:        repository.NewScanRepository(),
 	}
 }
 
 func (f *auditService) GetAuditReport(fromDate string) ([]*UserReport, error) {
+	if fromDate == "" {
+		return f.getAuditReportViaEntities()
+	}
 	auditList, err := f.auditRepo.ListAuditLogByDateTime(context.TODO(), fromDate)
 	if err != nil {
 		return nil, err
@@ -101,4 +116,143 @@ func analyseUserActionStat(user *UserReport, auditLog *models.AuditLog) {
 		user.lastLogin = time.Time{}
 		log.Info().Msgf("%t", user.lastLogin.IsZero())
 	}
+}
+
+// getAuditReportViaEntities directly report data
+// via entity tables from users, scans, vulns, remediations
+// this will include past data also
+func (a *auditService) getAuditReportViaEntities() ([]*UserReport, error) {
+	auditReport := []*UserReport{}
+	ctx := context.TODO()
+
+	orgResponse, err := a.ssdService.GetOrganizationsAndTeams(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get org team details")
+		return nil, err
+	}
+
+	teamMap := map[string]client.Hub{}
+	for _, org := range orgResponse.QueryOrganization {
+		for _, team := range org.Teams {
+			teamMap[team.ID] = team
+		}
+	}
+
+	// getting users
+	users, err := a.userRepo.GetAllUsers(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get users")
+		return nil, err
+	}
+	usersMap := map[string]*models.User{}
+	for _, user := range users {
+		out := *user
+		usersMap[user.ProviderUserID] = &out
+	}
+
+	// getting remediations
+	remediations, err := a.remediationRepo.List(ctx, &repository.QueryOptions{
+		OrderBy: "created_at"})
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get remediations")
+		return nil, err
+	}
+
+	remediationsMap := map[string]models.Remediation{}
+	for _, r := range remediations.Data {
+		remediationsMap[r.VulnerabilityID.String()] = r
+	}
+
+	hubsScanData, err := a.scanRepo.GetScansVulns(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to get scansvulns")
+		return nil, err
+	}
+
+	userDayIdx := map[string]int{}
+	userDayRemediations := map[string]struct {
+		Attempted uint16
+		Approved  uint16
+	}{}
+	for _, hub := range hubsScanData {
+		team, tok := teamMap[hub.ID.String()]
+		// if hub is not matching then skip that hub
+		if !tok {
+			continue
+		}
+
+		userEmail := team.Email
+		if user, uOk := usersMap[userEmail]; uOk && user.Email.Valid {
+			userEmail = user.Email.String + "@" + user.Provider
+		}
+		for _, project := range hub.Projects {
+			for _, scan := range project.Scans {
+				for _, vuln := range scan.Vulnerabilites {
+					rem, rok := remediationsMap[vuln.ID.String()]
+					if rok && rem.Status != nil {
+						attempted, approved := *rem.Status == "FIX_GENERATED", *rem.Status == "PR_RAISED"
+						rdate := rem.CreatedAt.Format("2006-01-02")
+						udr, udrOk := userDayRemediations[userEmail+"@@"+rdate]
+						if udrOk {
+							if attempted {
+								udr.Attempted++
+							}
+							if approved {
+								udr.Approved++
+							}
+							userDayRemediations[userEmail+"@@"+rdate] = udr
+						} else {
+							if attempted {
+								userDayRemediations[userEmail+"@@"+rdate] = struct {
+									Attempted uint16
+									Approved  uint16
+								}{Attempted: 1}
+							}
+							if approved {
+								userDayRemediations[userEmail+"@@"+rdate] = struct {
+									Attempted uint16
+									Approved  uint16
+								}{Approved: 1}
+							}
+
+						}
+					}
+				}
+				date := scan.CreatedAt.Format("2006-01-02")
+				userAuditIdx, uaOk := userDayIdx[userEmail+"@@"+date]
+				if uaOk {
+					auditReport[userAuditIdx].Date = date
+					auditReport[userAuditIdx].TotalScans++
+				} else {
+					auditReport = append(auditReport, &UserReport{
+						Date:       date,
+						Email:      userEmail,
+						TotalScans: 1,
+					})
+					userDayIdx[userEmail+"@@"+date] = len(auditReport) - 1
+				}
+			}
+		}
+	}
+
+	for key, stats := range userDayRemediations {
+		if idx, udOk := userDayIdx[key]; udOk {
+			auditReport[idx].TotalRemediationAttempted = stats.Attempted
+			auditReport[idx].TotalRemediationApproved = stats.Approved
+		} else {
+			keyParts := strings.Split(key, "@@")
+			if len(keyParts) > 1 {
+				auditReport = append(auditReport, &UserReport{
+					Date:                      keyParts[1],
+					Email:                     keyParts[0],
+					TotalRemediationAttempted: stats.Attempted,
+					TotalRemediationApproved:  stats.Approved,
+				})
+			}
+		}
+	}
+	sort.SliceStable(auditReport, func(i, j int) bool {
+		return auditReport[i].Date < auditReport[j].Date
+	})
+	return auditReport, nil
 }

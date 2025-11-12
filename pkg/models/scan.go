@@ -56,5 +56,6 @@ type ScanExt struct {
 	Branch         string    `db:"branch"`
 	CommitSHA      string    `db:"commit_sha"`
 	EndTime        time.Time `db:"end_time"`
+	CreatedAt      time.Time `db:"created_at"`
 	Vulnerabilites []*Vulnerability
 }

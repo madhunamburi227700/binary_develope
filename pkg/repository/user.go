@@ -91,3 +91,33 @@ func (r *UserRepository) GetByProviderUserID(ctx context.Context, providerUserID
 	)
 	return &user, err
 }
+
+// GetAllUsers retrieves all user
+func (r *UserRepository) GetAllUsers(ctx context.Context) ([]*models.User, error) {
+	query := `
+		SELECT id, email, name, provider, provider_user_id, created_at, updated_at
+		FROM users`
+
+	rows, err := r.db.Query(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	var users []*models.User
+	for rows.Next() {
+		var user models.User
+		err = rows.Scan(
+			&user.ID,
+			&user.Email,
+			&user.Name,
+			&user.Provider,
+			&user.ProviderUserID,
+			&user.CreatedAt,
+			&user.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		users = append(users, &user)
+	}
+	return users, nil
+}

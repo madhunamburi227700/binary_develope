@@ -81,6 +81,7 @@ type ScanTimeFrequency struct {
 }
 
 type RecentScan struct {
+	ScanId             string     `json:"scan_id"`
 	Branch             string     `json:"branch"`
 	CommitId           string     `json:"commit_id"`
 	ScanTime           *time.Time `json:"scan_time"`
@@ -488,7 +489,7 @@ func (s *ProjectService) calculateProjectStats(ctx context.Context,
 
 				pstats.RecentScans = append(pstats.RecentScans, &RecentScan{
 					Branch:             scanTarget.Branch,
-					CommitId:           scanData.ArtifactSha[7:14],
+					CommitId:           scanData.ArtifactSha[:7],
 					ScanTime:           &lastScannedTime,
 					IssueCriticalCount: &criticalVuln,
 					IssueHighCount:     &highVuln,
@@ -593,6 +594,7 @@ func (s *ProjectService) getProjectStats(ctx context.Context, projectId string) 
 		totalLowCount := *sastStats.LowCount + *scaStats.LowCount
 		totalUnknownCount := *sastStats.UnknownCount + *scaStats.UnknownCount
 		pStats.RecentScans = append(pStats.RecentScans, &RecentScan{
+			ScanId:             entry.ScanId,
 			Branch:             entry.Branch,
 			CommitId:           commitSha,
 			ScanTime:           &scanTime,
