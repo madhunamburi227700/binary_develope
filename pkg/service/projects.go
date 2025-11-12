@@ -582,8 +582,8 @@ func (s *ProjectService) getProjectStats(ctx context.Context, projectId string) 
 		}
 
 		commitSha := entry.CommitSHA
-		if len(entry.CommitSHA) >= 14 {
-			commitSha = entry.CommitSHA[7:14]
+		if len(entry.CommitSHA) >= 7 {
+			commitSha = entry.CommitSHA[:7]
 		}
 
 		scanTime := entry.EndTime

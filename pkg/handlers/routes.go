@@ -5,6 +5,7 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/opsmx/ai-guardian-api/pkg/controller/audit"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/auth"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/features"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/feedback"
@@ -33,6 +34,7 @@ func SetupRoutes() *mux.Router {
 	scanController := scan.NewScanController()
 	feedbackController := feedback.NewFeedbackController()
 	featuresController := features.NewFeaturesController()
+	auditController := audit.NewAuditController()
 
 	// Public auth routes (no authentication required)
 	authRouter := r.PathPrefix("/auth").Subrouter()
@@ -161,6 +163,12 @@ func SetupRoutes() *mux.Router {
 		featuresRouter := apiRouter.PathPrefix("/features").Subrouter()
 		{
 			featuresRouter.HandleFunc("", featuresController.GetUserFeatures).Methods(http.MethodGet)
+		}
+
+		// Audit (requires authentication)
+		auditRouter := apiRouter.PathPrefix("/audit").Subrouter()
+		{
+			auditRouter.HandleFunc("/report", auditController.GetAuditReport).Methods(http.MethodGet)
 		}
 	}
 

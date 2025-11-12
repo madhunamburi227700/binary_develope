@@ -51,3 +51,44 @@ func (r *AuditRepository) CreateAuditLog(ctx context.Context, auditLog *models.A
 	auditLog.ID = id
 	return nil
 }
+
+func (r *AuditRepository) ListAuditLogByDateTime(ctx context.Context, datetime string) ([]*models.AuditLog, error) {
+	query := `SELECT al.user_id, u.email, u.provider, al.http_method, al.action, al.endpoint, 
+		al.entity_name, al.entity_id, al.request_body, al.response_status, al.response_body, 
+		al.duration_ms, al.service_name, al.created_at
+		FROM audit_logs al
+		LEFT JOIN users u ON u.provider_user_id = al.user_id
+		WHERE al.created_at >= $1 ORDER BY al.created_at`
+
+	rows, err := r.db.Query(ctx, query, datetime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var logs []*models.AuditLog
+	for rows.Next() {
+		var log models.AuditLog
+		err := rows.Scan(
+			&log.UserID,
+			&log.Email,
+			&log.Provider,
+			&log.HTTPMethod,
+			&log.Action,
+			&log.Endpoint,
+			&log.EntityName,
+			&log.EntityID,
+			&log.RequestBody,
+			&log.ResponseStatus,
+			&log.ResponseBody,
+			&log.DurationMs,
+			&log.ServiceName,
+			&log.CreatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		logs = append(logs, &log)
+	}
+	return logs, nil
+}

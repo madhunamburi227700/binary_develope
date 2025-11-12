@@ -32,4 +32,8 @@ type AuditLog struct {
 	DurationMs     sql.NullInt32  `json:"duration_ms" db:"duration_ms"`
 	ServiceName    sql.NullString `json:"service_name" db:"service_name"`
 	CreatedAt      time.Time      `json:"created_at" db:"created_at"`
+
+	// will be using this field to fetch user email with join
+	Email    sql.NullString `json:"email" db:"email"`
+	Provider sql.NullString `json:"provider" db:"provider"`
 }
