@@ -69,7 +69,7 @@ func (c *RemediationController) SASTRemediation(w http.ResponseWriter, r *http.R
 	if config.GetNotificationEnabled() {
 		userEmail, err := fetchUserEmail(r, c.userRepo, c.logger)
 		if err != nil {
-			c.logger.LogError(err, err.Error(), nil)
+			c.logger.LogError(err, "Failed to fetch email for the user", nil)
 		}
 		payload.UserEmail = userEmail
 	}
@@ -130,7 +130,7 @@ func (c *RemediationController) CVERemediation(w http.ResponseWriter, r *http.Re
 		userEmail, err := fetchUserEmail(r, c.userRepo, c.logger)
 		if err != nil {
 			// Just log here
-			c.logger.LogError(err, err.Error(), nil)
+			c.logger.LogError(err, "Failed to fetch email for the user", nil)
 		}
 		payload.UserEmail = userEmail
 	}

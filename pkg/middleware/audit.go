@@ -45,6 +45,13 @@ func (w *responseWriterWithBody) Write(b []byte) (int, error) {
 	return w.ResponseWriter.Write(b)
 }
 
+// Needed for SSE
+func (w *responseWriterWithBody) Flush() {
+	if flusher, ok := w.ResponseWriter.(http.Flusher); ok {
+		flusher.Flush()
+	}
+}
+
 // shouldAudit checks if the request should be audited based on entity
 func shouldAudit(path string) bool {
 	// Only audit specific entities: scans, projects, remediation, auth

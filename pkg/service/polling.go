@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -20,6 +21,7 @@ type PollingService struct {
 	vulnService         *VulnService
 	scanRepository      *repository.ScanRepository
 	vulnRepository      *repository.VulnerabilityRepository
+	userRepository      *repository.UserRepository
 	notificationService *NotificationService
 	pollingInterval     time.Duration
 	stopChan            chan struct{}
@@ -38,6 +40,7 @@ func NewPollingService(ssdClient *client.SSDClient, pollingInterval time.Duratio
 		vulnService:         vulnService,
 		scanRepository:      repository.NewScanRepository(),
 		vulnRepository:      repository.NewVulnerabilityRepository(),
+		userRepository:      repository.NewUserRepository(),
 		notificationService: NewNotificationService(NewEmailNotifier()),
 		pollingInterval:     pollingInterval,
 		stopChan:            make(chan struct{}),
@@ -139,7 +142,7 @@ func (ps *PollingService) pollScans(ctx context.Context) {
 
 		if len(projectStatus.Scans) > 0 {
 			scan.Branch = projectStatus.Scans[0].Branch
-			if err := ps.processScan(ctx, scan, string(projectStatus.RiskStatus), projectStatus.Team.ID, projectStatus.Team.Name); err != nil {
+			if err := ps.processScan(ctx, scan, string(projectStatus.RiskStatus), projectStatus.Team.ID, projectStatus.Team.Email); err != nil {
 				ps.logger.LogError(err, fmt.Sprintf("Failed to process scan %s", scan.ID), map[string]interface{}{
 					"scan_id": scan.ID,
 				})
@@ -152,7 +155,7 @@ func (ps *PollingService) pollScans(ctx context.Context) {
 }
 
 // processScan processes a single scan by querying SSD API and updating the database
-func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanRecord, projectStatus, teamID, projectName string) error {
+func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanRecord, projectStatus, teamID, email string) error {
 	// Handle scan status based on completion state
 	switch projectStatus {
 	case string(client.RiskStatusCompleted):
@@ -188,11 +191,25 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 		}
 
 		if config.GetNotificationEnabled() {
-			// Derive the email ID from here
-			email := utils.ExtractEmail(projectName)
+			if email != "" {
+				dbUser, err := ps.userRepository.GetByProviderUserID(ctx, email)
+				if err == nil {
+					email = dbUser.Email.String
+					if err := ps.notificationService.NotifyScanCompletion(ctx, email, scan.ProjectID, scan.Repository, scan.Branch, scan.CommitSHA); err != nil {
+						ps.logger.LogError(err, "Failed to notify the user for a completed scan", map[string]interface{}{
+							"scan": scan.ID, "teamID": teamID,
+						})
+					}
 
-			if err := ps.notificationService.NotifyScanCompletion(ctx, email, scan.ProjectID, scan.Repository, scan.Branch, scan.CommitSHA); err != nil {
-				log.Error().Err(err).Msgf("failed to notify user for a completed scan %s", scan.ID)
+				} else {
+					ps.logger.LogError(err, "Failed to notify the user for a completed scan", map[string]interface{}{
+						"scan": scan.ID, "username": email, "teamID": teamID,
+					})
+				}
+			} else {
+				ps.logger.LogError(errors.New("Failed to notify the user for a completed scan"), "email has not been assigned or is blank for the team/hub", map[string]interface{}{
+					"scan": scan.ID, "teamID": teamID,
+				})
 			}
 		}
 

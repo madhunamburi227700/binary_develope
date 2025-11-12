@@ -28,13 +28,11 @@ func NewNotificationService(notifier Notifier) *NotificationService {
 func (s *NotificationService) NotifyScanCompletion(ctx context.Context, notifyTo, projectID, repository, branch, commitSHA string) error {
 	_, recipients := config.GetNotificationConfig()
 
-	if notifyTo != "" {
-		recipients = append(recipients, notifyTo)
+	if notifyTo == "" {
+		return errors.New("no email recipient found to notify to")
 	}
 
-	if len(recipients) == 0 {
-		return errors.New("no email receipents found, nobody to notify to")
-	}
+	recipients = append(recipients, notifyTo)
 
 	data := struct {
 		ProjectID  string
@@ -71,7 +69,6 @@ Please check the latest results in the AI Guardian dashboard.
 	}
 
 	if err := s.notifier.Notify(ctx, notification); err != nil {
-		s.logger.LogError(err, "Failed to send feedback email", nil)
 		return err
 	}
 	return nil

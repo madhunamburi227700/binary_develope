@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"fmt"
 	"io"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -109,14 +108,4 @@ func StringToInt(s string, defaultValue int) int {
 		return defaultValue
 	}
 	return val
-}
-
-// TODO: Revisit the regex
-func ExtractEmail(input string) string {
-	emailRegex := `([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})`
-
-	re := regexp.MustCompile(emailRegex)
-	match := re.FindString(input)
-
-	return match
 }

@@ -232,8 +232,9 @@ type Scans struct {
 }
 
 type TeamDetails struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
 }
 
 type ProjectConfigRef struct {

@@ -70,7 +70,7 @@ func (s *FeedbackService) SendFeedback(ctx context.Context, req *SendFeedbackReq
 	}
 
 	// Send email using notification service
-	err := s.notificationSvc.Notify(ctx, &EmailNotification{
+	if err := s.notificationSvc.Notify(ctx, &EmailNotification{
 		To:       adminEmails,
 		Subject:  emailSubject,
 		Template: emailBodyTemplate,
@@ -79,9 +79,8 @@ func (s *FeedbackService) SendFeedback(ctx context.Context, req *SendFeedbackReq
 			Message:   req.Message,
 		},
 		Attachments: attachments,
-	})
-	if err != nil {
-		s.logger.LogError(err, "Failed to send feedback email", nil)
+	}); err != nil {
+		return err
 	}
 
 	return nil

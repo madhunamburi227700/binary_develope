@@ -269,6 +269,7 @@ func (c *SSDClient) GetProjectStatuses(ctx context.Context, projectIds []string)
 			team {
 				id
 				name
+				email
 			}
 			scans {
             	branch

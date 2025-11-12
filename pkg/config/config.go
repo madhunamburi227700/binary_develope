@@ -285,7 +285,7 @@ func GetFeedbackConfig() (emailSubject, emailBodyTemplate string, adminEmails []
 		config.Feedback.AdminEmails
 }
 
-// GetNotificationEnabled returns whether polling is enabled
+// GetNotificationEnabled returns whether notifications are enabled
 func GetNotificationEnabled() bool {
 	return config.Notification.Enabled
 }
