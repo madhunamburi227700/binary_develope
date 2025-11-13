@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -65,10 +66,26 @@ func (f *auditService) GetAuditReport(fromDate string) ([]*UserReport, error) {
 func genUserAuditReport(auditList []*models.AuditLog) []*UserReport {
 	var userAudit []*UserReport
 	userDayIdx := map[string]int{}
+	processedRemediationAttempts := map[string]bool{}
 	for _, auditlog := range auditList {
 		// skipping anonymous user logs
 		if auditlog.UserID == "anonymous" || auditlog.UserID == "" {
 			continue
+		}
+
+		// skipping remediation attempt count if repeated
+		// one chat Id is equal to one attempt.
+		if auditlog.Action.String == models.ActionRemediationAttempt {
+			type remRequest struct {
+				ID string `json:"id"`
+			}
+			var remReq remRequest
+			err := json.Unmarshal([]byte(auditlog.RequestBody.String), &remReq)
+			if err == nil {
+				if _, raOk := processedRemediationAttempts[remReq.ID]; raOk {
+					continue
+				}
+			}
 		}
 
 		date := auditlog.CreatedAt.Format("2006-01-02")
@@ -114,7 +131,6 @@ func analyseUserActionStat(user *UserReport, auditLog *models.AuditLog) {
 	if action == models.ActionLogout && !user.lastLogin.IsZero() {
 		user.Duration += uint32(auditLog.CreatedAt.Sub(user.lastLogin).Seconds())
 		user.lastLogin = time.Time{}
-		log.Info().Msgf("%t", user.lastLogin.IsZero())
 	}
 }
 
