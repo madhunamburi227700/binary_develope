@@ -2,6 +2,7 @@ package scan
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 
@@ -10,8 +11,9 @@ import (
 )
 
 type ScanController struct {
-	scanService service.ScanService
-	logger      *utils.ErrorLogger
+	scanService    service.ScanService
+	semgrepService service.SemgrepService
+	logger         *utils.ErrorLogger
 }
 
 func NewScanController() *ScanController {
@@ -61,4 +63,42 @@ func (c *ScanController) Rescan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	utils.SendSuccessResponseWithNoData(w, resp)
+}
+
+func (c *ScanController) ScanFile(w http.ResponseWriter, r *http.Request) {
+	// Parse multipart form with max memory of 64MB
+	if err := r.ParseMultipartForm(64 << 20); err != nil {
+		c.logger.LogError(err, "Failed to parse multipart form", nil)
+		utils.SendErrorResponse(w, http.StatusBadRequest, "Failed to parse form data")
+		return
+	}
+
+	// Check if file exists in form
+	file, fileHeader, err := r.FormFile("file")
+	if err != nil {
+		c.logger.LogError(err, "Failed to get file from form", nil)
+		utils.SendErrorResponse(w, http.StatusBadRequest, "File is required")
+		return
+	}
+	defer file.Close()
+
+	// Get optional config parameter
+	config := r.FormValue("config")
+
+	// Initialize semgrep service
+	semgrepService := service.NewSemgrepService("", 10) // 10 concurrent scans max
+
+	// Scan file - service handles everything else
+	result, err := semgrepService.ScanFileFromRequest(r.Context(), file, fileHeader, config)
+	if err != nil {
+		c.logger.LogError(err, "Semgrep scan failed", map[string]interface{}{
+			"filename": fileHeader.Filename,
+		})
+		utils.SendErrorResponse(w, http.StatusInternalServerError,
+			fmt.Sprintf("Scan failed: %v", err))
+		return
+	}
+
+	// Return results
+	utils.SendSuccessResponse(w, result, "Scan completed successfully")
 }

@@ -23,6 +23,11 @@ FROM alpine
     
 WORKDIR /
 
+# Install semgrep via pip3 (simpler and reliable on Alpine)
+RUN apk update && \
+    apk add --no-cache python3 py3-pip && \
+    pip3 install --no-cache-dir --break-system-packages semgrep
+
 # Copy binaries and configs
 COPY config.yaml .
 COPY --from=build /workspace/app .

@@ -175,10 +175,6 @@ func (g *GoogleOAuth) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	// Create session using your existing session management
 	session.CreateSession(w, r, token.RefreshToken, user.Email.String)
 
-	g.logger.LogInfo("User authenticated successfully", map[string]interface{}{
-		"email": user.Email,
-	})
-
 	// Return success response
 	frontendUrl := fmt.Sprintf("%s/callback?success=true&email=%s", config.GetUIAddress(), user.Email.String)
 	http.Redirect(w, r, frontendUrl, http.StatusFound)
@@ -248,12 +244,6 @@ func (g *GoogleOAuth) createOrGetUser(userInfo *GoogleUserInfo) (*models.User, e
 			return nil, err
 		}
 	}
-
-	g.logger.LogInfo("User created/retrieved", map[string]interface{}{
-		"email":     userInfo.Email,
-		"name":      userInfo.Name,
-		"google_id": userInfo.ID,
-	})
 
 	return dbUser, nil
 }

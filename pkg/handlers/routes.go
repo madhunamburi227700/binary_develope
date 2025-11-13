@@ -151,6 +151,7 @@ func SetupRoutes() *mux.Router {
 		scansRouter := apiRouter.PathPrefix("/scans").Subrouter()
 		{
 			scansRouter.HandleFunc("/rescan", scanController.Rescan).Methods(http.MethodPost)
+			scansRouter.HandleFunc("/file", scanController.ScanFile).Methods(http.MethodPost)
 		}
 
 		// Feedback (requires authentication)

@@ -142,10 +142,6 @@ func (g *GithubOAuth) HandleLogin(w http.ResponseWriter, r *http.Request) {
 	// Create session using your existing session management
 	session.CreateSession(w, r, "", userEmail)
 
-	g.logger.LogInfo("User authenticated successfully", map[string]interface{}{
-		"email": userEmail,
-	})
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
