@@ -195,7 +195,12 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 				dbUser, err := ps.userRepository.GetByProviderUserID(ctx, email)
 				if err == nil {
 					email = dbUser.Email.String
-					if err := ps.notificationService.NotifyScanCompletion(ctx, email, scan.ProjectID, scan.Repository, scan.Branch, scan.CommitSHA); err != nil {
+					project, commitSHA := scan.ProjectID, ""
+					if scanData != nil {
+						project = scanData.ProjectName
+						commitSHA = scanData.HeadCommit
+					}
+					if err := ps.notificationService.NotifyScanCompletion(ctx, email, project, scan.Repository, scan.Branch, commitSHA); err != nil {
 						ps.logger.LogError(err, "Failed to notify the user for a completed scan", map[string]interface{}{
 							"scan": scan.ID, "teamID": teamID,
 						})

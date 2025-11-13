@@ -25,7 +25,7 @@ func NewNotificationService(notifier Notifier) *NotificationService {
 }
 
 // NotifyScanCompletion sends a plain-text email notification detailing the completed scan.
-func (s *NotificationService) NotifyScanCompletion(ctx context.Context, notifyTo, projectID, repository, branch, commitSHA string) error {
+func (s *NotificationService) NotifyScanCompletion(ctx context.Context, notifyTo, project, repository, branch, commitSHA string) error {
 	_, recipients := config.GetNotificationConfig()
 
 	if notifyTo == "" {
@@ -35,12 +35,12 @@ func (s *NotificationService) NotifyScanCompletion(ctx context.Context, notifyTo
 	recipients = append(recipients, notifyTo)
 
 	data := struct {
-		ProjectID  string
+		Project    string
 		Repository string
 		Branch     string
 		CommitSHA  string
 	}{
-		ProjectID:  projectID,
+		Project:    project,
 		Repository: repository,
 		Branch:     branch,
 		CommitSHA:  commitSHA,
@@ -50,7 +50,7 @@ func (s *NotificationService) NotifyScanCompletion(ctx context.Context, notifyTo
 The security scan has been completed for the following:
 
 Details:
-ProjectID:  {{.ProjectID}}
+Project:    {{.Project}}
 Repository: {{.Repository}}
 Branch:     {{.Branch}}
 CommitSHA:  {{.CommitSHA}}
