@@ -158,9 +158,9 @@ func (a *auditService) getAuditReportViaEntities() ([]*UserReport, error) {
 		return nil, err
 	}
 
-	remediationsMap := map[string]models.Remediation{}
+	remediationsMap := map[string][]models.Remediation{}
 	for _, r := range remediations.Data {
-		remediationsMap[r.VulnerabilityID.String()] = r
+		remediationsMap[r.VulnerabilityID.String()] = append(remediationsMap[r.VulnerabilityID.String()], r)
 	}
 
 	hubsScanData, err := a.scanRepo.GetScansVulns(ctx)
@@ -188,33 +188,27 @@ func (a *auditService) getAuditReportViaEntities() ([]*UserReport, error) {
 		for _, project := range hub.Projects {
 			for _, scan := range project.Scans {
 				for _, vuln := range scan.Vulnerabilites {
-					rem, rok := remediationsMap[vuln.ID.String()]
-					if rok && rem.Status != nil {
-						attempted, approved := *rem.Status == "FIX_GENERATED", *rem.Status == "PR_RAISED"
-						rdate := rem.CreatedAt.Format("2006-01-02")
-						udr, udrOk := userDayRemediations[userEmail+"@@"+rdate]
-						if udrOk {
-							if attempted {
+					for _, rem := range remediationsMap[vuln.ID.String()] {
+						if rem.Status != nil {
+							approved := *rem.Status == "PR_RAISED"
+							rdate := rem.CreatedAt.Format("2006-01-02")
+							udr, udrOk := userDayRemediations[userEmail+"@@"+rdate]
+							if udrOk {
 								udr.Attempted++
-							}
-							if approved {
-								udr.Approved++
-							}
-							userDayRemediations[userEmail+"@@"+rdate] = udr
-						} else {
-							if attempted {
-								userDayRemediations[userEmail+"@@"+rdate] = struct {
+								if approved {
+									udr.Approved++
+								}
+								userDayRemediations[userEmail+"@@"+rdate] = udr
+							} else {
+								stat := struct {
 									Attempted uint16
 									Approved  uint16
 								}{Attempted: 1}
+								if approved {
+									stat.Approved++
+								}
+								userDayRemediations[userEmail+"@@"+rdate] = stat
 							}
-							if approved {
-								userDayRemediations[userEmail+"@@"+rdate] = struct {
-									Attempted uint16
-									Approved  uint16
-								}{Approved: 1}
-							}
-
 						}
 					}
 				}
