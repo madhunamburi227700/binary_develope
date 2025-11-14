@@ -564,7 +564,7 @@ func (s *ProjectService) getProjectStats(ctx context.Context, projectId string) 
 				prevCount++
 				pStats.ScanTimeFrequencies[idx].Count = &prevCount
 			} else {
-				endTime := entry.EndTime
+				endTime := *entry.EndTime
 				defCount := 1
 				pStats.ScanTimeFrequencies = append(pStats.ScanTimeFrequencies, &ScanTimeFrequency{
 					Count: &defCount,
@@ -587,7 +587,7 @@ func (s *ProjectService) getProjectStats(ctx context.Context, projectId string) 
 			commitSha = entry.CommitSHA[:7]
 		}
 
-		scanTime := entry.EndTime
+		scanTime := *entry.EndTime
 		totalCriticalCount := *sastStats.CriticalCount + *scaStats.CriticalCount
 		totalHighCount := *sastStats.HighCount + *scaStats.HighCount
 		totalMediumCount := *sastStats.MediumCount + *scaStats.MediumCount

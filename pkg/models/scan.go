@@ -50,13 +50,13 @@ type ScanType struct {
 }
 
 type ScanExt struct {
-	ScanId         string    `db:"scan_id"`
-	ProjectId      string    `db:"project_id"`
-	Status         string    `db:"status"`
-	Branch         string    `db:"branch"`
-	CommitSHA      string    `db:"commit_sha"`
-	EndTime        time.Time `db:"end_time"`
-	CreatedAt      time.Time `db:"created_at"`
+	ScanId         string     `db:"scan_id"`
+	ProjectId      string     `db:"project_id"`
+	Status         string     `db:"status"`
+	Branch         string     `db:"branch"`
+	CommitSHA      string     `db:"commit_sha"`
+	EndTime        *time.Time `db:"end_time,omitempty"`
+	CreatedAt      time.Time  `db:"created_at"`
 	Vulnerabilites []*Vulnerability
 }
 

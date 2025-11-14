@@ -13,11 +13,14 @@ import (
 )
 
 type HubStats struct {
-	SCAVulnerabilities  *VulnerabilityCounts `json:"sca_vulnerabilities"`
-	SASTVulnerabilities *VulnerabilityCounts `json:"sast_vulnerabilities"`
-	RecentScans         []ProjectRecentScan  `json:"recent_scans"`
 	TotalProjects       int                  `json:"total_projects"`
 	TotalCompletedScans int                  `json:"total_completed_scans"`
+	TotalPRRaised       int                  `json:"total_pr_raised"`
+	TotalScanning       int                  `json:"total_scanning"`
+	SCAVulnerabilities  *VulnerabilityCounts `json:"sca_vulnerabilities"`
+	SASTVulnerabilities *VulnerabilityCounts `json:"sast_vulnerabilities"`
+	ScanTimeFrequencies []ScanTimeFrequency  `json:"scan_time_frequencies"`
+	RecentScans         []ProjectRecentScan  `json:"recent_scans"`
 }
 
 type ScanSummary struct {
@@ -35,17 +38,19 @@ type ProjectRecentScan struct {
 
 // HubService handles hub operations using SSD APIs
 type HubService struct {
-	ssdService *SSDService
-	scanRepo   *repository.ScanRepository
-	logger     *utils.ErrorLogger
+	ssdService      *SSDService
+	logger          *utils.ErrorLogger
+	scanRepo        *repository.ScanRepository
+	remediationRepo *repository.RemediationRepository
 }
 
 // NewHubService creates a new hub service
 func NewHubService() *HubService {
 	return &HubService{
-		ssdService: NewSSDService(),
-		scanRepo:   repository.NewScanRepository(),
-		logger:     utils.NewErrorLogger("hub_service"),
+		ssdService:      NewSSDService(),
+		logger:          utils.NewErrorLogger("hub_service"),
+		scanRepo:        repository.NewScanRepository(),
+		remediationRepo: repository.NewRemediationRepository(),
 	}
 }
 
@@ -203,63 +208,99 @@ func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, 
 		})
 		return nil, fmt.Errorf("failed to get scans details: %w", err)
 	}
+
+	// getting remediations
+	remediations, err := s.remediationRepo.List(ctx, &repository.QueryOptions{
+		OrderBy: "created_at"})
+	if err != nil {
+		return nil, err
+	}
+
+	remediationsMap := map[string][]models.Remediation{}
+	for _, r := range remediations.Data {
+		remediationsMap[r.VulnerabilityID.String()] = append(remediationsMap[r.VulnerabilityID.String()], r)
+	}
+
 	var sastAllCount, sastCriticalCount, sastHighCount, sastMediumCount, sastLowCount, sastUnknownCount int
 	var scaAllCount, scaCriticalCount, scaHighCount, scaMediumCount, scaLowCount, scaUnknownCount int
-	uniqueSCAVulns := map[string]bool{}
-
+	var totalCompletedScans, totalPrRaised, totalScanning int
 	var recentScans []ProjectRecentScan
-	var totalCompletedScans int
+	var scanTimeFrequencies []ScanTimeFrequency
+	uniqueSCAVulns, scanFreqIdx := map[string]bool{}, map[string]int{}
 
 	for _, project := range projects {
 		totalCompletedScans += len(project.Scans)
-		for _, entry := range project.Scans {
+		for j, entry := range project.Scans {
 			if models.ScanStatus(entry.Status) != models.ScanStatusCompleted {
 				totalCompletedScans--
+				totalScanning++
 				continue
 			}
-			var sastStats, scaStats *VulnerabilityCounts
-			sastStats, scaStats, uniqueSCAVulns = calculateHubVulnStats(entry.Vulnerabilites, uniqueSCAVulns)
-			sastAllCount += *sastStats.AllCount
-			sastCriticalCount += *sastStats.CriticalCount
-			sastMediumCount += *sastStats.MediumCount
-			sastHighCount += *sastStats.HighCount
-			sastLowCount += *sastStats.LowCount
-			sastUnknownCount += *sastStats.UnknownCount
-
-			scaAllCount += *scaStats.AllCount
-			scaCriticalCount += *scaStats.CriticalCount
-			scaMediumCount += *scaStats.MediumCount
-			scaHighCount += *scaStats.HighCount
-			scaLowCount += *scaStats.LowCount
-			scaUnknownCount += *scaStats.UnknownCount
-
-			// Count vulnerabilities by severity
-			issues := make(map[string]int)
-			issues["critical"] = sastCriticalCount + scaCriticalCount
-			issues["high"] = sastHighCount + scaHighCount
-			issues["medium"] = sastMediumCount + scaMediumCount
-			issues["unknown"] = sastUnknownCount + scaUnknownCount
-
-			// Create a summary of the scan
-			scanSummary := &ScanSummary{
-				Branch:    entry.Branch,
-				CommitID:  entry.CommitSHA,
-				Timestamp: entry.EndTime,
-				Issues:    issues,
+			if !entry.EndTime.IsZero() {
+				formattedDate := entry.EndTime.Format("2006-01-02")
+				if idx, idxOk := scanFreqIdx[formattedDate]; idxOk {
+					prevCount := *scanTimeFrequencies[idx].Count
+					prevCount++
+					scanTimeFrequencies[idx].Count = &prevCount
+				} else {
+					endTime := *entry.EndTime
+					defCount := 1
+					scanTimeFrequencies = append(scanTimeFrequencies, ScanTimeFrequency{
+						Count: &defCount,
+						Date:  &endTime,
+					})
+					scanFreqIdx[formattedDate] = len(scanTimeFrequencies) - 1
+				}
 			}
 
-			// Extract 7 characters from index 0 to 6
-			if len(scanSummary.CommitID) >= 7 {
-				scanSummary.CommitID = scanSummary.CommitID[0:7]
-			}
+			sastStats, scaStats, uniqueSCAVulnsFromStats, prRaisedCountFromStats := calculateHubVulnStats(entry.Vulnerabilites, uniqueSCAVulns, remediationsMap)
+			if j == 0 {
+				uniqueSCAVulns = uniqueSCAVulnsFromStats
+				totalPrRaised += prRaisedCountFromStats
 
-			// for hub stats would use only latest scan of each project
-			recentScans = append(recentScans, ProjectRecentScan{
-				ProjectID:   project.ProjectId,
-				ProjectName: project.ProjectName,
-				Scan:        scanSummary,
-			})
-			break
+				sastAllCount += *sastStats.AllCount
+				sastCriticalCount += *sastStats.CriticalCount
+				sastMediumCount += *sastStats.MediumCount
+				sastHighCount += *sastStats.HighCount
+				sastLowCount += *sastStats.LowCount
+				sastUnknownCount += *sastStats.UnknownCount
+
+				scaAllCount += *scaStats.AllCount
+				scaCriticalCount += *scaStats.CriticalCount
+				scaMediumCount += *scaStats.MediumCount
+				scaHighCount += *scaStats.HighCount
+				scaLowCount += *scaStats.LowCount
+				scaUnknownCount += *scaStats.UnknownCount
+
+				// Count vulnerabilities by severity
+				issues := make(map[string]int)
+				issues["critical"] = sastCriticalCount + scaCriticalCount
+				issues["high"] = sastHighCount + scaHighCount
+				issues["medium"] = sastMediumCount + scaMediumCount
+				issues["unknown"] = sastUnknownCount + scaUnknownCount
+
+				// Create a summary of the scan
+				scanSummary := &ScanSummary{
+					Branch:    entry.Branch,
+					CommitID:  entry.CommitSHA,
+					Timestamp: *entry.EndTime,
+					Issues:    issues,
+				}
+
+				// Extract 7 characters from index 0 to 6
+				if len(scanSummary.CommitID) >= 7 {
+					scanSummary.CommitID = scanSummary.CommitID[0:7]
+				}
+
+				// for hub stats would use only latest scan of each project
+				recentScans = append(recentScans, ProjectRecentScan{
+					ProjectID:   project.ProjectId,
+					ProjectName: project.ProjectName,
+					Scan:        scanSummary,
+				})
+			} else {
+				totalPrRaised += prRaisedCountFromStats
+			}
 		}
 	}
 
@@ -283,16 +324,23 @@ func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, 
 	}
 
 	return &HubStats{
-		SASTVulnerabilities: sastVuln,
-		SCAVulnerabilities:  scaVulns,
-		RecentScans:         recentScans,
 		TotalProjects:       len(projects),
 		TotalCompletedScans: totalCompletedScans,
+		TotalPRRaised:       totalPrRaised,
+		TotalScanning:       totalScanning,
+		SASTVulnerabilities: sastVuln,
+		SCAVulnerabilities:  scaVulns,
+		ScanTimeFrequencies: scanTimeFrequencies,
+		RecentScans:         recentScans,
 	}, nil
 }
 
-func calculateHubVulnStats(vulns []*models.Vulnerability, uniqueSCAVulns map[string]bool) (*VulnerabilityCounts, *VulnerabilityCounts, map[string]bool) {
+func calculateHubVulnStats(vulns []*models.Vulnerability,
+	uniqueSCAVulns map[string]bool,
+	remediationsMap map[string][]models.Remediation,
+) (*VulnerabilityCounts, *VulnerabilityCounts, map[string]bool, int) {
 	var sastStats, scaStats VulnerabilityCounts
+	var prRaised int
 	// sast tool
 	sastTool := "semgrep"
 	// sca tool
@@ -331,6 +379,13 @@ func calculateHubVulnStats(vulns []*models.Vulnerability, uniqueSCAVulns map[str
 				scaUnknownCount++
 			}
 		}
+		if rems, rok := remediationsMap[vuln.ID.String()]; rok {
+			for _, rem := range rems {
+				if rem.Status != nil && *rem.Status == "PR_RAISED" {
+					prRaised++
+				}
+			}
+		}
 	}
 
 	sastStats = VulnerabilityCounts{
@@ -350,7 +405,7 @@ func calculateHubVulnStats(vulns []*models.Vulnerability, uniqueSCAVulns map[str
 		LowCount:      &scaLowCount,
 		UnknownCount:  &scaUnknownCount,
 	}
-	return &sastStats, &scaStats, uniqueSCAVulns
+	return &sastStats, &scaStats, uniqueSCAVulns, prRaised
 }
 
 // ValidateHubExists checks if a hub exists
