@@ -274,10 +274,11 @@ func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, 
 
 				// Count vulnerabilities by severity
 				issues := make(map[string]int)
-				issues["critical"] = sastCriticalCount + scaCriticalCount
-				issues["high"] = sastHighCount + scaHighCount
-				issues["medium"] = sastMediumCount + scaMediumCount
-				issues["unknown"] = sastUnknownCount + scaUnknownCount
+				issues["critical"] = *sastStats.CriticalCount + *scaStats.CriticalCount
+				issues["high"] = *sastStats.HighCount + *scaStats.HighCount
+				issues["medium"] = *sastStats.MediumCount + *scaStats.MediumCount
+				issues["low"] = *sastStats.LowCount + *scaStats.LowCount
+				issues["unknown"] = *sastStats.UnknownCount + *scaStats.UnknownCount
 
 				// Create a summary of the scan
 				scanSummary := &ScanSummary{
