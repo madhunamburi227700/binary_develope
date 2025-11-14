@@ -76,9 +76,6 @@ func AuditLog(next http.Handler) http.Handler {
 			return
 		}
 
-		// Start timing after checks
-		start := time.Now()
-
 		endpoint := path
 		if r.URL.RawQuery != "" {
 			endpoint = path + "?" + r.URL.RawQuery
@@ -106,11 +103,10 @@ func AuditLog(next http.Handler) http.Handler {
 		// Get username from request
 		username, _ := session.GetSession(r)
 
-		// Process the request
+		// Process the request and keep this three statements together
+		start := time.Now() // start timing after checks
 		next.ServeHTTP(wrapped, r)
-
-		// Calculate duration
-		durationMs := time.Since(start).Milliseconds()
+		durationMs := time.Since(start).Milliseconds() // calculate duration just after request served
 
 		// Parse response body
 		var responseBodyStr string
@@ -124,6 +120,10 @@ func AuditLog(next http.Handler) http.Handler {
 		// complex logic for non-auth endpoints
 		if username == "" {
 			username = "anonymous"
+			headerUserName := r.Header.Get(HeaderXUser)
+			if headerUserName != "" {
+				username = headerUserName
+			}
 			if strings.Contains(path, "/auth/github/login") {
 				s := []byte(responseBodyStr)
 				var v struct {
