@@ -3,10 +3,8 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-	"mime/multipart"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +12,7 @@ import (
 	"time"
 
 	"github.com/opsmx/ai-guardian-api/pkg/client"
+	"github.com/opsmx/ai-guardian-api/pkg/config"
 	"github.com/opsmx/ai-guardian-api/pkg/models"
 	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
@@ -38,14 +37,6 @@ type RescanRequest struct {
 	HubID      string `json:"hubId"`
 	Repository string `json:"repository"`
 	Branch     string `json:"branch"`
-}
-
-type SemgrepService struct {
-	logger      *utils.ErrorLogger
-	tempDir     string
-	maxFileSize int64
-	scanTimeout time.Duration
-	workerPool  chan struct{} // Semaphore for concurrent scans
 }
 
 type RescanResponse struct {
@@ -93,281 +84,302 @@ func (s *ScanService) Rescan(ctx context.Context, req *RescanRequest) (string, e
 	return s.ssdService.Rescan(ctx, req, scanResult)
 }
 
-const (
-	DefaultMaxFileSize = 50 * 1024 * 1024 // 50 MB
-	DefaultScanTimeout = 5 * time.Minute
-	DefaultMaxWorkers  = 10 // Max concurrent scans
-)
-
-func NewSemgrepService(tempDir string, maxWorkers int) *SemgrepService {
-	if tempDir == "" {
-		tempDir = os.TempDir()
-	}
-	if maxWorkers <= 0 {
-		maxWorkers = DefaultMaxWorkers
-	}
-
-	return &SemgrepService{
-		logger:      utils.NewErrorLogger("semgrep_service"),
-		tempDir:     tempDir,
-		maxFileSize: DefaultMaxFileSize,
-		scanTimeout: DefaultScanTimeout,
-		workerPool:  make(chan struct{}, maxWorkers),
-	}
+// ScanFileRequest represents a file scan request
+type ScanFileRequest struct {
+	FileContent []byte
+	Filename    string
+	FileSize    int64
 }
 
-// ScanFile scans a file or directory using semgrep and returns results
-func (s *SemgrepService) ScanFile(ctx context.Context, req *models.SemgrepScanRequest) (*models.SemgrepResult, error) {
-	// Acquire worker slot (rate limiting)
-	select {
-	case s.workerPool <- struct{}{}:
-		defer func() { <-s.workerPool }()
-	case <-ctx.Done():
-		return nil, ctx.Err()
-	}
-
-	// Create context with timeout
-	scanCtx, cancel := context.WithTimeout(ctx, s.scanTimeout)
-	defer cancel()
-
-	// Convert to absolute path
-	absPath, err := filepath.Abs(req.FilePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get absolute path: %w", err)
-	}
-
-	// Check if path exists (file or directory)
-	fileInfo, err := os.Stat(absPath)
-	if err != nil {
-		return nil, fmt.Errorf("path not found: %s, error: %w", absPath, err)
-	}
-
-	// If it's a file (not a directory), check size
-	if !fileInfo.IsDir() {
-		if fileInfo.Size() > s.maxFileSize {
-			return nil, fmt.Errorf("file size %d exceeds maximum %d bytes", fileInfo.Size(), s.maxFileSize)
-		}
-	}
-
-	// Verify semgrep is available
-	semgrepPath, err := exec.LookPath("semgrep")
-	if err != nil {
-		return nil, fmt.Errorf("semgrep not found in PATH: %w. Install with: python3 -m pip install semgrep", err)
-	}
-
-	// Create temporary file for semgrep output (better for memory management)
-	outputFile, err := os.CreateTemp(s.tempDir, "semgrep-output-*.json")
-	if err != nil {
-		return nil, fmt.Errorf("failed to create temp output file: %w", err)
-	}
-	outputFilePath := outputFile.Name()
-	outputFile.Close()
-	defer os.Remove(outputFilePath) // Cleanup temp file
-
-	// Build semgrep command arguments (mimicking the sample code)
-	args := []string{
-		"semgrep",
-		"--json",
-		"--quiet",                 // Reduce output
-		"--disable-version-check", // Skip version check
-		"--disable-nosem",
-		"--no-git-ignore",
-		"--no-rewrite-rule-ids",
-		"-j", "1", // Single job to reduce memory
-		"--max-memory", "3000", // Limit memory per file (MB)
-		"--output", outputFilePath, // Write to file instead of stdout
-	}
-
-	// Add config if provided
-	if req.Config != "" {
-		args = append(args, "--config", req.Config)
-		args = append(args, "--metrics=off")
-	} else {
-		// Use default ruleset - auto requires metrics to download config
-		args = append(args, "--config", "auto")
-		// Don't add --metrics=off here because auto config needs metrics
-	}
-
-	// Add custom rules if provided
-	for _, rule := range req.Rules {
-		args = append(args, "--config", rule)
-	}
-
-	// Add target file/directory (use absolute path)
-	args = append(args, absPath)
-
-	// Execute semgrep command
-	cmd := exec.CommandContext(scanCtx, semgrepPath, args[1:]...) // Skip "semgrep" since semgrepPath already has it
-
-	// Set environment variables - ONLY when using specific config (not "auto")
-	envVars := os.Environ()
-	if req.Config != "" {
-		// Using specific config - can disable metrics (like air-gapped mode in sample)
-		envVars = append(envVars,
-			"SEMGREP_OFFLINE=1",
-			"SEMGREP_SEND_METRICS=off",
-		)
-	}
-	// If req.Config == "" (using "auto"), don't set these env vars
-	cmd.Env = envVars
-
-	// Set working directory to the file's parent directory
-	if fileInfo.IsDir() {
-		cmd.Dir = absPath
-	} else {
-		cmd.Dir = filepath.Dir(absPath)
-	}
-
-	// Capture stderr for error reporting
-	var stderr strings.Builder
-	cmd.Stderr = &stderr
-
-	err = cmd.Run()
-	errOutput := stderr.String()
-
-	// Read the output file
-	outputBytes, readErr := os.ReadFile(outputFilePath)
-	if readErr != nil {
-		// If file read fails, check if semgrep failed
-		if err != nil {
-			// Build comprehensive error message
-			var errMsg strings.Builder
-			errMsg.WriteString("semgrep execution failed")
-
-			if exitErr, ok := err.(*exec.ExitError); ok {
-				fmt.Fprintf(&errMsg, " (exit code %d)", exitErr.ExitCode())
-			}
-			fmt.Fprintf(&errMsg, ": %v", err)
-
-			if errOutput != "" {
-				fmt.Fprintf(&errMsg, "\nstderr: %s", strings.TrimSpace(errOutput))
-			}
-			errMsg.WriteString("\n(failed to read output file)")
-
-			return nil, errors.New(errMsg.String())
-		}
-		return nil, fmt.Errorf("failed to read semgrep output file: %w", readErr)
-	}
-
-	// Check if we got valid JSON output (even if command failed)
-	// Semgrep can return non-zero exit codes for valid reasons (findings found, warnings, etc.)
-	if len(outputBytes) > 0 {
-		var result models.SemgrepResult
-		if jsonErr := json.Unmarshal(outputBytes, &result); jsonErr == nil {
-			// Valid JSON - return it even if exit code was non-zero
-			return &result, nil
-		}
-	}
-
-	// If we got here, semgrep failed and didn't produce valid JSON
-	if err != nil {
-		// Check if it's an exec error
-		if execErr, ok := err.(*exec.Error); ok {
-			if execErr.Err == exec.ErrNotFound {
-				return nil, fmt.Errorf("semgrep executable not found: %w. Install with: python3 -m pip install semgrep", err)
-			}
-		}
-
-		// Build comprehensive error message
-		var errMsg strings.Builder
-		errMsg.WriteString("semgrep execution failed")
-
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			fmt.Fprintf(&errMsg, " (exit code %d)", exitErr.ExitCode())
-		}
-		fmt.Fprintf(&errMsg, ": %v", err)
-
-		if errOutput != "" {
-			fmt.Fprintf(&errMsg, "\nstderr: %s", strings.TrimSpace(errOutput))
-		}
-		if len(outputBytes) > 0 {
-			// Try to parse error from JSON output
-			var result models.SemgrepResult
-			if json.Unmarshal(outputBytes, &result) == nil && len(result.Errors) > 0 {
-				fmt.Fprintf(&errMsg, "\nsemgrep errors: %+v", result.Errors)
-			}
-		}
-
-		return nil, errors.New(errMsg.String())
-	}
-
-	// Parse JSON output if command succeeded
-	if len(outputBytes) == 0 {
-		return nil, fmt.Errorf("semgrep produced no output")
-	}
-
-	var result models.SemgrepResult
-	if err := json.Unmarshal(outputBytes, &result); err != nil {
-		return nil, fmt.Errorf("failed to parse semgrep output: %w, output: %s", err, string(outputBytes))
-	}
-
-	return &result, nil
+// SemgrepData represents the data structure in the response
+type SemgrepData struct {
+	Results []interface{} `json:"results"`
+	Version string        `json:"version"`
 }
 
-// ScanFileFromRequest handles file upload, validation, and scanning
-func (s *SemgrepService) ScanFileFromRequest(ctx context.Context, file multipart.File, fileHeader *multipart.FileHeader, config string) (*models.SemgrepResult, error) {
-	// Validate file size (50MB max)
-	const maxFileSize = 50 * 1024 * 1024
-	if fileHeader.Size > maxFileSize {
-		return nil, fmt.Errorf("file size exceeds maximum of %d MB", maxFileSize/(1024*1024))
+// ScanFileResponse represents the result of a file scan
+type ScanFileResponse struct {
+	Data    *SemgrepData `json:"data,omitempty"`
+	Message string       `json:"message"`
+	Success bool         `json:"success"`
+}
+
+// ValidateFile validates the uploaded file
+func (s *ScanService) ValidateFile(req *ScanFileRequest) error {
+	// Check file size
+	maxSize := config.GetSemgrepMaxFileSize()
+	if req.FileSize > maxSize {
+		return fmt.Errorf("file size %d bytes exceeds maximum allowed size of %d bytes", req.FileSize, maxSize)
 	}
 
-	// Process config parameter
-	// If config is "auto" or empty, pass empty string to semgrep service
-	// Empty string in semgrep.go will use "auto" without --metrics=off
-	semgrepConfig := ""
-	if config != "" && config != "auto" {
-		semgrepConfig = config
+	// Check file extension
+	ext := strings.ToLower(filepath.Ext(req.Filename))
+	if ext == "" {
+		return fmt.Errorf("file must have an extension")
 	}
 
-	// Create temporary directory for file upload
-	tempDir, err := os.MkdirTemp(os.TempDir(), "semgrep-scan-*")
+	allowedExts := config.GetSemgrepAllowedExtensions()
+	extAllowed := false
+	for _, allowedExt := range allowedExts {
+		if strings.ToLower(allowedExt) == ext {
+			extAllowed = true
+			break
+		}
+	}
+
+	if !extAllowed {
+		return fmt.Errorf("file extension '%s' is not allowed. Allowed extensions: %v", ext, allowedExts)
+	}
+
+	// Check if file content matches size
+	if int64(len(req.FileContent)) != req.FileSize {
+		return fmt.Errorf("file content size mismatch")
+	}
+
+	return nil
+}
+
+// ScanFileWithSemgrep scans a file using semgrep CLI and returns the results
+func (s *ScanService) ScanFileWithSemgrep(ctx context.Context, req *ScanFileRequest) (*ScanFileResponse, error) {
+	startTime := time.Now()
+
+	// Validate file
+	if err := s.ValidateFile(req); err != nil {
+		return nil, fmt.Errorf("file validation failed: %w", err)
+	}
+
+	// Create temp file with proper extension
+	tempFile, err := os.CreateTemp(os.TempDir(), "semgrep-scan-*"+filepath.Ext(req.Filename))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+		s.logger.LogError(err, "Failed to create temporary file", map[string]interface{}{
+			"filename": req.Filename,
+		})
+		return nil, fmt.Errorf("failed to create temporary file: %w", err)
 	}
+	tempFilePath := tempFile.Name()
+
+	// Ensure cleanup
 	defer func() {
-		// Cleanup: remove temp directory and all contents
-		os.RemoveAll(tempDir)
+		if err := os.Remove(tempFilePath); err != nil {
+			s.logger.LogWarning("Failed to remove temporary file", map[string]interface{}{
+				"file_path": tempFilePath,
+				"error":     err.Error(),
+			})
+		}
 	}()
 
-	// Get absolute path of temp directory
-	absTempDir, err := filepath.Abs(tempDir)
+	// Write file content
+	if _, err := tempFile.Write(req.FileContent); err != nil {
+		s.logger.LogError(err, "Failed to write to temporary file", map[string]interface{}{
+			"file_path": tempFilePath,
+		})
+		return nil, fmt.Errorf("failed to write file content: %w", err)
+	}
+
+	if err := tempFile.Close(); err != nil {
+		s.logger.LogError(err, "Failed to close temporary file", map[string]interface{}{
+			"file_path": tempFilePath,
+		})
+		return nil, fmt.Errorf("failed to close temporary file: %w", err)
+	}
+
+	// Execute semgrep with file-type-specific rules (much faster than all rules)
+	semgrepData, err := s.executeSemgrep(ctx, tempFilePath, req.Filename)
+	scanTime := time.Since(startTime)
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to get absolute path: %w", err)
+		s.logger.LogError(err, "Semgrep execution failed", map[string]interface{}{
+			"filename":  req.Filename,
+			"scan_time": scanTime.String(),
+		})
+		return &ScanFileResponse{
+			Success: false,
+			Message: fmt.Sprintf("Scan failed: %s", err.Error()),
+		}, nil // Return response with error, don't fail the request
 	}
 
-	// Create file in temp directory with original filename
-	// This preserves the file extension so semgrep can detect the language
-	tempFilePath := filepath.Join(absTempDir, fileHeader.Filename)
-	tempFile, err := os.Create(tempFilePath)
+	return &ScanFileResponse{
+		Data:    semgrepData,
+		Message: "Scan completed successfully",
+		Success: true,
+	}, nil
+}
+
+// executeSemgrep executes semgrep CLI on the given file and returns parsed results
+// Uses smart approach: file-type-specific rules (fastest) -> auto mode (online)
+func (s *ScanService) executeSemgrep(ctx context.Context, filePath string, filename string) (*SemgrepData, error) {
+	timeoutSeconds := config.GetSemgrepTimeoutSeconds()
+
+	// Step 1: Try file-type-specific rule sets (fastest, works offline after first download)
+	// This is much faster than using all rules or cache file
+	ruleSet := s.getRuleSetForFile(filename)
+	if ruleSet != "" {
+		s.logger.LogInfo("Using file-type-specific semgrep rules", map[string]interface{}{
+			"rule_set": ruleSet,
+			"filename": filename,
+		})
+		result, err := s.runSemgrepWithConfig(ctx, "semgrep", timeoutSeconds, filePath, ruleSet, false)
+		if err == nil {
+			return result, nil
+		}
+		// If specific rule set fails, log and fall through to auto mode
+		s.logger.LogWarning("File-type-specific rules failed, falling back to auto mode", map[string]interface{}{
+			"rule_set": ruleSet,
+			"error":    err.Error(),
+		})
+	}
+
+	// Step 2: Fall back to auto mode (online, but semgrep caches rules automatically)
+	s.logger.LogInfo("Using semgrep auto config (online mode)", map[string]interface{}{
+		"filename": filename,
+	})
+	return s.runSemgrepWithConfig(ctx, "semgrep", timeoutSeconds, filePath, "auto", false)
+}
+
+// getRuleSetForFile returns the appropriate semgrep rule set based on file extension
+// Returns empty string if no specific rule set matches
+func (s *ScanService) getRuleSetForFile(filename string) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+
+	// Map file extensions to semgrep rule sets
+	ruleSetMap := map[string]string{
+		".py":         "r/python",
+		".js":         "r/javascript",
+		".jsx":        "r/javascript",
+		".ts":         "r/typescript",
+		".tsx":        "r/typescript",
+		".go":         "r/go",
+		".java":       "r/java",
+		".cpp":        "r/cpp",
+		".c":          "r/c",
+		".cs":         "r/csharp",
+		".rb":         "r/ruby",
+		".php":        "r/php",
+		".rs":         "r/rust",
+		".swift":      "r/swift",
+		".kt":         "r/kotlin",
+		".scala":      "r/scala",
+		".sh":         "r/bash",
+		".yaml":       "r/yaml",
+		".yml":        "r/yaml",
+		".json":       "r/json",
+		".xml":        "r/xml",
+		".html":       "r/html",
+		".css":        "r/css",
+		".sql":        "r/sql",
+		".tf":         "r/terraform",
+		".tfvars":     "r/terraform",
+		".dockerfile": "r/docker",
+	}
+
+	if ruleSet, ok := ruleSetMap[ext]; ok {
+		return ruleSet
+	}
+
+	return ""
+}
+
+// runSemgrepWithConfig executes semgrep with a specific config (cache path or "auto")
+// Note: When using a local file path for --config, semgrep automatically works offline
+// The offline parameter is kept for future compatibility but not used (semgrep doesn't support --offline flag)
+func (s *ScanService) runSemgrepWithConfig(ctx context.Context, cliPath string, timeoutSeconds int, filePath string, configValue string, offline bool) (*SemgrepData, error) {
+	// Create context with timeout
+	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
+	defer cancel()
+
+	// Prepare semgrep command
+	// When configValue is a file path (not "auto"), semgrep automatically works offline
+	// --disable-version-check speeds up execution by skipping version checks
+	args := []string{"--json", "--disable-version-check", "--no-git-ignore", "--config=" + configValue, filePath}
+
+	cmd := exec.CommandContext(timeoutCtx, cliPath, args...)
+
+	// Capture stdout and stderr
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp file: %w", err)
+		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
 
-	// Copy uploaded file to temp file
-	if _, err := io.Copy(tempFile, file); err != nil {
-		tempFile.Close()
-		return nil, fmt.Errorf("failed to copy file to temp: %w", err)
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create stderr pipe: %w", err)
 	}
 
-	// Ensure file is fully written to disk
-	if err := tempFile.Sync(); err != nil {
-		tempFile.Close()
-		return nil, fmt.Errorf("failed to sync file: %w", err)
-	}
-	tempFile.Close()
-
-	// Verify file exists before scanning
-	if _, err := os.Stat(tempFilePath); os.IsNotExist(err) {
-		return nil, fmt.Errorf("temp file does not exist after creation: %s", tempFilePath)
+	// Start command
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start semgrep: %w", err)
 	}
 
-	// Scan file - pass the specific file path (not directory) to semgrep
-	scanReq := &models.SemgrepScanRequest{
-		FilePath: tempFilePath, // Pass absolute file path
-		FileName: fileHeader.Filename,
-		Config:   semgrepConfig, // Empty string for "auto", specific config otherwise
+	// Read stdout
+	output, err := io.ReadAll(stdout)
+	if err != nil {
+		cmd.Process.Kill()
+		return nil, fmt.Errorf("failed to read semgrep output: %w", err)
 	}
 
-	return s.ScanFile(ctx, scanReq)
+	// Read stderr for error messages
+	stderrOutput, _ := io.ReadAll(stderr)
+
+	// Wait for command to complete
+	err = cmd.Wait()
+
+	// Check for timeout
+	if timeoutCtx.Err() == context.DeadlineExceeded {
+		return nil, fmt.Errorf("semgrep execution timed out after %d seconds", timeoutSeconds)
+	}
+
+	// Check for execution errors
+	if err != nil {
+		errorMsg := string(stderrOutput)
+		if errorMsg == "" {
+			errorMsg = err.Error()
+		}
+		return nil, fmt.Errorf("semgrep execution failed: %s", errorMsg)
+	}
+
+	// Validate JSON output
+	if len(output) == 0 {
+		return &SemgrepData{
+			Results: []interface{}{},
+			Version: "",
+		}, nil // Return empty results if no output
+	}
+
+	// Parse semgrep JSON output
+	var semgrepOutput map[string]interface{}
+	if err := json.Unmarshal(output, &semgrepOutput); err != nil {
+		s.logger.LogError(err, "Invalid JSON output from semgrep", map[string]interface{}{
+			"file_path": filePath,
+			"output":    string(output),
+		})
+		return nil, fmt.Errorf("semgrep returned invalid JSON: %w", err)
+	}
+
+	// Extract results and version from semgrep output
+	results, ok := semgrepOutput["results"]
+	if !ok {
+		results = []interface{}{}
+	}
+
+	// Convert results to slice if it's not already
+	var resultsSlice []interface{}
+	switch v := results.(type) {
+	case []interface{}:
+		resultsSlice = v
+	case nil:
+		resultsSlice = []interface{}{}
+	default:
+		// Try to convert to slice
+		resultsSlice = []interface{}{v}
+	}
+
+	version, _ := semgrepOutput["version"].(string)
+	if version == "" {
+		version = "unknown"
+	}
+
+	return &SemgrepData{
+		Results: resultsSlice,
+		Version: version,
+	}, nil
 }

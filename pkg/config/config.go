@@ -48,6 +48,13 @@ type configType struct {
 		Addr string `yaml:"addr"`
 	} `yaml:"remediation_service"`
 
+	Semgrep struct {
+		TimeoutSeconds    int      `yaml:"timeoutSeconds"`    // Timeout for semgrep execution (default: 60)
+		MaxFileSize       int64    `yaml:"maxFileSize"`       // Max file size in bytes (default: 10MB)
+		AllowedExtensions []string `yaml:"allowedExtensions"` // Allowed file extensions
+		TempDir           string   `yaml:"tempDir"`           // Temp directory for files (empty = system temp)
+	} `yaml:"semgrep"`
+
 	Polling struct {
 		Enabled         bool `yaml:"enabled"`
 		IntervalSeconds int  `yaml:"intervalSeconds"`
@@ -299,4 +306,29 @@ func GetNotificationConfig() (string, []string) {
 // GetAuditUsers the users which are allowed to do audit
 func GetAuditUsers() []string {
 	return config.AuditUsers
+}
+
+// GetSemgrepTimeoutSeconds returns the semgrep timeout in seconds (default: 60)
+func GetSemgrepTimeoutSeconds() int {
+	if config.Semgrep.TimeoutSeconds <= 0 {
+		return 60
+	}
+	return config.Semgrep.TimeoutSeconds
+}
+
+// GetSemgrepMaxFileSize returns the maximum file size in bytes (default: 10MB)
+func GetSemgrepMaxFileSize() int64 {
+	if config.Semgrep.MaxFileSize <= 0 {
+		return 10 * 1024 * 1024 // 10MB
+	}
+	return config.Semgrep.MaxFileSize
+}
+
+// GetSemgrepAllowedExtensions returns the allowed file extensions (default: common code extensions)
+func GetSemgrepAllowedExtensions() []string {
+	if len(config.Semgrep.AllowedExtensions) > 0 {
+		return config.Semgrep.AllowedExtensions
+	}
+	// Default allowed extensions
+	return []string{".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".java", ".cpp", ".c", ".rb", ".php", ".rs", ".swift", ".kt", ".scala", ".sh", ".yaml", ".yml", ".json", ".xml", ".html", ".css", ".sql", ".dockerfile", ".tf", ".tfvars"}
 }
