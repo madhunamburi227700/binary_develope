@@ -190,6 +190,7 @@ func (a *auditService) getAuditReportViaEntities() ([]*UserReport, error) {
 		Attempted uint16
 		Approved  uint16
 	}{}
+	processedUsers := map[string]bool{}
 	for _, hub := range hubsScanData {
 		team, tok := teamMap[hub.ID.String()]
 		// if hub is not matching then skip that hub
@@ -201,6 +202,7 @@ func (a *auditService) getAuditReportViaEntities() ([]*UserReport, error) {
 		if user, uOk := usersMap[userEmail]; uOk && user.Email.Valid {
 			userEmail = user.Email.String + "@" + user.Provider
 		}
+		processedUsers[team.Email] = true
 		for _, project := range hub.Projects {
 			for _, scan := range project.Scans {
 				for _, vuln := range scan.Vulnerabilites {
@@ -260,6 +262,20 @@ func (a *auditService) getAuditReportViaEntities() ([]*UserReport, error) {
 				})
 			}
 		}
+	}
+
+	for _, team := range teamMap {
+		if _, pok := processedUsers[team.Email]; pok || team.Email == "" {
+			continue
+		}
+		processedUsers[team.Email] = true
+		userEmail := team.Email
+		if user, uok := usersMap[team.Email]; uok && user.Email.Valid {
+			userEmail = user.Email.String + "@" + user.Provider
+		}
+		auditReport = append(auditReport, &UserReport{
+			Email: userEmail,
+		})
 	}
 	sort.SliceStable(auditReport, func(i, j int) bool {
 		return auditReport[i].Date < auditReport[j].Date

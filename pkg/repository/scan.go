@@ -391,7 +391,6 @@ func (s *ScanRepository) GetScansVulns(ctx context.Context) ([]*models.Hub, erro
 	s.created_at, v.id, v.scan_id
 	FROM scans s
 	LEFT JOIN vulnerabilities v ON v.scan_id = s.id
-	WHERE s.status = 'completed'
 	ORDER BY s.hub_id, s.project_id, s.end_time DESC, s.id DESC, v.name`
 
 	rows, err := s.db.Query(ctx, query)
