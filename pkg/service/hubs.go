@@ -293,11 +293,14 @@ func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, 
 				}
 
 				// for hub stats would use only latest scan of each project
-				recentScans = append(recentScans, ProjectRecentScan{
-					ProjectID:   project.ProjectId,
-					ProjectName: project.ProjectName,
-					Scan:        scanSummary,
-				})
+				// top 5 only
+				if len(recentScans) != 5 {
+					recentScans = append(recentScans, ProjectRecentScan{
+						ProjectID:   project.ProjectId,
+						ProjectName: project.ProjectName,
+						Scan:        scanSummary,
+					})
+				}
 			} else {
 				totalPrRaised += prRaisedCountFromStats
 			}
