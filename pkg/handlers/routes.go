@@ -44,8 +44,10 @@ func SetupRoutes() *mux.Router {
 		authRouter.HandleFunc("/logout", authController.Logout).Methods(http.MethodPost)
 
 		// install github app integrator
-		authRouter.HandleFunc("/github/install", integratorController.InstallGitHubAppIntegration).Methods(http.MethodGet)
+		// authRouter.HandleFunc("/github/install", integratorController.InstallGitHubAppIntegration).Methods(http.MethodGet)
+		authRouter.HandleFunc("/github/install", authController.GithubUserAuth).Methods(http.MethodGet)
 		authRouter.HandleFunc("/github/login", authController.GithubLogin).Methods(http.MethodPost)
+		// GitHub OAuth
 	}
 
 	// Protected routes (authentication required)

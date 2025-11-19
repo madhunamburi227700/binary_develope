@@ -5,8 +5,10 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 
+	oauthBridge "github.com/OpsMx/oauth-bridge-client"
 	"github.com/opsmx/ai-guardian-api/pkg/auth/oauth"
 	"github.com/opsmx/ai-guardian-api/pkg/auth/session"
 	"github.com/opsmx/ai-guardian-api/pkg/repository"
@@ -148,6 +150,50 @@ func generateState() (string, error) {
 		return "", err
 	}
 	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+// GithubUserAuth returns GitHub OAuth URL for user authentication using bridge client
+// @Summary GitHub User Auth
+// @Description Returns OAuth URL for user authentication with email and profile scopes only
+// @Tags Authentication
+// @Accept  json
+// @Produce  json
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Router /auth/github/oauth [get]
+func (ctrl *OAuthController) GithubUserAuth(w http.ResponseWriter, r *http.Request) {
+	// Initialize bridge client
+	bridgeClient, err := oauthBridge.NewClient("ai-guardian")
+	if err != nil {
+		ctrl.logger.LogError(err, "Failed to initialize OAuth bridge client", nil)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Start OAuth installation with user scopes
+	oauthResp, err := bridgeClient.StartOAuthInstallation("read:user", "user:email")
+	if err != nil {
+		ctrl.logger.LogError(err, "Failed to start OAuth installation", nil)
+		ctrl.logger.LogWarning("This is expected if OAuth App credentials are not configured", nil)
+		http.Error(w, "Failed to start OAuth installation", http.StatusInternalServerError)
+		return
+	}
+
+	if !oauthResp.Success {
+		ctrl.logger.LogError(errors.New(oauthResp.Error), "OAuth installation failed", nil)
+		http.Error(w, "OAuth installation failed", http.StatusInternalServerError)
+		return
+	}
+
+	// Return the OAuth URL
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data": map[string]string{
+			"url":   oauthResp.InstallURL,
+			"state": oauthResp.State,
+		},
+	})
 }
 
 // GithubLogin verifies the email from github and redirects to UI
