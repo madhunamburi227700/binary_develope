@@ -24,6 +24,7 @@ type HubStats struct {
 }
 
 type ScanSummary struct {
+	ScanID    string         `json:"scan_id"`
 	Branch    string         `json:"branch"`
 	CommitID  string         `json:"commit_id"`
 	Timestamp time.Time      `json:"timestamp"`
@@ -282,6 +283,7 @@ func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, 
 
 				// Create a summary of the scan
 				scanSummary := &ScanSummary{
+					ScanID:    entry.ScanId,
 					Branch:    entry.Branch,
 					CommitID:  entry.CommitSHA,
 					Timestamp: *entry.EndTime,
