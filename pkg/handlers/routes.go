@@ -100,6 +100,12 @@ func SetupRoutes() *mux.Router {
 
 			// Get vulnerability prioritization data
 			vulnerabilityRouter.HandleFunc("/prioritisation", vulnController.GetVulnerabilityPrioritization).Methods(http.MethodGet)
+
+			// Download SAST report
+			vulnerabilityRouter.HandleFunc("/sast/report", vulnController.DownloadSASTReport).Methods(http.MethodGet)
+
+			// Download SCA report
+			vulnerabilityRouter.HandleFunc("/sca/report", vulnController.DownloadSCAReport).Methods(http.MethodGet)
 		}
 
 		// integrations

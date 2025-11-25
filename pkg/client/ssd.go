@@ -1085,3 +1085,17 @@ func (c *SSDClient) DeleteIntegration(ctx context.Context, req *DeleteIntegratio
 
 	return nil
 }
+
+func (c *SSDClient) DownloadSBOMJSON(ctx context.Context, fileName string) ([]byte, error) {
+	endpoint := fmt.Sprintf("/gate/tool-chain/api/v1/scanResult?fileName=%s", fileName)
+
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download SBOM JSON: %w", err)
+	}
+
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to download SBOM JSON: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+	return resp.Body, nil
+}
