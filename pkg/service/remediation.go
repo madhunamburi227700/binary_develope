@@ -31,18 +31,21 @@ func NewRemediationService() *RemediationService {
 }
 
 type SASTRemediationRequest struct {
-	ID              string `json:"id"`
-	VulnerabilityID string `json:"vulnerability_id"`
-	Platform        string `json:"platform"`
-	Organization    string `json:"organization"`
-	Repository      string `json:"repository"`
-	Token           string `json:"token"`
-	Branch          string `json:"branch"`
-	Rule            string `json:"rule"`
-	RuleMessage     string `json:"rule_message"`
-	FilePath        string `json:"file_path"`
-	LineNo          *int   `json:"line_no"`
-	UserEmail       string `json:"user_email,omitempty"`
+	ID              string  `json:"id"`
+	VulnerabilityID string  `json:"vulnerability_id"`
+	SessionID       *string `json:"session_id,omitempty"`
+	Platform        string  `json:"platform"`
+	Organization    string  `json:"organization"`
+	Repository      string  `json:"repository"`
+	Token           string  `json:"token"`
+	Branch          string  `json:"branch"`
+	Rule            string  `json:"rule"`
+	RuleMessage     string  `json:"rule_message"`
+	FilePath        string  `json:"file_path"`
+	LineNo          *int    `json:"line_no"`
+	MessageType     string  `json:"message_type"`
+	UserMessage     *string `json:"user_message,omitempty"`
+	UserEmail       string  `json:"user_email,omitempty"`
 }
 
 func (s *RemediationService) ValidateSASTRequest(req *SASTRemediationRequest) error {
