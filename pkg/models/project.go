@@ -9,6 +9,7 @@ type Project struct {
 	Name          string    `json:"name" db:"name"`
 	HubID         string    `json:"hub_id" db:"hub_id"`
 	IntegrationID string    `json:"integration_id" db:"integration_id"`
+	Organisation  string    `json:"organisation" db:"organisation"`
 	CreatedAt     time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt     time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -16,5 +17,6 @@ type Project struct {
 type ProjectExt struct {
 	ProjectId   string `db:"project_id"`
 	ProjectName string `db:"project_name"`
+	Organisation string `db:"organisation"`
 	Scans       []*ScanExt
 }

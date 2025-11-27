@@ -32,10 +32,11 @@ type ScanSummary struct {
 }
 
 type ProjectRecentScan struct {
-	ProjectID   string       `json:"project_id"`
-	ProjectName string       `json:"project_name"`
-	Repository  string       `json:"repository"`
-	Scan        *ScanSummary `json:"scan"`
+	ProjectID    string       `json:"project_id"`
+	ProjectName  string       `json:"project_name"`
+	Repository   string       `json:"repository"`
+	Organisation string       `json:"organisation"`
+	Scan         *ScanSummary `json:"scan"`
 }
 
 // HubService handles hub operations using SSD APIs
@@ -300,10 +301,11 @@ func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, 
 				// top 5 only
 				if len(recentScans) != 5 {
 					recentScans = append(recentScans, ProjectRecentScan{
-						ProjectID:   project.ProjectId,
-						ProjectName: project.ProjectName,
-						Repository:  entry.Repository,
-						Scan:        scanSummary,
+						ProjectID:    project.ProjectId,
+						ProjectName:  project.ProjectName,
+						Repository:   entry.Repository,
+						Organisation: project.Organisation,
+						Scan:         scanSummary,
 					})
 				}
 			} else {

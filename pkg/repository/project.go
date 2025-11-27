@@ -26,6 +26,7 @@ func (r *ProjectRepository) Create(ctx context.Context, project *models.Project)
 		"id":             project.ID,
 		"name":           project.Name,
 		"hub_id":         project.HubID,
+		"organisation":   project.Organisation,
 		"integration_id": project.IntegrationID,
 	}
 

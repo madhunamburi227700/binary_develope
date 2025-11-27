@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS projects (
   name            varchar(255)   NOT NULL,
   hub_id          varchar(64)    NOT NULL,
   integration_id  varchar(255)   NOT NULL,
+  organisation    varchar(255)   NOT NULL,
   created_at      timestamptz    NOT NULL DEFAULT now(),
   updated_at      timestamptz    NOT NULL DEFAULT now()
 );

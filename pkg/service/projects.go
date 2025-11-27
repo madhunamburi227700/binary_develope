@@ -170,6 +170,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 	projectModel := &models.Project{
 		ID:            projectId,
 		Name:          req.Name,
+		Organisation:  username,
 		HubID:         req.HubID,
 		IntegrationID: req.IntegrationID,
 	}

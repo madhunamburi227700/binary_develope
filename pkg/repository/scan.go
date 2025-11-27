@@ -279,7 +279,7 @@ func (s *ScanRepository) GetHubScansVulns(ctx context.Context, hubId string) ([]
 
 	// Get scans with vulnerabilities and project info
 	query := `SELECT s.id AS scan_id, s.project_id, p.name as project_name, s.status, s.repository, s.branch,
-	s.commit_sha, s.end_time, v.id, v.scan_id, v.name, v.scan_type, v.tool, v.severity
+	s.commit_sha, s.end_time, v.id, v.scan_id, v.name, v.scan_type, v.tool, v.severity, p.organisation
 	FROM scans s
 	LEFT JOIN projects p ON s.project_id = p.id
 	LEFT JOIN vulnerabilities v ON v.scan_id = s.id
@@ -298,6 +298,7 @@ func (s *ScanRepository) GetHubScansVulns(ctx context.Context, hubId string) ([]
 		var scan models.ScanExt
 		var vuln models.Vulnerability
 		var projectName string
+		var projectOrganisation string
 		if err := rows.Scan(
 			&scan.ScanId,
 			&scan.ProjectId,
@@ -313,6 +314,7 @@ func (s *ScanRepository) GetHubScansVulns(ctx context.Context, hubId string) ([]
 			&vuln.ScanType,
 			&vuln.Tool,
 			&vuln.Severity,
+			&projectOrganisation,
 		); err != nil {
 			return nil, err
 		}
@@ -327,8 +329,9 @@ func (s *ScanRepository) GetHubScansVulns(ctx context.Context, hubId string) ([]
 		} else {
 			scan.Vulnerabilites = append(scan.Vulnerabilites, &vuln)
 			projects = append(projects, &models.ProjectExt{
-				ProjectId:   scan.ProjectId,
-				ProjectName: projectName,
+				ProjectId:    scan.ProjectId,
+				ProjectName:  projectName,
+				Organisation: projectOrganisation,
 				Scans: []*models.ScanExt{
 					&scan,
 				},
