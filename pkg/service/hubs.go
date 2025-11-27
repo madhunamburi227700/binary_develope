@@ -34,6 +34,7 @@ type ScanSummary struct {
 type ProjectRecentScan struct {
 	ProjectID   string       `json:"project_id"`
 	ProjectName string       `json:"project_name"`
+	Repository  string       `json:"repository"`
 	Scan        *ScanSummary `json:"scan"`
 }
 
@@ -301,6 +302,7 @@ func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, 
 					recentScans = append(recentScans, ProjectRecentScan{
 						ProjectID:   project.ProjectId,
 						ProjectName: project.ProjectName,
+						Repository:  entry.Repository,
 						Scan:        scanSummary,
 					})
 				}

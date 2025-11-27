@@ -53,6 +53,7 @@ type ScanExt struct {
 	ScanId         string     `db:"scan_id"`
 	ProjectId      string     `db:"project_id"`
 	Status         string     `db:"status"`
+	Repository     string     `db:"repository"`
 	Branch         string     `db:"branch"`
 	CommitSHA      string     `db:"commit_sha"`
 	EndTime        *time.Time `db:"end_time,omitempty"`

@@ -278,7 +278,7 @@ func (s *ScanRepository) GetHubScansVulns(ctx context.Context, hubId string) ([]
 	var projects []*models.ProjectExt
 
 	// Get scans with vulnerabilities and project info
-	query := `SELECT s.id AS scan_id, s.project_id, p.name as project_name, s.status, s.branch, 
+	query := `SELECT s.id AS scan_id, s.project_id, p.name as project_name, s.status, s.repository, s.branch,
 	s.commit_sha, s.end_time, v.id, v.scan_id, v.name, v.scan_type, v.tool, v.severity
 	FROM scans s
 	LEFT JOIN projects p ON s.project_id = p.id
@@ -303,6 +303,7 @@ func (s *ScanRepository) GetHubScansVulns(ctx context.Context, hubId string) ([]
 			&scan.ProjectId,
 			&projectName,
 			&scan.Status,
+			&scan.Repository,
 			&scan.Branch,
 			&scan.CommitSHA,
 			&scan.EndTime,

@@ -16,9 +16,8 @@ type configType struct {
 	UIAddress   string `yaml:"uiAddr"`
 	ShowVersion bool   `yaml:"showVersion"`
 	// TODO: Remove
-	Token   string `yaml:"githubToken"`
-	CORSStr string `yaml:"cors_str,omitempty"`
-	Pg      struct {
+	Token string `yaml:"githubToken"`
+	Pg    struct {
 		Address  string `yaml:"address"`
 		Port     string `yaml:"port"`
 		User     string `yaml:"user"`
@@ -141,20 +140,8 @@ func GetAppName() string {
 	return config.AppName
 }
 
-func GetCORSStr() string {
-	return config.CORSStr
-}
-
 func GetUIAddress() string {
 	return config.UIAddress
-}
-
-func GetCorsOrigin() string {
-	if config.CORSStr != "" {
-		return config.CORSStr
-	}
-	// Default to localhost:3000 if not configured
-	return "http://localhost:3000"
 }
 
 func GetLogLevel() string {
