@@ -8,7 +8,6 @@ import (
 type AuthUser struct {
 	Username      string
 	Authenticated bool
-	ModifiedOn    time.Time
 }
 
 // User represents a row in the "users" table.
