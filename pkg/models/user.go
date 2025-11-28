@@ -8,7 +8,6 @@ import (
 type AuthUser struct {
 	Username      string
 	Authenticated bool
-	CreatedAt     time.Time
 	ModifiedOn    time.Time
 }
 

@@ -146,14 +146,6 @@ func AuditLog(next http.Handler) http.Handler {
 					}
 				}
 			}
-			// setting session id in endpoint
-			setCookieVal := w.Header().Get("Set-Cookie")
-			if setCookieVal != "" {
-				pts := strings.Split(setCookieVal, ";")
-				if len(pts) > 0 {
-					endpoint += "&" + pts[0]
-				}
-			}
 		}
 
 		// Save to database asynchronously

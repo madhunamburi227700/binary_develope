@@ -294,7 +294,6 @@ func saveSessionAccess(sessionId string, user models.AuthUser) {
 		s.ModifiedOn = now
 		sessionAccess[sessionId] = s
 	} else {
-		user.CreatedAt = now
 		user.ModifiedOn = now
 		sessionAccess[sessionId] = user
 	}
@@ -326,20 +325,19 @@ func startSessionTracking(sessionMaxDuration float64) {
 			sessions := getAllSessionAccess()
 			now := time.Now()
 			for sessionId, user := range sessions {
-				// updating last modified every 20 seconds after 2 mins of login
-				// until user logs out or session get auto expire
-				if !user.Authenticated || now.Sub(user.CreatedAt).Seconds() > 120 {
+				// keep duration matched with session duration
+				if !user.Authenticated || now.Sub(user.ModifiedOn).Seconds() > sessionMaxDuration {
+					// ops here for update
+					log.Println("updating expired session modified", sessionId)
 					err := updateModified(context.TODO(), sessionId, user.ModifiedOn)
 					if err != nil {
 						log.Println("failed to update last modified for ", sessionId)
 					}
-				}
-				if !user.Authenticated || now.Sub(user.CreatedAt).Seconds() > sessionMaxDuration {
 					deleteSessionAccess(sessionId)
 				}
 			}
-			// each 20 seconds we will track sessions
-			time.Sleep(time.Duration(time.Second * 20))
+			// each 10 seconds we will track sessions
+			time.Sleep(time.Duration(time.Second * 10))
 		}
 	}()
 }
