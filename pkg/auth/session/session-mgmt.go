@@ -10,11 +10,14 @@ import (
 	"encoding/gob"
 	"errors"
 	"log"
+	"maps"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/opsmx/ai-guardian-api/pkg/database"
 	"github.com/opsmx/ai-guardian-api/pkg/models"
 
@@ -118,6 +121,11 @@ func InitPgSessionsStore(sessionTimeout int, dbuser, pass, hostAndPort, dbname, 
 	usersMutex.Lock()
 	loggedInUsers = make(map[string]bool) // Initialize the map
 	usersMutex.Unlock()
+
+	saMu.Lock()
+	sessionAccess = make(map[string]models.AuthUser) // Initialize the map
+	saMu.Unlock()
+	startSessionTracking(float64(sessionTimeout)) // starting session tracking
 	return nil
 }
 
@@ -150,6 +158,7 @@ func CreateSession(w http.ResponseWriter, r *http.Request, refreshToken, usernam
 		return
 	}
 	saveUser(user.Username) // Save user as logged in
+	saveSessionAccess(session.ID, *user)
 	log.Printf("Session created successfully for user")
 }
 
@@ -182,7 +191,8 @@ func GetSessionExists(r *http.Request) *models.AuthUser {
 		return nil
 	}
 
-	if userTmp, ok := user.(models.AuthUser); ok {
+	if userTmp, ok := user.(models.AuthUser); ok && userTmp.Authenticated {
+		saveSessionAccess(session.ID, userTmp)
 		return &models.AuthUser{
 			Username:      userTmp.Username,
 			Authenticated: true,
@@ -216,13 +226,7 @@ func DeleteSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	session.Values["user"] = models.AuthUser{}
-	session.Options.MaxAge = -1
-
-	err = session.Save(r, w)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
+	saveSessionAccess(session.ID, models.AuthUser{})
 	log.Printf("User Status AFTER logout")
 }
 
@@ -265,4 +269,93 @@ func generateRand() string {
 
 	state := base64.URLEncoding.EncodeToString(b)
 	return state
+}
+
+// Below code is for session tracking
+// session tracking is only enabled with pg sql
+
+// Thread-safe map for logged in users
+var (
+	sessionAccess = make(map[string]models.AuthUser)
+	saMu          sync.Mutex
+)
+
+var dbStore *pgxpool.Pool
+
+func saveSessionAccess(sessionId string, user models.AuthUser) {
+	if dbStore == nil {
+		return
+	}
+	saMu.Lock()
+	defer saMu.Unlock()
+	now := time.Now()
+	if s, sOk := sessionAccess[sessionId]; sOk {
+		s.Authenticated = user.Authenticated
+		s.ModifiedOn = now
+		sessionAccess[sessionId] = s
+	} else {
+		user.ModifiedOn = now
+		sessionAccess[sessionId] = user
+	}
+}
+
+func deleteSessionAccess(sessionId string) {
+	if dbStore == nil {
+		return
+	}
+	saMu.Lock()
+	defer saMu.Unlock()
+	delete(sessionAccess, sessionId)
+}
+
+func getAllSessionAccess() map[string]models.AuthUser {
+	if dbStore == nil {
+		return nil
+	}
+	saMu.Lock()
+	defer saMu.Unlock()
+	clone := maps.Clone(sessionAccess)
+	return clone
+}
+
+func startSessionTracking(sessionMaxDuration float64) {
+	dbStore = database.GetPostgres()
+	go func() {
+		for {
+			sessions := getAllSessionAccess()
+			now := time.Now()
+			for sessionId, user := range sessions {
+				// keep duration matched with session duration
+				if !user.Authenticated || now.Sub(user.ModifiedOn).Seconds() > sessionMaxDuration {
+					// ops here for update
+					log.Println("updating expired session modified", sessionId)
+					err := updateModified(context.TODO(), sessionId, user.ModifiedOn)
+					if err != nil {
+						log.Println("failed to update last modified for ", sessionId)
+					}
+					deleteSessionAccess(sessionId)
+				}
+			}
+			// each 10 seconds we will track sessions
+			time.Sleep(time.Duration(time.Second * 10))
+		}
+	}()
+}
+
+// Updates the session's modified time
+func updateModified(ctx context.Context, sessionId string, modifiedOn time.Time) error {
+	query := `
+		UPDATE http_sessions
+		SET modified_on = $1
+		WHERE key = $2
+		RETURNING id
+	`
+
+	var id int64
+	return dbStore.QueryRow(
+		ctx,
+		query,
+		modifiedOn,
+		sessionId,
+	).Scan(&id)
 }
