@@ -94,7 +94,7 @@ CREATE TABLE IF NOT EXISTS vulnerabilities (
   id           uuid           PRIMARY KEY DEFAULT gen_random_uuid(),
   scan_id      varchar(64)    NOT NULL,                 -- refers to scans.id (SSD)
   name         varchar(800)   NOT NULL,                 -- rule/file/line or CVE id or hashed composite
-  scan_type    varchar(32),   NOT NULL,                           -- 'sast' or 'sca' etc
+  scan_type    varchar(32)    NOT NULL,                           -- 'sast' or 'sca' etc
   tool         varchar(128)   NOT NULL,
   package      varchar(128)   NOT NULL,
   version      varchar(128)   NOT NULL,

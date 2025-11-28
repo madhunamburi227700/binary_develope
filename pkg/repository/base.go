@@ -313,6 +313,27 @@ func (r *BaseRepository) List(ctx context.Context, table string, options *QueryO
 	return pagination, nil
 }
 
+// list all records
+func (r *BaseRepository) ListAll(ctx context.Context, table string, options *QueryOptions, dest interface{}) error {
+	whereClause, whereArgs := r.buildWhereClause(options.Filters)
+
+	query := fmt.Sprintf("SELECT * FROM %s %s", table, whereClause)
+
+	rows, err := r.db.Query(ctx, query, whereArgs...)
+	if err != nil {
+		return fmt.Errorf("failed to list all records: %w", err)
+	}
+
+	defer rows.Close()
+
+	err = r.scanRows(rows, dest)
+	if err != nil {
+		return fmt.Errorf("failed to scan results: %w", err)
+	}
+
+	return nil
+}
+
 // Count counts records with filters
 func (r *BaseRepository) Count(ctx context.Context, table string, filters map[string]interface{}) (int64, error) {
 	whereClause, whereArgs := r.buildWhereClause(filters)
