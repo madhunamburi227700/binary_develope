@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"sort"
 	"strings"
 	"time"
@@ -27,6 +28,7 @@ type auditService struct {
 	userRepo        *repository.UserRepository
 	scanRepo        *repository.ScanRepository
 	remediationRepo *repository.RemediationRepository
+	sessionRepo     *repository.SessionRepository
 }
 
 type UserReport struct {
@@ -49,21 +51,22 @@ func NewAuditService() AuditService {
 		userRepo:        repository.NewUserRepository(),
 		remediationRepo: repository.NewRemediationRepository(),
 		scanRepo:        repository.NewScanRepository(),
+		sessionRepo:     repository.NewSessionRepository(),
 	}
 }
 
-func (f *auditService) GetAuditReport(fromDate string) ([]*UserReport, error) {
+func (s *auditService) GetAuditReport(fromDate string) ([]*UserReport, error) {
 	if fromDate == "" {
-		return f.getAuditReportViaEntities()
+		return s.getAuditReportViaEntities()
 	}
-	auditList, err := f.auditRepo.ListAuditLogByDateTime(context.TODO(), fromDate)
+	auditList, err := s.auditRepo.ListAuditLogByDateTime(context.TODO(), fromDate)
 	if err != nil {
 		return nil, err
 	}
-	return genUserAuditReport(auditList), nil
+	return s.genUserAuditReport(auditList), nil
 }
 
-func genUserAuditReport(auditList []*models.AuditLog) []*UserReport {
+func (s *auditService) genUserAuditReport(auditList []*models.AuditLog) []*UserReport {
 	var userAudit []*UserReport
 	userDayIdx := map[string]int{}
 	processedRemediationAttempts := map[string]bool{}
@@ -90,7 +93,7 @@ func genUserAuditReport(auditList []*models.AuditLog) []*UserReport {
 
 		date := auditlog.CreatedAt.Format("2006-01-02")
 		if idx, ok := userDayIdx[auditlog.UserID+date]; ok {
-			analyseUserActionStat(userAudit[idx], auditlog)
+			s.analyseUserActionStat(userAudit[idx], auditlog)
 		} else {
 			email := fmt.Sprintf("%s@%s", auditlog.Email.String, auditlog.Provider.String)
 			if !auditlog.Email.Valid {
@@ -100,7 +103,7 @@ func genUserAuditReport(auditList []*models.AuditLog) []*UserReport {
 				Date:  date,
 				Email: email,
 			}
-			analyseUserActionStat(userDayStat, auditlog)
+			s.analyseUserActionStat(userDayStat, auditlog)
 			userAudit = append(userAudit, userDayStat)
 			userDayIdx[auditlog.UserID+date] = len(userAudit) - 1
 		}
@@ -109,7 +112,7 @@ func genUserAuditReport(auditList []*models.AuditLog) []*UserReport {
 	return userAudit
 }
 
-func analyseUserActionStat(user *UserReport, auditLog *models.AuditLog) {
+func (s *auditService) analyseUserActionStat(user *UserReport, auditLog *models.AuditLog) {
 	// no action to analyse stat
 	if !auditLog.Action.Valid {
 		return
@@ -126,9 +129,24 @@ func analyseUserActionStat(user *UserReport, auditLog *models.AuditLog) {
 		user.TotalRemediationApproved++
 	}
 	if action == models.ActionLogin {
-		user.lastLogin = auditLog.CreatedAt
+		if auditLog.CreatedAt.Format("2006-01-02") < "2025-11-28" {
+			user.lastLogin = auditLog.CreatedAt
+			return
+		}
+		parsedEp, err := url.Parse(auditLog.Endpoint.String)
+		if err == nil {
+			userSession, err := s.sessionRepo.Get(context.TODO(), parsedEp.Query().Get("SESSION"))
+			if err == nil {
+				user.Duration += uint32(auditLog.CreatedAt.Sub(userSession.ModifiedOn).Seconds())
+			}
+		}
 	}
 	if action == models.ActionLogout && !user.lastLogin.IsZero() {
+		// picking logout from session table in case of newer logins
+		// 2025-11-27
+		if auditLog.CreatedAt.Format("2006-01-02") >= "2025-11-28" {
+			return
+		}
 		user.Duration += uint32(auditLog.CreatedAt.Sub(user.lastLogin).Seconds())
 		user.lastLogin = time.Time{}
 	}
