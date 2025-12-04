@@ -65,6 +65,46 @@ func (c *ProjectController) CreateProject(w http.ResponseWriter, r *http.Request
 	})
 }
 
+// UpdateProject updates a existing project
+// @Summary Update a existing project
+// @Description Updates a existing project with the provided details
+// @Tags Projects
+// @Accept  json
+// @Produce  json
+// @Param   request body service.UpdateProjectRequest true "Project update details"
+// @Success 201 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/projects [put]
+func (c *ProjectController) UpdateProject(w http.ResponseWriter, r *http.Request) {
+	var req service.UpdateProjectRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		c.logger.LogWarning("Invalid request body", map[string]interface{}{
+			"error": err.Error(),
+		})
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+	req.ID = mux.Vars(r)["id"]
+
+	project, err := c.projectService.UpdateProject(r.Context(), &req)
+	if err != nil {
+		c.logger.LogError(err, "Failed to update project", map[string]interface{}{
+			"request": req,
+		})
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    project,
+	})
+}
+
 // GetProject retrieves a project by its ID
 // @Summary Get project by ID
 // @Description Returns the project with the specified ID

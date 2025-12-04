@@ -64,7 +64,7 @@ func SetupRoutes() *mux.Router {
 			// projectRouter.HandleFunc("/details", projectController.ListProjectsWithDetails).Methods(http.MethodGet)
 			projectRouter.HandleFunc("/{id}", projectController.GetProject).Methods(http.MethodGet)
 			projectRouter.HandleFunc("/{id}/stats", projectController.GetProjectStats).Methods(http.MethodGet)
-			// projectRouter.HandleFunc("/{id}", projectController.UpdateProject).Methods(http.MethodPut)
+			projectRouter.HandleFunc("/{id}", projectController.UpdateProject).Methods(http.MethodPut)
 			projectRouter.HandleFunc("/{id}", projectController.DeleteProject).Methods(http.MethodDelete)
 
 			// list projects by hub

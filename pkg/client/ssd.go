@@ -682,7 +682,43 @@ func (c *SSDClient) CreateProject(ctx context.Context, teamIds string, req *Proj
 		Id string `json:"id"`
 	}
 	if err := resp.ParseJSON(&result); err != nil {
-		return "", fmt.Errorf("failed to parse project summaries response: %w", err)
+		return "", fmt.Errorf("failed to parse create project response: %w", err)
+	}
+
+	return result.Id, nil
+}
+
+func (c *SSDClient) UpdateProject(ctx context.Context, teamIds string, req *ProjectRef) (string, error) {
+	// Build query parameters
+	params := make([]string, 0)
+
+	params = append(params, fmt.Sprintf("orgId=%s", c.orgID))
+
+	// Add team IDs
+	if teamIds != "" {
+		params = append(params, fmt.Sprintf("teamIds=%s", teamIds))
+	}
+
+	// Build endpoint
+	endpoint := fmt.Sprintf("/gate/ssdservice/v1/scan/project/%s", req.ID)
+	if len(params) > 0 {
+		endpoint += "?" + strings.Join(params, "&")
+	}
+
+	resp, err := c.restClient.Put(ctx, endpoint, req, nil)
+	if err != nil {
+		return "", err
+	}
+
+	if !resp.IsSuccess() {
+		return "", fmt.Errorf("failed to update project: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result struct {
+		Id string `json:"id"`
+	}
+	if err := resp.ParseJSON(&result); err != nil {
+		return "", fmt.Errorf("failed to parse update project response: %w", err)
 	}
 
 	return result.Id, nil

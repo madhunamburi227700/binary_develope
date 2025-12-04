@@ -211,6 +211,16 @@ func (s *SSDService) CreateProject(ctx context.Context, teamIds string, req *cli
 	return result, nil
 }
 
+func (s *SSDService) UpdateProject(ctx context.Context, teamIds string, req *client.ProjectRef) (string, error) {
+	ssdClient := client.NewSSDClient()
+
+	result, err := ssdClient.UpdateProject(ctx, teamIds, req)
+	if err != nil {
+		return "", err
+	}
+	return result, nil
+}
+
 func (s *SSDService) DeleteProject(ctx context.Context, teamIds, projectId string) (string, error) {
 	ssdClient := client.NewSSDClient()
 

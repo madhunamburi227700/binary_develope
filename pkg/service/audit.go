@@ -68,8 +68,8 @@ func genUserAuditReport(auditList []*models.AuditLog) []*UserReport {
 	userDayIdx := map[string]int{}
 	processedRemediationAttempts := map[string]bool{}
 	for _, auditlog := range auditList {
-		// skipping anonymous user logs
-		if auditlog.UserID == "anonymous" || auditlog.UserID == "" {
+		// skipping anonymous user logs and non-200/300 logs
+		if auditlog.UserID == "anonymous" || auditlog.UserID == "" || auditlog.ResponseStatus.Int16 > 399 {
 			continue
 		}
 

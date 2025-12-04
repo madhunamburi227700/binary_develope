@@ -33,18 +33,25 @@ func NewProjectService() *ProjectService {
 
 // CreateProjectRequest represents the request to create a project
 type CreateProjectRequest struct {
-	HubID         string `json:"hub_id" validate:"required"`
+	HubID         string `json:"hub_id"`
 	IntegrationID string `json:"integration_id"`
-	Name          string `json:"name" validate:"required,min=1,max=255"`
-	RepoName      string `json:"repoName" validate:"required,min=1,max=255"`
+	Name          string `json:"name"`
+	RepoName      string `json:"repoName"`
 	Branch        string `json:"branch"`
+	ScheduleTime  int    `json:"schedule_time"`
+	ScheduledScan bool   `json:"scheduled_scan"`
 }
 
 // UpdateProjectRequest represents the request to update a project
 type UpdateProjectRequest struct {
-	Name        *string `json:"name" validate:"omitempty,min=1,max=255"`
-	RepoURL     *string `json:"repo_url" validate:"omitempty,url"`
-	Description *string `json:"description" validate:"omitempty,max=1000"`
+	ID            string `json:"id" `
+	HubID         string `json:"hub_id"`
+	IntegrationID string `json:"integration_id"`
+	Name          string `json:"name"`
+	RepoName      string `json:"repoName"`
+	Branch        string `json:"branch"`
+	ScheduleTime  int    `json:"schedule_time"`
+	ScheduledScan bool   `json:"scheduled_scan"`
 }
 
 // ProjectListRequest represents the request to list projects
@@ -118,7 +125,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 	}
 
 	// Create project
-	scheduleTime := 0
+	scheduleTime := req.ScheduleTime
 	scanUpto := 0
 	project := &client.ProjectRef{
 		Name:         req.Name,
@@ -128,10 +135,11 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 
 		// TODO: automate below fields
 		ProjectConfig: []client.ProjectConfigRef{{
-			Repository:   req.RepoName,
-			Branch:       []string{branch},
-			ScheduleTime: &scheduleTime,
-			ScanUpto:     &scanUpto,
+			Repository:    req.RepoName,
+			Branch:        []string{branch},
+			ScheduleTime:  &scheduleTime,
+			ScanUpto:      &scanUpto,
+			ScheduledScan: req.ScheduledScan,
 		}},
 		Type:      "user", // since we authenticating using github app token type can be any user/organisation
 		ScanType:  "sourceScan",
@@ -198,38 +206,76 @@ func (s *ProjectService) GetProject(ctx context.Context, projectId string) (*cli
 }
 
 // UpdateProject updates a project
-func (s *ProjectService) UpdateProject(ctx context.Context, id uuid.UUID, req *UpdateProjectRequest) (string, error) {
+func (s *ProjectService) UpdateProject(ctx context.Context, req *UpdateProjectRequest) (string, error) {
 	// Validate request
 	if err := s.validateUpdateRequest(req); err != nil {
 		return "", fmt.Errorf("validation failed: %w", err)
 	}
 
-	// Check if project exists
-	exists, err := s.projectRepo.Exists(ctx, id)
+	// getting username from ssd based on account id
+	username, err := s.ssdService.GetGithubUsername(ctx, req.IntegrationID)
 	if err != nil {
-		return "", fmt.Errorf("failed to check project existence: %w", err)
-	}
-	if !exists {
-		return "", fmt.Errorf("project not found")
-	}
-
-	// Build updates map
-	updates := make(map[string]interface{})
-	if req.Name != nil {
-		updates["name"] = *req.Name
+		err := s.ssdService.IntegratorHandler(ctx, err.Error(), req.IntegrationID, "", req.HubID)
+		if err != nil {
+			return "", err
+		}
+		return "", err
 	}
 
-	// Update project
-	err = s.projectRepo.Update(ctx, id, updates)
+	// Create project
+	scheduleTime := req.ScheduleTime
+	scanUpto := 0
+	project := &client.ProjectRef{
+		ID:           req.ID,
+		Name:         req.Name,
+		AccountID:    req.IntegrationID,
+		Organisation: username,
+		TeamID:       req.HubID,
+
+		// TODO: automate below fields
+		ProjectConfig: []client.ProjectConfigRef{{
+			Repository:    req.RepoName,
+			Branch:        []string{req.Branch},
+			ScheduleTime:  &scheduleTime,
+			ScanUpto:      &scanUpto,
+			ScheduledScan: req.ScheduledScan,
+		}},
+		Type:      "user", // since we authenticating using github app token type can be any user/organisation
+		ScanType:  "sourceScan",
+		Platform:  "github",
+		ScanLevel: "repoLevel",
+	}
+
+	projectId, err := s.ssdService.UpdateProject(ctx, req.HubID, project)
 	if err != nil {
 		s.logger.LogError(err, "Failed to update project", map[string]interface{}{
-			"project_id": id,
-			"updates":    updates,
+			"request": project,
 		})
 		return "", fmt.Errorf("failed to update project: %w", err)
 	}
 
-	return id.String(), nil
+	// Create a scan record upon project upgrade
+	// every time we upgrade a scan is being initiated
+	scan := &models.Scan{
+		ProjectID:     projectId,
+		Repository:    req.RepoName,
+		Branch:        req.Branch,
+		CommitSHA:     "",
+		PullRequestID: "",
+		Tag:           "",
+		Settings:      nil,
+		HubID:         req.HubID,
+		Status:        string(client.RiskStatusPending),
+	}
+
+	if err := s.scanRepo.Create(ctx, scan); err != nil {
+		s.logger.LogError(err, "Failed to create scan record", map[string]interface{}{
+			"project_id": projectId,
+		})
+		// Don't fail the entire operation if scan creation fails
+	}
+
+	return projectId, nil
 }
 
 // DeleteProject deletes a project
@@ -343,22 +389,37 @@ func (s *ProjectService) validateCreateRequest(req *CreateProjectRequest) error 
 	if req.Name == "" {
 		return fmt.Errorf("name is required")
 	}
+	if req.IntegrationID == "" {
+		return fmt.Errorf("integration_id is required")
+	}
 	if req.RepoName == "" {
-		return fmt.Errorf("repoName is required user/organisation")
+		return fmt.Errorf("repoName is required")
+	}
+	if req.Branch == "" {
+		return fmt.Errorf("branch is required")
 	}
 	return nil
 }
 
 // validateUpdateRequest validates update project request
 func (s *ProjectService) validateUpdateRequest(req *UpdateProjectRequest) error {
-	if req.Name != nil && *req.Name == "" {
-		return fmt.Errorf("name cannot be empty")
+	if req.ID == "" {
+		return fmt.Errorf("id is required")
 	}
-	if req.Name != nil && len(*req.Name) > 255 {
-		return fmt.Errorf("name must be less than 255 characters")
+	if req.HubID == "" {
+		return fmt.Errorf("hub_id is required")
 	}
-	if req.Description != nil && len(*req.Description) > 1000 {
-		return fmt.Errorf("description must be less than 1000 characters")
+	if req.Name == "" {
+		return fmt.Errorf("name is required")
+	}
+	if req.IntegrationID == "" {
+		return fmt.Errorf("integration_id is required")
+	}
+	if req.RepoName == "" {
+		return fmt.Errorf("repoName is required")
+	}
+	if req.Branch == "" {
+		return fmt.Errorf("branch is required")
 	}
 	return nil
 }
