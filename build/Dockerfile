@@ -25,7 +25,6 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/* && \
     semgrep --version
 
-COPY config.yaml .
 COPY --from=build /workspace/app .
 
 ENTRYPOINT ["./app"]
