@@ -247,6 +247,11 @@ func (s *SSDService) CreateGitHubIntegration(ctx context.Context, name, token, i
 	return ssdClient.CreateGitHubIntegration(ctx, name, token, installationId, githubIntegratorId, timestamp, teamIDs)
 }
 
+func (s *SSDService) UpdateGitHubIntegration(ctx context.Context, name, token, installationId, integrationId string, timestamp int64, teamIDs []string) (string, error) {
+	ssdClient := client.NewSSDClient()
+	return ssdClient.UpdateGitHubIntegration(ctx, name, token, installationId, integrationId, timestamp, teamIDs)
+}
+
 func (s *SSDService) GetRepoBranchList(ctx context.Context, params map[string]string) ([]string, error) {
 	ssdClient := client.NewSSDClient()
 	return ssdClient.GetRepoBranchList(ctx, params)
@@ -295,19 +300,8 @@ func (s *SSDService) GetGithubUsername(ctx context.Context, accountId string) (s
 
 func (s *SSDService) IntegratorHandler(ctx context.Context, err, integrationId, integrationName, hubID string) error {
 	if utils.ContainsString(err, []string{"404 Not Found", "GITHUB_API_ERROR"}) {
-		// delete the integration
-		errDelete := s.DeleteIntegration(ctx, integrationId, integrationName, hubID)
-		if errDelete != nil {
-			s.logger.LogError(errDelete, "Failed to delete integration", map[string]interface{}{
-				"integration_id":   integrationId,
-				"integration_name": integrationName,
-				"hub_id":           hubID,
-			})
-			return fmt.Errorf("internal server error")
-		}
 		return fmt.Errorf("github app is not available, please reinstall the app")
 	}
-	s.logger.LogError(nil, "Failed to get repo branch list", nil)
 	return fmt.Errorf("internal server error")
 }
 

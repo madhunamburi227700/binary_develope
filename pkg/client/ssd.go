@@ -195,6 +195,23 @@ func (c *SSDClient) ValidateIntegration(ctx context.Context, req *ValidateIntegr
 	return &result, nil
 }
 
+func (c *SSDClient) UpdateIntegration(ctx context.Context, req *CreateIntegrationRequest, teamIDs []string) (string, error) {
+	teamIDsStr := strings.Join(teamIDs, ",")
+	endpoint := fmt.Sprintf("/gate/ssdservice/v1/integration/%s?orgId=%s&level=global&teamId=%s",
+		req.ID, c.orgID, teamIDsStr)
+
+	resp, err := c.restClient.Put(ctx, endpoint, req, nil)
+	if err != nil {
+		return "", err
+	}
+
+	if !resp.IsSuccess() {
+		return "", fmt.Errorf("failed to update integration: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	return resp.String(), nil
+}
+
 func (c *SSDClient) CreateIntegration(ctx context.Context, req *CreateIntegrationRequest, teamIDs []string) (string, error) {
 	teamIDsStr := strings.Join(teamIDs, ",")
 	endpoint := fmt.Sprintf("/gate/ssdservice/v1/integration?orgId=%s&level=global&teamId=%s",
@@ -444,6 +461,49 @@ func (c *SSDClient) CreateGitHubIntegration(ctx context.Context, name,
 	}
 
 	return c.CreateIntegration(ctx, req, teamIDs)
+}
+
+// UpdateGitHubIntegration updates a GitHub integration with the given parameters
+func (c *SSDClient) UpdateGitHubIntegration(ctx context.Context, name,
+	token, installationId, integrationId string, timestamp int64,
+	teamIDs []string) (string, error) {
+
+	req := &CreateIntegrationRequest{
+		ID:             integrationId,
+		Name:           name,
+		IntegratorType: "github",
+		Category:       "sourcetool",
+		FeatureConfigs: map[string]interface{}{
+			"authType": "token",
+		},
+		IntegratorConfigs: map[string]interface{}{
+			"url":       "https://api.github.com",
+			"token":     token,
+			"createdAt": fmt.Sprintf("%d", time.Now().Unix()),
+		},
+		Team: make([]TeamAssignment, len(teamIDs)),
+	}
+
+	if installationId != "" {
+		req.FeatureConfigs["authType"] = "app"
+		req.IntegratorConfigs["installationId"] = installationId
+		req.IntegratorConfigs["createdAt"] = fmt.Sprintf("%d", timestamp)
+		delete(req.IntegratorConfigs, "token")
+	}
+
+	// Convert team IDs to team assignments
+	for i, teamID := range teamIDs {
+		team, err := c.GetHubByID(ctx, teamID)
+		if err != nil {
+			return "", fmt.Errorf("failed to get team by ID %s: %w", teamID, err)
+		}
+		req.Team[i] = TeamAssignment{
+			TeamName: team.Name,
+			TeamID:   teamID,
+		}
+	}
+
+	return c.UpdateIntegration(ctx, req, teamIDs)
 }
 
 // project summaries for team

@@ -33,6 +33,17 @@ type CreateGitHubIntegrationRequest struct {
 	InstallationId string `json:"installationId"`
 }
 
+type UpdateGitHubIntegrationRequest struct {
+	Id      string   `json:"id"`
+	Name    string   `json:"name"`
+	Token   string   `json:"token"`
+	TeamIDs []string `json:"team_ids"`
+
+	// for app based access token decryption
+	Timestamp      int64  `json:"timestamp"`
+	InstallationId string `json:"installationId"`
+}
+
 type ValidateGitHubIntegrationRequest struct {
 	Name    string   `json:"name"`
 	Token   string   `json:"token"`
@@ -126,6 +137,23 @@ func (s *IntegrationService) CreateGitHubIntegration(ctx context.Context, req Cr
 		"result":   result,
 	})
 
+	return result, nil
+}
+
+func (s *IntegrationService) UpdateGitHubIntegration(ctx context.Context, req UpdateGitHubIntegrationRequest) (string, error) {
+	// Validate parameters
+	if err := s.validateUpdateGitHubIntegrationParams(req); err != nil {
+		return "", err
+	}
+
+	result, err := s.ssdService.UpdateGitHubIntegration(ctx, req.Name, req.Token, req.InstallationId, req.Id, req.Timestamp, req.TeamIDs)
+	if err != nil {
+		s.logger.LogError(err, "Failed to update GitHub integration", map[string]interface{}{
+			"name":     req.Name,
+			"team_ids": req.TeamIDs,
+		})
+		return "", fmt.Errorf("failed to update GitHub integration: %w", err)
+	}
 	return result, nil
 }
 
@@ -329,10 +357,22 @@ func (s *IntegrationService) validateGitHubIntegrationParams(req CreateGitHubInt
 	if req.Timestamp == 0 {
 		return fmt.Errorf("auth generation timestamp required")
 	}
-	// TODO: enable for future short lived token cases
-	// if req.InstallationId == "" {
-	// 	return fmt.Errorf("auth generation InstallationId required")
-	// }
+	if req.InstallationId == "" {
+		return fmt.Errorf("auth generation InstallationId required")
+	}
+	return nil
+}
+
+func (s *IntegrationService) validateUpdateGitHubIntegrationParams(req UpdateGitHubIntegrationRequest) error {
+	if req.Id == "" {
+		return fmt.Errorf("integration ID is required")
+	}
+	if req.Name == "" {
+		return fmt.Errorf("integration name is required")
+	}
+	if len(req.TeamIDs) == 0 {
+		return fmt.Errorf("team ID is required")
+	}
 	return nil
 }
 

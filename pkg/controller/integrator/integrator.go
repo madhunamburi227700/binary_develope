@@ -55,6 +55,35 @@ func (c *IntegratorController) CreateGitHubIntegration(w http.ResponseWriter, r 
 	})
 }
 
+// UpdateGitHubIntegration updates a GitHub integration
+// @Summary Update GitHub integration
+// @Description Updates a GitHub integration with the provided details
+// @Tags Integrations
+// @Accept  json
+// @Produce  json
+// @Param   request body service.UpdateGitHubIntegrationRequest true "GitHub integration details"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/integrations/github/update [put]
+func (c *IntegratorController) UpdateGitHubIntegration(w http.ResponseWriter, r *http.Request) {
+	var req service.UpdateGitHubIntegrationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		utils.SendErrorResponse(w, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	integration, err := c.integratorService.UpdateGitHubIntegration(r.Context(), req)
+	if err != nil {
+		c.logger.LogError(err, "Failed to update GitHub integration", nil)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.SendSuccessResponse(w, integration, "GitHub integration updated successfully")
+}
+
 // ValidateGitHubIntegration validates GitHub integration credentials
 // @Summary Validate GitHub integration
 // @Description Validates the provided GitHub integration credentials
