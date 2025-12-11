@@ -16,6 +16,7 @@ import (
 	"github.com/opsmx/ai-guardian-api/pkg/controller/remediation_feedback"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/scan"
 	vuln "github.com/opsmx/ai-guardian-api/pkg/controller/vulnerability"
+	"github.com/opsmx/ai-guardian-api/pkg/controller/webhook"
 	"github.com/opsmx/ai-guardian-api/pkg/middleware"
 )
 
@@ -35,6 +36,7 @@ func SetupRoutes() *mux.Router {
 	feedbackController := feedback.NewFeedbackController()
 	featuresController := features.NewFeaturesController()
 	auditController := audit.NewAuditController()
+	webhookController := webhook.NewWebhookController()
 
 	// Public auth routes (no authentication required)
 	authRouter := r.PathPrefix("/auth").Subrouter()
@@ -48,6 +50,13 @@ func SetupRoutes() *mux.Router {
 		authRouter.HandleFunc("/github/install", authController.GithubUserAuth).Methods(http.MethodGet)
 		authRouter.HandleFunc("/github/login", authController.GithubLogin).Methods(http.MethodPost)
 		// GitHub OAuth
+	}
+
+	// Public webhook routes (no authentication required)
+	webhookRouter := r.PathPrefix("/webhooks").Subrouter()
+	{
+		// GitHub Actions webhook endpoint
+		webhookRouter.HandleFunc("/github/actions", webhookController.HandleWebhook).Methods(http.MethodPost)
 	}
 
 	// Protected routes (authentication required)

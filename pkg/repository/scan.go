@@ -101,6 +101,25 @@ func (r *ScanRepository) GetPendingScans(ctx context.Context) ([]ScanRecord, err
 	return scans, rows.Err()
 }
 
+// GetLatestScanByProjectAndBranch retrieves the most recent scan ID for a project and branch
+func (r *ScanRepository) GetLatestScanByProjectAndBranch(ctx context.Context, projectID, branch string) (string, error) {
+	query := `
+		SELECT id
+		FROM scans
+		WHERE project_id = $1 AND branch = $2
+		ORDER BY created_at DESC
+		LIMIT 1
+	`
+
+	var scanID string
+	err := r.db.QueryRow(ctx, query, projectID, branch).Scan(&scanID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get latest scan: %w", err)
+	}
+
+	return scanID, nil
+}
+
 // UpdateScanStatus updates the scan status and related fields
 func (r *ScanRepository) UpdateScanStatus(ctx context.Context, scanID string, scanData *client.ScanResultDataResponse) error {
 	tx, err := r.NewTransaction(ctx)

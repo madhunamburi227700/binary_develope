@@ -9,6 +9,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opsmx/ai-guardian-api/pkg/client"
+	"github.com/opsmx/ai-guardian-api/pkg/config"
 	"github.com/opsmx/ai-guardian-api/pkg/models"
 	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
@@ -17,6 +18,8 @@ import (
 // ProjectService handles project business logic
 type ProjectService struct {
 	ssdService  *SSDService
+	scanService *ScanService
+	vulnService *VulnService
 	projectRepo *repository.ProjectRepository
 	scanRepo    *repository.ScanRepository
 	logger      *utils.ErrorLogger
@@ -25,6 +28,9 @@ type ProjectService struct {
 // NewProjectService creates a new project service
 func NewProjectService() *ProjectService {
 	return &ProjectService{
+		ssdService:  NewSSDService(),
+		scanService: NewScanService(),
+		vulnService: NewVulnService(),
 		projectRepo: repository.NewProjectRepository(),
 		scanRepo:    repository.NewScanRepository(),
 		logger:      utils.NewErrorLogger("project_service"),
@@ -109,6 +115,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 	// same project name check would be auto applied via ssd
 	// current they do not have any api to check project via name
 
+	fmt.Println("-----INTEGRATION ID-----", req.IntegrationID)
 	// getting username from ssd based on account id
 	username, err := s.ssdService.GetGithubUsername(ctx, req.IntegrationID)
 	if err != nil {
@@ -732,4 +739,211 @@ func calculateProjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCou
 		UnknownCount:  &scaUnknownCount,
 	}
 	return &sastStats, &scaStats
+}
+
+// checkIfProjectExists checks if a project exists with the given owner, repo name, and branch name
+// Returns the project if found, nil otherwise
+func (s *ProjectService) checkIfProjectExists(ctx context.Context, owner, repoName, branchName string) (*models.Project, error) {
+	projects, err := s.projectRepo.GetProjectsByOwnerAndRepoName(ctx, owner, repoName, branchName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check if project exists: %w", err)
+	}
+	if len(projects) > 0 {
+		return &projects[0], nil
+	}
+	return nil, nil
+}
+
+// CheckAndScanOrCreate checks if a project exists with the given owner, repo, and branch.
+// If it exists, triggers a rescan. If it doesn't exist, creates a new project (which triggers a scan).
+// Returns the scan ID for the triggered/created scan.
+func (s *ProjectService) CheckAndScanOrCreate(ctx context.Context, owner, repoName, branch string, hubID, integrationID string) (string, error) {
+	// Check if project exists
+	existingProject, err := s.checkIfProjectExists(ctx, owner, repoName, branch)
+	if err != nil {
+		return "", fmt.Errorf("failed to check project existence: %w", err)
+	}
+
+	if existingProject != nil {
+		// Project exists, trigger rescan
+		s.logger.LogInfo("Project exists, triggering rescan", map[string]interface{}{
+			"projectId": existingProject.ID,
+			"owner":     existingProject.Organisation,
+			"repoName":  repoName,
+			"branch":    branch,
+		})
+
+		// Trigger rescan using ScanService which creates a scan record
+		rescanReq := &RescanRequest{
+			ProjectID:  existingProject.ID,
+			HubID:      existingProject.HubID,
+			Repository: repoName,
+			Branch:     branch,
+		}
+
+		fmt.Println("____________Triggering rescan_________________", rescanReq)
+
+		// ScanService.Rescan creates a scan record and returns a message
+		// We need to get the scan ID after creation
+		_, err = s.scanService.Rescan(ctx, rescanReq)
+		if err != nil {
+			s.logger.LogError(err, "Failed to trigger rescan", map[string]interface{}{
+				"projectId": existingProject.ID,
+				"branch":    branch,
+			})
+			return "", fmt.Errorf("failed to trigger rescan: %w", err)
+		}
+		return existingProject.ID, nil
+	}
+
+	// Create new project flow
+	if hubID == "" || integrationID == "" {
+		return "", fmt.Errorf("hubID and integrationID are required for creating new project")
+	}
+
+	// Extract project name from repo URL (use repo name as project name)
+	projectName := repoName
+	if strings.Contains(repoName, "/") {
+		parts := strings.Split(repoName, "/")
+		if len(parts) > 0 {
+			// Get the last part and remove .git if present
+			projectName = strings.TrimSuffix(parts[len(parts)-1], ".git")
+		}
+	}
+
+	createReq := &CreateProjectRequest{
+		HubID:         hubID,
+		IntegrationID: integrationID,
+		Name:          projectName + "-" + branch + "-" + time.Now().Format("2006-01-02 15:04:05"),
+		RepoName:      repoName,
+		Branch:        branch,
+		ScheduleTime:  0,
+		ScheduledScan: false,
+	}
+
+	fmt.Println("____________Creating project_________________", createReq)
+
+	projectID, err := s.CreateProject(ctx, createReq)
+	if err != nil {
+		return "", fmt.Errorf("failed to create project: %w", err)
+	}
+
+	return projectID, nil
+}
+
+// check if any project exist with this owner
+func (s *ProjectService) checkIfProjectExistsWithOwner(ctx context.Context, owner string) (bool, error) {
+	projects, err := s.projectRepo.GetProjectsByOwner(ctx, owner)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if project exists: %w", err)
+	}
+	if len(projects) > 0 {
+		return true, nil
+	}
+	return false, nil
+}
+
+// getHubIDAndIntegrationIDFromOwner gets HubID and IntegrationID from the first project with matching owner
+func (s *ProjectService) getHubIDAndIntegrationIDFromOwner(ctx context.Context, owner string) (string, string, error) {
+	projects, err := s.projectRepo.GetProjectsByOwner(ctx, owner)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get projects by owner: %w", err)
+	}
+	if len(projects) == 0 {
+		return "", "", fmt.Errorf("no projects found for owner: %s", owner)
+	}
+	// Return HubID and IntegrationID from the first project
+	return projects[0].HubID, projects[0].IntegrationID, nil
+}
+
+// ValidateWebhookRequest validates webhook request
+func (s *ProjectService) ValidateWebhookRequest(req *models.WebhookRequest) error {
+	if req.PRNumber == "" {
+		return fmt.Errorf("PR_NUMBER is required")
+	}
+	if req.HeadBranch == "" {
+		return fmt.Errorf("HEAD_BRANCH is required")
+	}
+	if req.BaseBranch == "" {
+		return fmt.Errorf("BASE_BRANCH is required")
+	}
+	if req.RepoURL == "" {
+		return fmt.Errorf("REPO_URL is required")
+	}
+	return nil
+}
+
+// handle webhook request
+func (s *ProjectService) HandleWebhookRequest(ctx context.Context, payload models.WebhookRequest) (string, error) {
+	errUrl := "https://ai-rem-demo.remediation.opsmx.net/login"
+	successUrl := config.GetUIAddress() + "/projects"
+
+	// filter owner from repo url
+	owner, repoName, err := utils.FilterOwnerAndRepoNameFromRepoURL(payload.RepoURL)
+	if err != nil {
+		return errUrl, fmt.Errorf("failed to filter owner and repo name from repo URL: %w", err)
+	}
+
+	projectExists, err := s.checkIfProjectExistsWithOwner(ctx, owner) //proiject id
+	if err != nil {
+		return errUrl, fmt.Errorf("failed to check if project exists: %w", err)
+	}
+
+	if !projectExists {
+		return errUrl, fmt.Errorf("project does not exist for owner: %s", owner)
+	}
+
+	// Get HubID and IntegrationID from existing project with same owner
+	hubID, integrationID, err := s.getHubIDAndIntegrationIDFromOwner(ctx, owner)
+	if err != nil {
+		return errUrl, fmt.Errorf("failed to get hubID and integrationID: %w", err)
+	}
+
+	// Process base branch
+	baseProjectID, err := s.CheckAndScanOrCreate(ctx, owner, repoName, payload.BaseBranch, hubID, integrationID)
+	if err != nil {
+		s.logger.LogError(err, "Failed to process base branch", map[string]interface{}{
+			"baseBranch": payload.BaseBranch,
+			"repoURL":    payload.RepoURL,
+		})
+		// Continue with head branch even if base branch fails
+		baseProjectID = ""
+	}
+
+	// Process head branch
+	headProjectID, err := s.CheckAndScanOrCreate(ctx, owner, repoName, payload.HeadBranch, hubID, integrationID)
+	if err != nil {
+		s.logger.LogError(err, "Failed to process head branch", map[string]interface{}{
+			"headBranch": payload.HeadBranch,
+			"repoURL":    payload.RepoURL,
+		})
+		return errUrl, fmt.Errorf("failed to process head branch: %w", err)
+	}
+
+	// Store project pair in Redis only if we have both project IDs
+	if baseProjectID != "" && headProjectID != "" {
+		scanPairService := NewWebhookScanPairService()
+		if err := scanPairService.StoreProjectPair(
+			ctx,
+			payload.PRNumber,
+			payload.RepoURL,
+			baseProjectID,
+			headProjectID,
+			payload.BaseBranch,
+			payload.HeadBranch,
+		); err != nil {
+			s.logger.LogError(err, "Failed to store project pair in Redis", map[string]interface{}{
+				"pr_number": payload.PRNumber,
+			})
+			// Don't fail the request, just log - diff processing can still work
+		}
+	}
+
+	s.logger.LogInfo("Scans triggered successfully for both branches", map[string]interface{}{
+		"baseProjectID": baseProjectID,
+		"headProjectID": headProjectID,
+		"pr_number":     payload.PRNumber,
+	})
+
+	return successUrl + "/" + owner + "/" + repoName + "?branch=" + payload.HeadBranch, nil
 }

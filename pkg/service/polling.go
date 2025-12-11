@@ -26,6 +26,7 @@ type PollingService struct {
 	pollingInterval     time.Duration
 	stopChan            chan struct{}
 	logger              *utils.ErrorLogger
+	webhookScanPairRepo *repository.WebhookScanPairRepository
 }
 
 // NewPollingService creates a new polling service
@@ -45,6 +46,7 @@ func NewPollingService(ssdClient *client.SSDClient, pollingInterval time.Duratio
 		pollingInterval:     pollingInterval,
 		stopChan:            make(chan struct{}),
 		logger:              utils.NewErrorLogger("polling_service"),
+		webhookScanPairRepo: repository.NewWebhookScanPairRepository(),
 	}
 }
 
@@ -174,6 +176,15 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 			}); err != nil {
 				return fmt.Errorf("failed to update scan in database: %w", err)
 			}
+
+			// If scan fails after completion check, delete webhook pair
+			if err := ps.webhookScanPairRepo.DeleteProjectPairByProjectID(ctx, scan.ProjectID); err != nil {
+				ps.logger.LogError(err, "Failed to delete webhook pair after scan failure", map[string]interface{}{
+					"project_id": scan.ProjectID,
+				})
+				// Don't fail the entire process
+			}
+
 			return nil
 		}
 
@@ -190,6 +201,42 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 			// Don't fail the entire process if vulnerability insertion fails
 		}
 
+		// Check if this project is part of a webhook pair
+		isPairComplete, pairData, err := ps.webhookScanPairRepo.CheckAndUpdateProjectCompletion(ctx, scan.ProjectID)
+		if err != nil {
+			ps.logger.LogError(err, "Failed to check project pair in Redis", map[string]interface{}{
+				"project_id": scan.ProjectID,
+				"scan_id":    scan.ID,
+			})
+			// Continue with notification even if Redis check fails
+		}
+
+		// If both projects are completed, process vulnerability diff immediately
+		if isPairComplete && pairData != nil {
+			ps.logger.LogInfo("Both projects completed, processing vulnerability diff", map[string]interface{}{
+				"pr_number":       pairData.PRNumber,
+				"base_project_id": pairData.BaseProjectID,
+				"head_project_id": pairData.HeadProjectID,
+			})
+
+			// Process vulnerability diff in background to not block notification
+			go func() {
+				if err := ps.processVulnerabilityDiff(context.Background(), pairData); err != nil {
+					ps.logger.LogError(err, "Failed to process vulnerability diff", map[string]interface{}{
+						"pr_number": pairData.PRNumber,
+					})
+				} else {
+					// Mark diff as processed
+					if err := ps.webhookScanPairRepo.MarkDiffProcessed(context.Background(), pairData.PRNumber); err != nil {
+						ps.logger.LogError(err, "Failed to mark diff as processed", map[string]interface{}{
+							"pr_number": pairData.PRNumber,
+						})
+					}
+				}
+			}()
+		}
+
+		// Send notification if enabled
 		if config.GetNotificationEnabled() {
 			if email != "" {
 				dbUser, err := ps.userRepository.GetByProviderUserID(ctx, email)
@@ -227,6 +274,15 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 			Status: string(client.RiskStatusFail),
 		}); err != nil {
 			return fmt.Errorf("failed to update scan in database: %w", err)
+		}
+
+		// Delete webhook pair if this project is part of one (since one scan failed, diff can't be calculated)
+		if err := ps.webhookScanPairRepo.DeleteProjectPairByProjectID(ctx, scan.ProjectID); err != nil {
+			ps.logger.LogError(err, "Failed to delete webhook pair after scan failure", map[string]interface{}{
+				"project_id": scan.ProjectID,
+				"scan_id":    scan.ID,
+			})
+			// Don't fail the entire process if deletion fails
 		}
 
 	case string(client.RiskStatusScanning), string(client.RiskStatusPending):
@@ -472,4 +528,189 @@ func (ps *PollingService) updateVulnSCA(ctx context.Context, scanID string, scaD
 	}
 
 	return nil
+}
+
+// processVulnerabilityDiff calculates and processes the diff between base and head projects
+func (ps *PollingService) processVulnerabilityDiff(ctx context.Context, pairData *repository.ProjectPairData) error {
+	// Get the latest completed scan IDs for both projects
+	baseScanID, err := ps.scanRepository.GetLatestScanByProjectAndBranch(ctx, pairData.BaseProjectID, pairData.BaseBranch)
+	if err != nil {
+		return fmt.Errorf("failed to get base scan ID: %w", err)
+	}
+
+	headScanID, err := ps.scanRepository.GetLatestScanByProjectAndBranch(ctx, pairData.HeadProjectID, pairData.HeadBranch)
+	if err != nil {
+		return fmt.Errorf("failed to get head scan ID: %w", err)
+	}
+
+	// Use existing VulnService to get vulnerability diff
+	// scanID1 = base (older), scanID2 = head (newer)
+	// This returns vulnerabilities in head that are not in base (new vulnerabilities)
+	diffResponse, err := ps.vulnService.GetVulnerabilityDiff(ctx, baseScanID, headScanID)
+	if err != nil {
+		return fmt.Errorf("failed to get vulnerability diff: %w", err)
+	}
+
+	// Log the diff results
+	ps.logger.LogInfo("Vulnerability diff calculated successfully", map[string]interface{}{
+		"pr_number":       pairData.PRNumber,
+		"base_project_id": pairData.BaseProjectID,
+		"head_project_id": pairData.HeadProjectID,
+		"base_scan_id":    baseScanID,
+		"head_scan_id":    headScanID,
+		"base_branch":     pairData.BaseBranch,
+		"head_branch":     pairData.HeadBranch,
+		"new_sast_count":  len(diffResponse.SAST),
+		"new_sca_count":   len(diffResponse.SCA),
+		"total_new_vulns": len(diffResponse.SAST) + len(diffResponse.SCA),
+	})
+
+	// Post PR comment with diff results
+	if err := ps.postPRCommentWithDiff(ctx, pairData, diffResponse, headScanID); err != nil {
+		ps.logger.LogError(err, "Failed to post PR comment", map[string]interface{}{
+			"pr_number": pairData.PRNumber,
+		})
+	}
+	return nil
+}
+
+// postPRCommentWithDiff posts a formatted comment to the PR with vulnerability diff results
+func (ps *PollingService) postPRCommentWithDiff(ctx context.Context, pairData *repository.ProjectPairData, diffResponse *VulnerabilityDiffResponse, headScanID string) error {
+	// Extract owner and repo from repo URL
+	owner, repo, err := utils.FilterOwnerAndRepoNameFromRepoURL(pairData.RepoURL)
+	if err != nil {
+		return fmt.Errorf("failed to parse repo URL: %w", err)
+	}
+
+	// Get GitHub token for the project
+	githubToken, err := ps.ssdService.getIntegratorToken(ctx, pairData.HeadProjectID)
+	if err != nil {
+		return fmt.Errorf("failed to get GitHub token: %w", err)
+	}
+
+	// Format the comment message
+	comment := ps.formatDiffComment(pairData, diffResponse, headScanID)
+
+	// Post comment to GitHub using client
+	githubClient := client.NewGitHubClient()
+	_, err = githubClient.PostPRComment(ctx, githubToken, owner, repo, pairData.PRNumber, comment)
+	if err != nil {
+		// Log detailed error information for debugging
+		ps.logger.LogError(err, "Failed to post PR comment", map[string]interface{}{
+			"owner":     owner,
+			"repo":      repo,
+			"pr_number": pairData.PRNumber,
+			"repo_url":  pairData.RepoURL,
+			"token_set": githubToken != "",
+		})
+		return fmt.Errorf("failed to post PR comment: %w", err)
+	}
+
+	ps.logger.LogInfo("PR comment posted successfully", map[string]interface{}{
+		"owner":     owner,
+		"repo":      repo,
+		"pr_number": pairData.PRNumber,
+	})
+
+	return nil
+}
+
+// formatDiffComment formats the vulnerability diff into a GitHub PR comment
+func (ps *PollingService) formatDiffComment(pairData *repository.ProjectPairData, diffResponse *VulnerabilityDiffResponse, headScanID string) string {
+	var comment strings.Builder
+
+	// Header
+	comment.WriteString("## Vulnerability Scan Results\n\n")
+	comment.WriteString("Scan comparison completed for this pull request.\n\n")
+
+	// Summary
+	totalNewVulns := len(diffResponse.SAST) + len(diffResponse.SCA)
+	if totalNewVulns == 0 {
+		comment.WriteString("**No new vulnerabilities detected.**\n\n")
+		comment.WriteString("The scan shows no new vulnerabilities compared to the base branch.\n\n")
+	} else {
+		comment.WriteString(fmt.Sprintf("**Found %d new vulnerability/vulnerabilities**\n\n", totalNewVulns))
+		comment.WriteString(fmt.Sprintf("- SAST: %d new finding(s)\n", len(diffResponse.SAST)))
+		comment.WriteString(fmt.Sprintf("- SCA: %d new finding(s)\n\n", len(diffResponse.SCA)))
+	}
+
+	// SAST Vulnerabilities
+	if len(diffResponse.SAST) > 0 {
+		comment.WriteString("### SAST Vulnerabilities\n\n")
+		comment.WriteString("| Rule | Location | Severity |\n")
+		comment.WriteString("|------|----------|----------|\n")
+
+		for _, vuln := range diffResponse.SAST {
+			severity := "Unknown"
+			if vuln.Severity != "" {
+				severity = vuln.Severity
+			}
+			location := vuln.Package
+			if location == "" {
+				location = "N/A"
+			}
+			comment.WriteString(fmt.Sprintf("| `%s` | `%s` | %s |\n",
+				escapeMarkdown(vuln.Name),
+				escapeMarkdown(location),
+				severity))
+		}
+		comment.WriteString("\n")
+	}
+
+	// SCA Vulnerabilities
+	if len(diffResponse.SCA) > 0 {
+		comment.WriteString("### SCA Vulnerabilities\n\n")
+		comment.WriteString("| CVE/Name | Package | Severity |\n")
+		comment.WriteString("|----------|---------|----------|\n")
+
+		for _, vuln := range diffResponse.SCA {
+			severity := "Unknown"
+			if vuln.Severity != "" {
+				severity = vuln.Severity
+			}
+			packageName := vuln.Package
+			if packageName == "" {
+				packageName = "N/A"
+			}
+			comment.WriteString(fmt.Sprintf("| `%s` | `%s` | %s |\n",
+				escapeMarkdown(vuln.Name),
+				escapeMarkdown(packageName),
+				severity))
+		}
+		comment.WriteString("\n")
+	}
+
+	// Extract owner and repo from RepoURL for the project URL
+	owner, repo, err := utils.FilterOwnerAndRepoNameFromRepoURL(pairData.RepoURL)
+	if err == nil {
+		// Build project URL with HEAD_BRANCH
+		projectURL := fmt.Sprintf("%s/projects/%s/%s/%s?branch=%s",
+			config.GetUIAddress(),
+			pairData.HeadProjectID,
+			owner,
+			repo,
+			pairData.HeadBranch)
+
+		// Footer with links
+		comment.WriteString("---\n\n")
+		comment.WriteString(fmt.Sprintf("[View detailed scan results](%s/projects/%s/scans/%s) | ", config.GetUIAddress(), pairData.HeadProjectID, headScanID))
+		comment.WriteString(fmt.Sprintf("[View project scan](%s)\n\n", projectURL))
+	} else {
+		// Fallback if URL parsing fails
+		comment.WriteString("---\n\n")
+		comment.WriteString(fmt.Sprintf("[View detailed scan results](%s/projects/%s/scans/%s)\n\n", config.GetUIAddress(), pairData.HeadProjectID, headScanID))
+	}
+
+	comment.WriteString("_This comment was automatically generated by AI Guardian_\n")
+
+	return comment.String()
+}
+
+// escapeMarkdown escapes special markdown characters
+func escapeMarkdown(text string) string {
+	// Replace backticks with code spans to prevent markdown issues
+	text = strings.ReplaceAll(text, "`", "\\`")
+	text = strings.ReplaceAll(text, "|", "\\|")
+	text = strings.ReplaceAll(text, "\n", " ")
+	return text
 }

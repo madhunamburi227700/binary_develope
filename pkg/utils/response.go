@@ -35,3 +35,14 @@ func SendSuccessResponseWithNoData(w http.ResponseWriter, message string) {
 		"message": message,
 	})
 }
+
+// webhook response format
+func SendWebhookResponse(w http.ResponseWriter, message, status, url string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message": message,
+		"status":  status,
+		"url":     url,
+	})
+}

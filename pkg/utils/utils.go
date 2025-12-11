@@ -109,3 +109,18 @@ func StringToInt(s string, defaultValue int) int {
 	}
 	return val
 }
+
+// filter owner and repo name from repo url
+// https://github.com/kuldeep-bishnoi-opsmx/mind-coach-ai/pull/6 => kuldeep-bishnoi-opsmx, mind-coach-ai
+func FilterOwnerAndRepoNameFromRepoURL(repoURL string) (string, string, error) {
+	parts := strings.Split(repoURL, "/")
+	if len(parts) < 5 {
+		return "", "", fmt.Errorf("invalid repo URL")
+	}
+	owner := parts[3]
+	repoName := parts[4]
+	if strings.Contains(repoName, ".git") {
+		repoName = strings.TrimSuffix(repoName, ".git")
+	}
+	return owner, repoName, nil
+}

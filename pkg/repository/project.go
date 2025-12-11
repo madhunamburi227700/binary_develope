@@ -216,3 +216,49 @@ func (r *ProjectRepository) SearchByName(ctx context.Context, name string, optio
 		Pagination: pagination,
 	}, nil
 }
+
+// GetProjectsByOwnerAndRepoName retrieves projects by owner (organisation), repository name, and branch name
+// This joins with the scans table since repository and branch are stored there
+func (r *ProjectRepository) GetProjectsByOwnerAndRepoName(ctx context.Context, owner, repoName, branchName string) ([]models.Project, error) {
+	query := `
+		SELECT DISTINCT p.id, p.name, p.hub_id, p.integration_id, p.organisation, p.created_at, p.updated_at
+		FROM projects p
+		INNER JOIN scans s ON p.id = s.project_id
+		WHERE p.organisation = $1 AND s.repository = $2 AND s.branch = $3
+		ORDER BY p.created_at DESC
+	`
+	rows, err := r.db.Query(ctx, query, owner, repoName, branchName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query projects: %w", err)
+	}
+	defer rows.Close()
+
+	var projects []models.Project
+	err = r.scanRows(rows, &projects)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan results: %w", err)
+	}
+
+	return projects, nil
+}
+
+// GetProjectsByOwner retrieves projects by owner (organisation)
+func (r *ProjectRepository) GetProjectsByOwner(ctx context.Context, owner string) ([]models.Project, error) {
+	query := `
+		SELECT * FROM projects WHERE organisation = $1
+		ORDER BY created_at DESC
+	`
+	rows, err := r.db.Query(ctx, query, owner)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query projects: %w", err)
+	}
+	defer rows.Close()
+
+	var projects []models.Project
+	err = r.scanRows(rows, &projects)
+	if err != nil {
+		return nil, fmt.Errorf("failed to scan results: %w", err)
+	}
+
+	return projects, nil
+}

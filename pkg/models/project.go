@@ -15,8 +15,15 @@ type Project struct {
 }
 
 type ProjectExt struct {
-	ProjectId   string `db:"project_id"`
-	ProjectName string `db:"project_name"`
+	ProjectId    string `db:"project_id"`
+	ProjectName  string `db:"project_name"`
 	Organisation string `db:"organisation"`
-	Scans       []*ScanExt
+	Scans        []*ScanExt
+}
+
+type WebhookRequest struct {
+	PRNumber   string `json:"PR_NUMBER" validate:"required"`
+	HeadBranch string `json:"HEAD_BRANCH" validate:"required"`
+	BaseBranch string `json:"BASE_BRANCH" validate:"required"`
+	RepoURL    string `json:"REPO_URL" validate:"required"`
 }
