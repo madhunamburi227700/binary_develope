@@ -138,6 +138,12 @@ func (s *SSDService) GetProjectStatuses(ctx context.Context, projectIds []string
 	return ssdClient.GetProjectStatuses(ctx, projectIds)
 }
 
+// GetAllProjectStatuses fetches all projects from SSD without filtering by project IDs
+func (s *SSDService) GetAllProjectStatuses(ctx context.Context) ([]client.ProjectRef, error) {
+	ssdClient := client.NewSSDClient()
+	return ssdClient.GetAllProjectStatuses(ctx)
+}
+
 func (s *SSDService) GetProjectDetailsCustom(ctx context.Context, projectId string) (*client.ProjectRef, error) {
 	return client.NewSSDClient().GetProjectDetailsCustom(ctx, projectId)
 }

@@ -190,6 +190,11 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 		IntegrationID: req.IntegrationID,
 	}
 
+	// Set scheduled_time if scheduled scan is enabled
+	if req.ScheduledScan && req.ScheduleTime > 0 {
+		projectModel.ScheduledTime = &req.ScheduleTime
+	}
+
 	if err := s.projectRepo.Create(ctx, projectModel); err != nil {
 		s.logger.LogError(err, "Failed to create project record", map[string]interface{}{
 			"project_id": projectId,
@@ -259,6 +264,25 @@ func (s *ProjectService) UpdateProject(ctx context.Context, req *UpdateProjectRe
 			"request": project,
 		})
 		return "", fmt.Errorf("failed to update project: %w", err)
+	}
+
+	// Update the project in local database
+	updates := make(map[string]interface{})
+
+	// Set scheduled_time based on user input
+	if req.ScheduledScan {
+		updates["scheduled_time"] = req.ScheduleTime
+	} else {
+		// If scheduled scan is disabled, set scheduled_time to 0
+		updates["scheduled_time"] = 0
+	}
+
+	if err := s.projectRepo.UpdateProject(ctx, projectId, updates); err != nil {
+		s.logger.LogError(err, "Failed to update project record in local database", map[string]interface{}{
+			"project_id": projectId,
+		})
+		// Don't fail the entire operation if local DB update fails
+		// The polling service will eventually sync it
 	}
 
 	// Create a scan record upon project upgrade

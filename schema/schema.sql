@@ -36,9 +36,12 @@ CREATE TABLE IF NOT EXISTS projects (
   hub_id          varchar(64)    NOT NULL,
   integration_id  varchar(255)   NOT NULL,
   organisation    varchar(255)   NOT NULL,
+  last_scanned_time        timestamptz,                  -- last time project was scanned
+  scheduled_time           integer,                      -- scan schedule duration in seconds
   created_at      timestamptz    NOT NULL DEFAULT now(),
   updated_at      timestamptz    NOT NULL DEFAULT now()
 );
+
 
 CREATE TABLE IF NOT EXISTS scans (
   id              varchar(64)    PRIMARY KEY,       -- SSD scan id

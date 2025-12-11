@@ -50,27 +50,31 @@ func (r *ScanRepository) Create(ctx context.Context, scan *models.Scan) error {
 
 // ScanRecord represents a scan record from the database for polling
 type ScanRecord struct {
-	ID         string
-	ProjectID  string
-	Status     string
-	Repository string
-	Branch     string
-	CommitSHA  string
+	ID              string
+	ProjectID       string
+	Status          string
+	Repository      string
+	Branch          string
+	CommitSHA       string
+	LastScannedTime *time.Time
 }
 
 // GetPendingScans retrieves all scans with QUEUED or RUNNING status
+// Joins with projects table to get last_scanned_time
 func (r *ScanRepository) GetPendingScans(ctx context.Context) ([]ScanRecord, error) {
 	query := `
 		SELECT 
-			id, 
-			project_id, 
-			status, 
-			repository, 
-			branch,
-			commit_sha
-		FROM scans 
-		WHERE status IN ('pending', 'scanning')
-		ORDER BY created_at ASC
+			s.id, 
+			s.project_id, 
+			s.status, 
+			s.repository, 
+			s.branch,
+			s.commit_sha,
+			p.last_scanned_time
+		FROM scans s
+		LEFT JOIN projects p ON s.project_id = p.id
+		WHERE s.status IN ('pending', 'scanning')
+		ORDER BY s.created_at ASC
 	`
 
 	rows, err := r.db.Query(ctx, query)
@@ -90,6 +94,7 @@ func (r *ScanRepository) GetPendingScans(ctx context.Context) ([]ScanRecord, err
 			&scan.Repository,
 			&scan.Branch,
 			&scan.CommitSHA,
+			&scan.LastScannedTime,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan row: %w", err)

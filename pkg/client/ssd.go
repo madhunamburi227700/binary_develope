@@ -290,6 +290,7 @@ func (c *SSDClient) GetProjectStatuses(ctx context.Context, projectIds []string)
 			}
 			scans {
             	branch
+				lastScannedTime
         	}
 		}
 	}`, strings.Join(quotedIDs, ","))
@@ -303,6 +304,52 @@ func (c *SSDClient) GetProjectStatuses(ctx context.Context, projectIds []string)
 	// Adjust this based on actual response structure
 	var responseWrapper struct {
 		QueryProject []ProjectDetailsResponse `json:"queryProject"`
+	}
+
+	dataBytes, err := json.Marshal(resp.Data)
+	if err != nil {
+		fmt.Printf("Error marshaling response: %v\n", err)
+		return nil, err
+	}
+
+	if err := json.Unmarshal(dataBytes, &responseWrapper); err != nil {
+		fmt.Printf("Error unmarshaling response: %v\n", err)
+		return nil, err
+	}
+
+	results = append(results, responseWrapper.QueryProject...)
+
+	return results, nil
+}
+
+// GetAllProjectStatuses fetches all projects from SSD without filtering by project IDs
+func (c *SSDClient) GetAllProjectStatuses(ctx context.Context) ([]ProjectRef, error) {
+	var results []ProjectRef
+
+	query := `query QueryProject {
+		queryProject {
+			id
+			error
+			scans {
+            	branch
+            	lastScannedTime
+        	}
+			projectConfigs {
+				repository
+				scheduleTime
+			}
+		}
+	}`
+
+	resp, err := c.ExecuteGraphQL(ctx, query, "get-All-Project-Statuses")
+	if err != nil {
+		fmt.Printf("Error querying all projects: %v\n", err)
+		return nil, err
+	}
+
+	// Adjust this based on actual response structure
+	var responseWrapper struct {
+		QueryProject []ProjectRef `json:"queryProject"`
 	}
 
 	dataBytes, err := json.Marshal(resp.Data)

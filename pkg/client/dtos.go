@@ -228,7 +228,8 @@ type ProjectDetailsResponse struct {
 }
 
 type Scans struct {
-	Branch string `json:"branch"`
+	Branch          string     `json:"branch"`
+	LastScannedTime *time.Time `json:"lastScannedTime"`
 }
 
 type TeamDetails struct {

@@ -59,6 +59,11 @@ type configType struct {
 		IntervalSeconds int  `yaml:"intervalSeconds"`
 	} `yaml:"polling"`
 
+	ScheduledScanPolling struct {
+		Enabled         bool `yaml:"enabled"`
+		IntervalSeconds int  `yaml:"intervalSeconds"`
+	} `yaml:"scheduledScanPolling"`
+
 	Google struct {
 		ClientID     string `yaml:"clientID"`
 		ClientSecret string `yaml:"clientSecret"`
@@ -318,4 +323,17 @@ func GetSemgrepAllowedExtensions() []string {
 	}
 	// Default allowed extensions
 	return []string{".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".java", ".cpp", ".c", ".rb", ".php", ".rs", ".swift", ".kt", ".scala", ".sh", ".yaml", ".yml", ".json", ".xml", ".html", ".css", ".sql", ".dockerfile", ".tf", ".tfvars"}
+}
+
+// GetScheduledScanPollingEnabled returns whether scheduled scan polling is enabled
+func GetScheduledScanPollingEnabled() bool {
+	return config.ScheduledScanPolling.Enabled
+}
+
+// GetScheduledScanPollingIntervalSeconds returns the scheduled scan polling interval in seconds
+func GetScheduledScanPollingIntervalSeconds() int {
+	if config.ScheduledScanPolling.IntervalSeconds <= 0 {
+		return 60 // Default to 1 minute
+	}
+	return config.ScheduledScanPolling.IntervalSeconds
 }

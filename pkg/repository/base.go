@@ -190,6 +190,58 @@ func (r *BaseRepository) Update(ctx context.Context, table string, id uuid.UUID,
 	return nil
 }
 
+// UpdateByStringID updates a record by string ID (for tables with string IDs like projects)
+func (r *BaseRepository) UpdateByStringID(ctx context.Context, table string, id string, updates map[string]interface{}) error {
+	if len(updates) == 0 {
+		return fmt.Errorf("no updates provided")
+	}
+
+	// Build query
+	setParts := make([]string, 0, len(updates))
+	values := make([]interface{}, 0, len(updates)+1)
+	argIndex := 1
+
+	for column, value := range updates {
+		setParts = append(setParts, fmt.Sprintf("%s = $%d", column, argIndex))
+		values = append(values, value)
+		argIndex++
+	}
+
+	values = append(values, id) // Add ID as last parameter
+
+	query := fmt.Sprintf(`
+		UPDATE %s 
+		SET %s 
+		WHERE id = $%d`,
+		table,
+		strings.Join(setParts, ", "),
+		argIndex,
+	)
+
+	result, err := r.db.Exec(ctx, query, values...)
+	if err != nil {
+		r.logger.LogError(err, "Failed to update record", map[string]interface{}{
+			"table":   table,
+			"id":      id,
+			"updates": updates,
+		})
+		return fmt.Errorf("failed to update record: %w", err)
+	}
+
+	rowsAffected := result.RowsAffected()
+	if rowsAffected == 0 {
+		return fmt.Errorf("record not found")
+	}
+
+	r.logger.LogInfo("Record updated successfully", map[string]interface{}{
+		"table":         table,
+		"id":            id,
+		"rows_affected": rowsAffected,
+	})
+
+	return nil
+}
+
 // Delete deletes a record by ID
 func (r *BaseRepository) Delete(ctx context.Context, table string, id uuid.UUID) error {
 	query := fmt.Sprintf("DELETE FROM %s WHERE id = $1", table)
@@ -432,6 +484,13 @@ func (r *BaseRepository) scanRows(rows pgx.Rows, dest interface{}) error {
 	destType := destElem.Type().Elem()
 	slice := reflect.MakeSlice(destElem.Type(), 0, 0)
 
+	// If the slice element is a pointer, get the underlying type
+	isPointer := destType.Kind() == reflect.Ptr
+	structType := destType
+	if isPointer {
+		structType = destType.Elem()
+	}
+
 	// Get column names
 	fieldDescriptions := rows.FieldDescriptions()
 	columns := make([]string, len(fieldDescriptions))
@@ -441,14 +500,23 @@ func (r *BaseRepository) scanRows(rows pgx.Rows, dest interface{}) error {
 
 	for rows.Next() {
 		// Create new instance
-		item := reflect.New(destType).Elem()
+		var item reflect.Value
+		if isPointer {
+			item = reflect.New(structType)
+		} else {
+			item = reflect.New(destType).Elem()
+		}
 
 		// Create slice of pointers for scanning
 		values := make([]interface{}, len(columns))
 		for i, column := range columns {
-			field := r.findFieldByTag(destType, column)
+			field := r.findFieldByTag(structType, column)
 			if field != nil {
-				values[i] = item.FieldByIndex(field.Index).Addr().Interface()
+				if isPointer {
+					values[i] = item.Elem().FieldByIndex(field.Index).Addr().Interface()
+				} else {
+					values[i] = item.FieldByIndex(field.Index).Addr().Interface()
+				}
 			} else {
 				values[i] = new(interface{})
 			}
@@ -459,7 +527,11 @@ func (r *BaseRepository) scanRows(rows pgx.Rows, dest interface{}) error {
 			return fmt.Errorf("failed to scan row: %w", err)
 		}
 
-		slice = reflect.Append(slice, item)
+		if isPointer {
+			slice = reflect.Append(slice, item)
+		} else {
+			slice = reflect.Append(slice, item.Elem())
+		}
 	}
 
 	destElem.Set(slice)

@@ -30,6 +30,11 @@ func (r *ProjectRepository) Create(ctx context.Context, project *models.Project)
 		"integration_id": project.IntegrationID,
 	}
 
+	// Add scheduled_time field if present
+	if project.ScheduledTime != nil {
+		data["scheduled_time"] = *project.ScheduledTime
+	}
+
 	_, err := r.BaseRepository.Create(ctx, "projects", data)
 	if err != nil {
 		return err
@@ -51,6 +56,11 @@ func (r *ProjectRepository) GetByID(ctx context.Context, id string) (*models.Pro
 // Update updates a project
 func (r *ProjectRepository) Update(ctx context.Context, id uuid.UUID, updates map[string]interface{}) error {
 	return r.BaseRepository.Update(ctx, "projects", id, updates)
+}
+
+// UpdateProject updates a project by string ID with a map of field updates
+func (r *ProjectRepository) UpdateProject(ctx context.Context, projectID string, updates map[string]interface{}) error {
+	return r.BaseRepository.UpdateByStringID(ctx, "projects", projectID, updates)
 }
 
 // Delete deletes a project
@@ -77,6 +87,21 @@ func (r *ProjectRepository) List(ctx context.Context, options *QueryOptions) (*Q
 		Data:       projects,
 		Pagination: pagination,
 	}, nil
+}
+
+// GetAll retrieves all projects without pagination
+func (r *ProjectRepository) GetAll(ctx context.Context) ([]*models.Project, error) {
+	var projects []*models.Project
+
+	err := r.BaseRepository.ListAll(ctx, "projects", &QueryOptions{
+		OrderBy:  "created_at",
+		OrderDir: "DESC",
+	}, &projects)
+	if err != nil {
+		return nil, err
+	}
+
+	return projects, nil
 }
 
 // Count counts projects with filters

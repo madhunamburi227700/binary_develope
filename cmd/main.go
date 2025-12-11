@@ -106,17 +106,19 @@ func main() {
 	}
 
 	// Initialize and start polling service if enabled
+	// This service handles both:
+	// 1. Polling scans table for pending/running scans
+	// 2. Polling projects table for auto-scan enabled projects
 	var pollingService *service.PollingService
 	if config.GetPollingEnabled() {
 		// Create SSD client for polling service
 		ssdClient := client.NewSSDClient()
-		
+
 		pollingInterval := time.Duration(config.GetPollingIntervalSeconds()) * time.Second
 		pollingService = service.NewPollingService(ssdClient, pollingInterval)
-		
+
 		// Start polling service in background
 		go pollingService.Start(ctx)
-		log.Info().Msgf("Polling service started with interval: %v", pollingInterval)
 	} else {
 		log.Info().Msg("Polling service is disabled")
 	}
