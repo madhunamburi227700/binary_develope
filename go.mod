@@ -8,11 +8,13 @@ require (
 	github.com/OpsMx/go-app-base v0.0.24
 	github.com/OpsMx/oauth-bridge-client v1.3.0
 	github.com/antonlindstrom/pgstore v0.0.0-20220421113606-e3a6e3fed12a
+	github.com/go-redis/redismock/v9 v9.2.0
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/gorilla/securecookie v1.1.2
 	github.com/gorilla/sessions v1.4.0
 	github.com/jackc/pgx/v5 v5.7.6
+	github.com/pashagolub/pgxmock/v4 v4.9.0
 	github.com/rbcervilla/redisstore/v9 v9.0.0
 	github.com/redis/go-redis/v9 v9.17.1
 	github.com/rs/zerolog v1.34.0

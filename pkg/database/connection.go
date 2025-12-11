@@ -5,15 +5,44 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 	"github.com/redis/go-redis/v9"
 )
 
+// Postgres interface for PostgreSQL pool operations (compatible with pgxmock)
+type Postgres interface {
+	Acquire(ctx context.Context) (c *pgxpool.Conn, err error)
+	AcquireFunc(ctx context.Context, f func(*pgxpool.Conn) error) error
+	AcquireAllIdle(ctx context.Context) []*pgxpool.Conn
+	Stat() *pgxpool.Stat
+	Exec(ctx context.Context, sql string, arguments ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	SendBatch(ctx context.Context, b *pgx.Batch) pgx.BatchResults
+	Begin(ctx context.Context) (pgx.Tx, error)
+	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error)
+	CopyFrom(ctx context.Context, tableName pgx.Identifier, columnNames []string, rowSrc pgx.CopyFromSource) (int64, error)
+	Ping(ctx context.Context) error
+	Close()
+}
+
+// RedisClient interface for Redis operations (compatible with redismock)
+type RedisClient interface {
+	Ping(ctx context.Context) *redis.StatusCmd
+	Close() error
+	Get(ctx context.Context, key string) *redis.StringCmd
+	Set(ctx context.Context, key string, value interface{}, expiration time.Duration) *redis.StatusCmd
+	Del(ctx context.Context, keys ...string) *redis.IntCmd
+	FlushDB(ctx context.Context) *redis.StatusCmd
+}
+
 // DB holds database connections
 type DB struct {
-	Postgres *pgxpool.Pool
-	Redis    *redis.Client
+	Postgres Postgres
+	Redis    RedisClient
 	logger   *utils.ErrorLogger
 }
 
@@ -106,7 +135,11 @@ func GetPostgres() *pgxpool.Pool {
 	if db == nil || db.Postgres == nil {
 		panic("database not initialized")
 	}
-	return db.Postgres
+	// Type assert to concrete type for backward compatibility
+	if pool, ok := db.Postgres.(*pgxpool.Pool); ok {
+		return pool
+	}
+	panic("postgres connection is not a *pgxpool.Pool")
 }
 
 // GetRedis returns the Redis client
@@ -114,7 +147,11 @@ func GetRedis() *redis.Client {
 	if db == nil || db.Redis == nil {
 		panic("database not initialized")
 	}
-	return db.Redis
+	// Type assert to concrete type for backward compatibility
+	if client, ok := db.Redis.(*redis.Client); ok {
+		return client
+	}
+	panic("redis connection is not a *redis.Client")
 }
 
 // Close closes all database connections

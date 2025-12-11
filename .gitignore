@@ -19,3 +19,9 @@ public-key
 ssd-token
 AESEncryptionKey
 token
+
+# Test coverage files
+*.out
+coverage.html
+coverage/
+nul
