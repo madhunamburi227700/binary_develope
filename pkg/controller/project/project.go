@@ -50,10 +50,17 @@ func (c *ProjectController) CreateProject(w http.ResponseWriter, r *http.Request
 
 	project, err := c.projectService.CreateProject(r.Context(), &req)
 	if err != nil {
-		c.logger.LogError(err, "Failed to create project", map[string]interface{}{
+		errMsg := "Failed to create project"
+		statusCode := http.StatusInternalServerError
+		c.logger.LogError(err, errMsg, map[string]interface{}{
 			"request": req,
 		})
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+
+		if strings.Contains(err.Error(), "already exists") {
+			errMsg = "Project name already exists for this hub, please try another name."
+			statusCode = http.StatusConflict
+		}
+		utils.SendErrorResponse(w, statusCode, errMsg)
 		return
 	}
 

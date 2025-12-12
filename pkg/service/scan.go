@@ -66,6 +66,11 @@ func (s *ScanService) Rescan(ctx context.Context, req *RescanRequest) (string, e
 		return "", fmt.Errorf("scan result not found")
 	}
 
+	if strings.ToLower(scanResult.Status) == string(models.ScanStatusScanning) ||
+		strings.ToLower(scanResult.Status) == string(models.ScanStatusPending) {
+		return "", fmt.Errorf("scanning already in progress")
+	}
+
 	// CREATE SCANS ENTRY FOR POLLING
 	scan := &models.Scan{
 		ProjectID:  req.ProjectID,
