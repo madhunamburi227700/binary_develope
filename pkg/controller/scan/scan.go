@@ -53,7 +53,7 @@ func (c *ScanController) Rescan(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := c.scanService.Rescan(r.Context(), &payload)
+	resp, _, err := c.scanService.Rescan(r.Context(), &payload)
 	if err != nil {
 		c.logger.LogError(err, err.Error(), nil)
 		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())

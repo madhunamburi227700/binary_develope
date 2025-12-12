@@ -178,9 +178,9 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 			}
 
 			// If scan fails after completion check, delete webhook pair
-			if err := ps.webhookScanPairRepo.DeleteProjectPairByProjectID(ctx, scan.ProjectID); err != nil {
+			if err := ps.webhookScanPairRepo.DeleteProjectPairByScanID(ctx, scan.ID); err != nil {
 				ps.logger.LogError(err, "Failed to delete webhook pair after scan failure", map[string]interface{}{
-					"project_id": scan.ProjectID,
+					"scan_id": scan.ID,
 				})
 				// Don't fail the entire process
 			}
@@ -201,12 +201,11 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 			// Don't fail the entire process if vulnerability insertion fails
 		}
 
-		// Check if this project is part of a webhook pair
-		isPairComplete, pairData, err := ps.webhookScanPairRepo.CheckAndUpdateProjectCompletion(ctx, scan.ProjectID)
+		// Check if this scan is part of a webhook pair
+		isPairComplete, pairData, err := ps.webhookScanPairRepo.CheckAndUpdateProjectCompletion(ctx, scan.ID)
 		if err != nil {
 			ps.logger.LogError(err, "Failed to check project pair in Redis", map[string]interface{}{
-				"project_id": scan.ProjectID,
-				"scan_id":    scan.ID,
+				"scan_id": scan.ID,
 			})
 			// Continue with notification even if Redis check fails
 		}
@@ -276,11 +275,10 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 			return fmt.Errorf("failed to update scan in database: %w", err)
 		}
 
-		// Delete webhook pair if this project is part of one (since one scan failed, diff can't be calculated)
-		if err := ps.webhookScanPairRepo.DeleteProjectPairByProjectID(ctx, scan.ProjectID); err != nil {
+		// Delete webhook pair if this scan is part of one (since one scan failed, diff can't be calculated)
+		if err := ps.webhookScanPairRepo.DeleteProjectPairByScanID(ctx, scan.ID); err != nil {
 			ps.logger.LogError(err, "Failed to delete webhook pair after scan failure", map[string]interface{}{
-				"project_id": scan.ProjectID,
-				"scan_id":    scan.ID,
+				"scan_id": scan.ID,
 			})
 			// Don't fail the entire process if deletion fails
 		}
@@ -566,7 +564,7 @@ func (ps *PollingService) processVulnerabilityDiff(ctx context.Context, pairData
 	})
 
 	// Post PR comment with diff results
-	if err := ps.postPRCommentWithDiff(ctx, pairData, diffResponse, headScanID); err != nil {
+	if err := ps.postPRCommentWithDiff(ctx, pairData, diffResponse); err != nil {
 		ps.logger.LogError(err, "Failed to post PR comment", map[string]interface{}{
 			"pr_number": pairData.PRNumber,
 		})
@@ -575,7 +573,7 @@ func (ps *PollingService) processVulnerabilityDiff(ctx context.Context, pairData
 }
 
 // postPRCommentWithDiff posts a formatted comment to the PR with vulnerability diff results
-func (ps *PollingService) postPRCommentWithDiff(ctx context.Context, pairData *repository.ProjectPairData, diffResponse *VulnerabilityDiffResponse, headScanID string) error {
+func (ps *PollingService) postPRCommentWithDiff(ctx context.Context, pairData *repository.ProjectPairData, diffResponse *VulnerabilityDiffResponse) error {
 	// Extract owner and repo from repo URL
 	owner, repo, err := utils.FilterOwnerAndRepoNameFromRepoURL(pairData.RepoURL)
 	if err != nil {
@@ -589,7 +587,7 @@ func (ps *PollingService) postPRCommentWithDiff(ctx context.Context, pairData *r
 	}
 
 	// Format the comment message
-	comment := ps.formatDiffComment(pairData, diffResponse, headScanID)
+	comment := ps.formatDiffComment(pairData, diffResponse)
 
 	// Post comment to GitHub using client
 	githubClient := client.NewGitHubClient()
@@ -616,7 +614,7 @@ func (ps *PollingService) postPRCommentWithDiff(ctx context.Context, pairData *r
 }
 
 // formatDiffComment formats the vulnerability diff into a GitHub PR comment
-func (ps *PollingService) formatDiffComment(pairData *repository.ProjectPairData, diffResponse *VulnerabilityDiffResponse, headScanID string) string {
+func (ps *PollingService) formatDiffComment(pairData *repository.ProjectPairData, diffResponse *VulnerabilityDiffResponse) string {
 	var comment strings.Builder
 
 	// Header
@@ -645,9 +643,14 @@ func (ps *PollingService) formatDiffComment(pairData *repository.ProjectPairData
 			if vuln.Severity != "" {
 				severity = vuln.Severity
 			}
-			location := vuln.Package
+			// Normalize location to show only filename:line (remove temp directory prefix)
+			location := utils.NormalizeSASTFilePath(vuln.Package)
 			if location == "" {
 				location = "N/A"
+			}
+			// Add leading slash for display: "main.go:179" -> "/main.go:179"
+			if location != "N/A" && !strings.HasPrefix(location, "/") {
+				location = "/" + location
 			}
 			comment.WriteString(fmt.Sprintf("| `%s` | `%s` | %s |\n",
 				escapeMarkdown(vuln.Name),
@@ -693,12 +696,10 @@ func (ps *PollingService) formatDiffComment(pairData *repository.ProjectPairData
 
 		// Footer with links
 		comment.WriteString("---\n\n")
-		comment.WriteString(fmt.Sprintf("[View detailed scan results](%s/projects/%s/scans/%s) | ", config.GetUIAddress(), pairData.HeadProjectID, headScanID))
 		comment.WriteString(fmt.Sprintf("[View project scan](%s)\n\n", projectURL))
 	} else {
 		// Fallback if URL parsing fails
 		comment.WriteString("---\n\n")
-		comment.WriteString(fmt.Sprintf("[View detailed scan results](%s/projects/%s/scans/%s)\n\n", config.GetUIAddress(), pairData.HeadProjectID, headScanID))
 	}
 
 	comment.WriteString("_This comment was automatically generated by AI Guardian_\n")

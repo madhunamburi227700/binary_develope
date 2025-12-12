@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"path/filepath"
+
 	"github.com/google/uuid"
 )
 
@@ -123,4 +125,31 @@ func FilterOwnerAndRepoNameFromRepoURL(repoURL string) (string, string, error) {
 		repoName = strings.TrimSuffix(repoName, ".git")
 	}
 	return owner, repoName, nil
+}
+
+// NormalizeSASTFilePath normalizes SAST file path to show only filename:line
+// Converts "/tools/scanResult/unzipped-XXXXX/main.go:179" to "main.go:179"
+// This removes temporary directory prefixes to ensure consistent comparison across scans
+// Package format for SAST: "file_path:line" (e.g., "/tools/scanResult/unzipped-XXXXX/main.go:50")
+func NormalizeSASTFilePath(packagePath string) string {
+	if packagePath == "" {
+		return ""
+	}
+
+	// Split by colon to separate file path from line number
+	parts := strings.Split(packagePath, ":")
+	if len(parts) < 2 {
+		// If no colon found, return as-is (shouldn't happen for SAST, but handle gracefully)
+		return packagePath
+	}
+
+	// Handle file paths that might contain colons (unlikely but possible)
+	filePath := strings.Join(parts[:len(parts)-1], ":")
+	lineNum := parts[len(parts)-1]
+
+	// Extract just the filename (basename) to normalize across different temp directories
+	// This ensures "/tools/scanResult/unzipped-2684715519/main.go:50" and
+	// "/tools/scanResult/unzipped-3860432392/main.go:50" both become "main.go:50"
+	filename := filepath.Base(filePath)
+	return filename + ":" + lineNum
 }

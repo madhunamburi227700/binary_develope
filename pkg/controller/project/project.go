@@ -48,7 +48,7 @@ func (c *ProjectController) CreateProject(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	project, err := c.projectService.CreateProject(r.Context(), &req)
+	project, _, err := c.projectService.CreateProject(r.Context(), &req)
 	if err != nil {
 		errMsg := "Failed to create project"
 		statusCode := http.StatusInternalServerError

@@ -50,7 +50,7 @@ func (s *ScanService) ValidateRescanRequest(req *RescanRequest) error {
 	return nil
 }
 
-func (s *ScanService) Rescan(ctx context.Context, req *RescanRequest) (string, error) {
+func (s *ScanService) Rescan(ctx context.Context, req *RescanRequest) (string, string, error) {
 	scanResult, err := s.ssdService.GetScanResultData(ctx, &client.ScanResultDataRequest{
 		ProjectID:  req.ProjectID,
 		TeamID:     req.HubID,
@@ -59,11 +59,11 @@ func (s *ScanService) Rescan(ctx context.Context, req *RescanRequest) (string, e
 		Branch:     req.Branch,
 	})
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 
 	if scanResult.ScanID == "" {
-		return "", fmt.Errorf("scan result not found")
+		return "", "", fmt.Errorf("scan result not found")
 	}
 
 	if strings.ToLower(scanResult.Status) == string(models.ScanStatusScanning) ||
@@ -83,10 +83,15 @@ func (s *ScanService) Rescan(ctx context.Context, req *RescanRequest) (string, e
 	}
 
 	if err := s.scanRepository.Create(ctx, scan); err != nil {
-		return "", err
+		return "", "", err
 	}
 
-	return s.ssdService.Rescan(ctx, req, scanResult)
+	message, err := s.ssdService.Rescan(ctx, req, scanResult)
+	if err != nil {
+		return "", "", err
+	}
+
+	return message, scan.ID, nil
 }
 
 // ScanFileRequest represents a file scan request

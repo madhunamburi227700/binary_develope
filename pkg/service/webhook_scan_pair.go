@@ -23,9 +23,14 @@ func (s *WebhookScanPairService) StoreProjectPair(ctx context.Context, prNumber,
 	return s.repo.StoreProjectPair(ctx, prNumber, repoURL, baseProjectID, headProjectID, baseBranch, headBranch)
 }
 
-// CheckAndUpdateProjectCompletion checks if a project ID is part of a pair and updates completion status
-func (s *WebhookScanPairService) CheckAndUpdateProjectCompletion(ctx context.Context, projectID string) (bool, *repository.ProjectPairData, error) {
-	return s.repo.CheckAndUpdateProjectCompletion(ctx, projectID)
+// StoreScanIDMapping stores a mapping from scan ID to PR number
+func (s *WebhookScanPairService) StoreScanIDMapping(ctx context.Context, scanID, prNumber string, isBase bool) error {
+	return s.repo.StoreScanIDMapping(ctx, scanID, prNumber, isBase)
+}
+
+// CheckAndUpdateProjectCompletion checks if a scan ID is part of a pair and updates completion status
+func (s *WebhookScanPairService) CheckAndUpdateProjectCompletion(ctx context.Context, scanID string) (bool, *repository.ProjectPairData, error) {
+	return s.repo.CheckAndUpdateProjectCompletion(ctx, scanID)
 }
 
 // MarkDiffProcessed marks the diff as processed

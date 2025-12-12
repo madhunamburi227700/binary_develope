@@ -105,11 +105,11 @@ type RecentScan struct {
 	IssueUnknownCount  *int       `json:"issue_unknown_count"`
 }
 
-// CreateProject creates a new project
-func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRequest) (string, error) {
+// CreateProject creates a new project and returns project ID and scan ID
+func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRequest) (string, string, error) {
 	// Validate request
 	if err := s.validateCreateRequest(req); err != nil {
-		return "", fmt.Errorf("validation failed: %w", err)
+		return "", "", fmt.Errorf("validation failed: %w", err)
 	}
 
 	// same project name check would be auto applied via ssd
@@ -121,9 +121,9 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 	if err != nil {
 		err := s.ssdService.IntegratorHandler(ctx, err.Error(), req.IntegrationID, "", req.HubID)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
-		return "", err
+		return "", "", err
 	}
 
 	branch := "onlyMain"
@@ -159,7 +159,7 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 		s.logger.LogError(err, "Failed to create project", map[string]interface{}{
 			"request": project,
 		})
-		return "", fmt.Errorf("failed to create project: %w", err)
+		return "", "", fmt.Errorf("failed to create project: %w", err)
 	}
 
 	// Create a scan record for the project
@@ -194,9 +194,9 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 		s.logger.LogError(err, "Failed to create project record", map[string]interface{}{
 			"project_id": projectId,
 		})
-		return "", fmt.Errorf("failed to create project record: %w", err)
+		return "", "", fmt.Errorf("failed to create project record: %w", err)
 	}
-	return projectId, nil
+	return projectId, scan.ID, nil
 }
 
 // GetProject retrieves a project by ID
@@ -757,22 +757,14 @@ func (s *ProjectService) checkIfProjectExists(ctx context.Context, owner, repoNa
 // CheckAndScanOrCreate checks if a project exists with the given owner, repo, and branch.
 // If it exists, triggers a rescan. If it doesn't exist, creates a new project (which triggers a scan).
 // Returns the scan ID for the triggered/created scan.
-func (s *ProjectService) CheckAndScanOrCreate(ctx context.Context, owner, repoName, branch string, hubID, integrationID string) (string, error) {
+func (s *ProjectService) CheckAndScanOrCreate(ctx context.Context, owner, repoName, branch string, hubID, integrationID string) (string, string, error) {
 	// Check if project exists
 	existingProject, err := s.checkIfProjectExists(ctx, owner, repoName, branch)
 	if err != nil {
-		return "", fmt.Errorf("failed to check project existence: %w", err)
+		return "", "", fmt.Errorf("failed to check project existence: %w", err)
 	}
 
 	if existingProject != nil {
-		// Project exists, trigger rescan
-		s.logger.LogInfo("Project exists, triggering rescan", map[string]interface{}{
-			"projectId": existingProject.ID,
-			"owner":     existingProject.Organisation,
-			"repoName":  repoName,
-			"branch":    branch,
-		})
-
 		// Trigger rescan using ScanService which creates a scan record
 		rescanReq := &RescanRequest{
 			ProjectID:  existingProject.ID,
@@ -783,22 +775,21 @@ func (s *ProjectService) CheckAndScanOrCreate(ctx context.Context, owner, repoNa
 
 		fmt.Println("____________Triggering rescan_________________", rescanReq)
 
-		// ScanService.Rescan creates a scan record and returns a message
-		// We need to get the scan ID after creation
-		_, err = s.scanService.Rescan(ctx, rescanReq)
+		// ScanService.Rescan creates a scan record and returns a message and scan ID
+		_, scanID, err := s.scanService.Rescan(ctx, rescanReq)
 		if err != nil {
 			s.logger.LogError(err, "Failed to trigger rescan", map[string]interface{}{
 				"projectId": existingProject.ID,
 				"branch":    branch,
 			})
-			return "", fmt.Errorf("failed to trigger rescan: %w", err)
+			return "", "", fmt.Errorf("failed to trigger rescan: %w", err)
 		}
-		return existingProject.ID, nil
+		return existingProject.ID, scanID, nil
 	}
 
 	// Create new project flow
 	if hubID == "" || integrationID == "" {
-		return "", fmt.Errorf("hubID and integrationID are required for creating new project")
+		return "", "", fmt.Errorf("hubID and integrationID are required for creating new project")
 	}
 
 	// Extract project name from repo URL (use repo name as project name)
@@ -823,12 +814,11 @@ func (s *ProjectService) CheckAndScanOrCreate(ctx context.Context, owner, repoNa
 
 	fmt.Println("____________Creating project_________________", createReq)
 
-	projectID, err := s.CreateProject(ctx, createReq)
+	projectID, scanID, err := s.CreateProject(ctx, createReq)
 	if err != nil {
-		return "", fmt.Errorf("failed to create project: %w", err)
+		return "", "", fmt.Errorf("failed to create project: %w", err)
 	}
-
-	return projectID, nil
+	return projectID, scanID, nil
 }
 
 // check if any project exist with this owner
@@ -900,7 +890,7 @@ func (s *ProjectService) HandleWebhookRequest(ctx context.Context, payload model
 	}
 
 	// Process base branch
-	baseProjectID, err := s.CheckAndScanOrCreate(ctx, owner, repoName, payload.BaseBranch, hubID, integrationID)
+	baseProjectID, baseScanID, err := s.CheckAndScanOrCreate(ctx, owner, repoName, payload.BaseBranch, hubID, integrationID)
 	if err != nil {
 		s.logger.LogError(err, "Failed to process base branch", map[string]interface{}{
 			"baseBranch": payload.BaseBranch,
@@ -908,10 +898,11 @@ func (s *ProjectService) HandleWebhookRequest(ctx context.Context, payload model
 		})
 		// Continue with head branch even if base branch fails
 		baseProjectID = ""
+		baseScanID = ""
 	}
 
 	// Process head branch
-	headProjectID, err := s.CheckAndScanOrCreate(ctx, owner, repoName, payload.HeadBranch, hubID, integrationID)
+	headProjectID, headScanID, err := s.CheckAndScanOrCreate(ctx, owner, repoName, payload.HeadBranch, hubID, integrationID)
 	if err != nil {
 		s.logger.LogError(err, "Failed to process head branch", map[string]interface{}{
 			"headBranch": payload.HeadBranch,
@@ -936,6 +927,24 @@ func (s *ProjectService) HandleWebhookRequest(ctx context.Context, payload model
 				"pr_number": payload.PRNumber,
 			})
 			// Don't fail the request, just log - diff processing can still work
+		} else {
+			// Store scan ID mappings
+			if baseScanID != "" {
+				if err := scanPairService.StoreScanIDMapping(ctx, baseScanID, payload.PRNumber, true); err != nil {
+					s.logger.LogError(err, "Failed to store base scan ID mapping", map[string]interface{}{
+						"scan_id":   baseScanID,
+						"pr_number": payload.PRNumber,
+					})
+				}
+			}
+			if headScanID != "" {
+				if err := scanPairService.StoreScanIDMapping(ctx, headScanID, payload.PRNumber, false); err != nil {
+					s.logger.LogError(err, "Failed to store head scan ID mapping", map[string]interface{}{
+						"scan_id":   headScanID,
+						"pr_number": payload.PRNumber,
+					})
+				}
+			}
 		}
 	}
 
