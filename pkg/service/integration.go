@@ -146,7 +146,12 @@ func (s *IntegrationService) UpdateGitHubIntegration(ctx context.Context, req Up
 		return "", err
 	}
 
-	result, err := s.ssdService.UpdateGitHubIntegration(ctx, req.Name, req.Token, req.InstallationId, req.Id, req.Timestamp, req.TeamIDs)
+	githubIntegratorId, err := s.getGithubIntegratorId(ctx, "global", strings.Join(req.TeamIDs, ","))
+	if err != nil {
+		return "", err
+	}
+
+	result, err := s.ssdService.UpdateGitHubIntegration(ctx, req.Name, req.Token, req.InstallationId, githubIntegratorId, req.Timestamp, req.TeamIDs)
 	if err != nil {
 		s.logger.LogError(err, "Failed to update GitHub integration", map[string]interface{}{
 			"name":     req.Name,
