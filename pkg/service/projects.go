@@ -638,10 +638,10 @@ func (s *ProjectService) getProjectStats(ctx context.Context, projectId string) 
 	pStats := &ProjectStats{}
 	scansVulns, err := s.scanRepo.GetProjectScansVulns(ctx, projectId)
 	if err != nil {
-		s.logger.LogError(err, "Failed to get scans details", map[string]interface{}{
+		s.logger.LogError(err, "Failed to get project scans details", map[string]interface{}{
 			"projectId": projectId,
 		})
-		return nil, fmt.Errorf("failed to get scans details: %w", err)
+		return nil, fmt.Errorf("failed to get project scans details: %w", err)
 	}
 
 	scanFreqIdx := map[string]int{}
@@ -766,16 +766,38 @@ func calculateProjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCou
 }
 
 // checkIfProjectExists checks if a project exists with the given owner, repo name, and branch name
-// Returns the project if found, nil otherwise
-func (s *ProjectService) checkIfProjectExists(ctx context.Context, owner, repoName, branchName string) (*models.Project, error) {
+// Returns the project if found, found in database and found in ssd
+func (s *ProjectService) checkIfProjectExists(ctx context.Context, owner, repoName, branchName string) (*models.Project, bool, bool) {
+
+	var foundInDatabase bool
+	var foundInSSD bool
+
 	projects, err := s.projectRepo.GetProjectsByOwnerAndRepoName(ctx, owner, repoName, branchName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to check if project exists: %w", err)
+		return nil, foundInDatabase, foundInSSD
 	}
+
+	foundInDatabase = true
+
 	if len(projects) > 0 {
-		return &projects[0], nil
+		_, err := s.getProjectDetailsFromSSD(ctx, projects[0].ID)
+		if err != nil {
+			return nil, foundInDatabase, foundInSSD
+		}
+		foundInSSD = true
+		return &projects[0], foundInDatabase, foundInSSD
 	}
-	return nil, nil
+
+	return nil, foundInDatabase, foundInSSD
+}
+
+// get details of project from ssd
+func (s *ProjectService) getProjectDetailsFromSSD(ctx context.Context, projectId string) (*client.ProjectRef, error) {
+	project, err := s.ssdService.GetProjectDetails(ctx, projectId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project details: %w", err)
+	}
+	return project, nil
 }
 
 // CheckAndScanOrCreate checks if a project exists with the given owner, repo, and branch.
@@ -783,12 +805,9 @@ func (s *ProjectService) checkIfProjectExists(ctx context.Context, owner, repoNa
 // Returns the scan ID for the triggered/created scan.
 func (s *ProjectService) CheckAndScanOrCreate(ctx context.Context, owner, repoName, branch string, hubID, integrationID string) (string, string, error) {
 	// Check if project exists
-	existingProject, err := s.checkIfProjectExists(ctx, owner, repoName, branch)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to check project existence: %w", err)
-	}
+	existingProject, foundInDatabase, foundInSSD := s.checkIfProjectExists(ctx, owner, repoName, branch)
 
-	if existingProject != nil {
+	if existingProject != nil && foundInSSD && foundInDatabase {
 		// Trigger rescan using ScanService which creates a scan record
 		rescanReq := &RescanRequest{
 			ProjectID:  existingProject.ID,
@@ -846,15 +865,12 @@ func (s *ProjectService) CheckAndScanOrCreate(ctx context.Context, owner, repoNa
 }
 
 // check if any project exist with this owner
-func (s *ProjectService) checkIfProjectExistsWithOwner(ctx context.Context, owner string) (bool, error) {
-	projects, err := s.projectRepo.GetProjectsByOwner(ctx, owner)
+func (s *ProjectService) checkIfProjectExistsWithOwner(ctx context.Context, owner, repoName string) (bool, error) {
+	exists, err := s.projectRepo.CheckProjectByOwnerAndRepo(ctx, owner, repoName)
 	if err != nil {
 		return false, fmt.Errorf("failed to check if project exists: %w", err)
 	}
-	if len(projects) > 0 {
-		return true, nil
-	}
-	return false, nil
+	return exists, nil
 }
 
 // getHubIDAndIntegrationIDFromOwner gets HubID and IntegrationID from the first project with matching owner
@@ -898,7 +914,7 @@ func (s *ProjectService) HandleWebhookRequest(ctx context.Context, payload model
 		return errUrl, fmt.Errorf("failed to filter owner and repo name from repo URL: %w", err)
 	}
 
-	projectExists, err := s.checkIfProjectExistsWithOwner(ctx, owner) //proiject id
+	projectExists, err := s.checkIfProjectExistsWithOwner(ctx, owner, repoName) //proiject id
 	if err != nil {
 		return errUrl, fmt.Errorf("failed to check if project exists: %w", err)
 	}
@@ -978,5 +994,5 @@ func (s *ProjectService) HandleWebhookRequest(ctx context.Context, payload model
 		"pr_number":     payload.PRNumber,
 	})
 
-	return successUrl + "/" + owner + "/" + repoName + "?branch=" + payload.HeadBranch, nil
+	return successUrl, nil
 }

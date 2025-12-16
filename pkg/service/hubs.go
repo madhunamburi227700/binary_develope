@@ -206,10 +206,10 @@ func (s *HubService) GetByName(ctx context.Context, hubName string) (*client.Hub
 func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, error) {
 	projects, err := s.scanRepo.GetHubScansVulns(ctx, hubId)
 	if err != nil {
-		s.logger.LogError(err, "Failed to get scans details", map[string]interface{}{
+		s.logger.LogError(err, "Failed to get hub scans details", map[string]interface{}{
 			"hubId": hubId,
 		})
-		return nil, fmt.Errorf("failed to get scans details: %w", err)
+		return nil, fmt.Errorf("failed to get hub scans details: %w", err)
 	}
 
 	// getting remediations
@@ -299,7 +299,8 @@ func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, 
 
 				// for hub stats would use only latest scan of each project
 				// top 5 only
-				if len(recentScans) != 5 {
+				// skip projects without a name only for recent scans;
+				if project.ProjectName != "" && len(recentScans) != 5 {
 					recentScans = append(recentScans, ProjectRecentScan{
 						ProjectID:    project.ProjectId,
 						ProjectName:  project.ProjectName,

@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/opsmx/ai-guardian-api/pkg/models"
 )
 
@@ -265,6 +266,27 @@ func (r *ProjectRepository) GetProjectsByOwnerAndRepoName(ctx context.Context, o
 	}
 
 	return projects, nil
+}
+
+// CheckProjectByOwnerAndRepo checks if projects exist by owner (organisation) and repository name
+// This joins with the scans table since repository is stored there
+func (r *ProjectRepository) CheckProjectByOwnerAndRepo(ctx context.Context, owner, repoName string) (bool, error) {
+	query := `
+	SELECT p.id
+	FROM projects p
+	INNER JOIN scans s ON p.id = s.project_id
+	WHERE p.organisation = $1 AND s.repository = $2 
+	LIMIT 1;
+	`
+	var projectId string
+	err := r.db.QueryRow(ctx, query, owner, repoName).Scan(&projectId)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to check project existence: %w", err)
+	}
+	return true, nil
 }
 
 // GetProjectsByOwner retrieves projects by owner (organisation)

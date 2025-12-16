@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -177,9 +178,8 @@ func (r *ScanRepository) UpdateScanStatus(ctx context.Context, scanID string, sc
 func (r *ScanRepository) UpdateScanStatusInBulk(ctx context.Context, scanIDs []string, status string, endTime time.Time) error {
 	query := `
 		UPDATE scans
-		SET status = $1
-		end_time = $2
-		WHERE id = ANY($2)
+		SET status = $1, end_time = $2
+		WHERE id = ANY($3)
 	`
 	_, err := r.db.Exec(ctx, query, status, endTime, scanIDs)
 	if err != nil {
@@ -321,8 +321,7 @@ func (s *ScanRepository) GetHubScansVulns(ctx context.Context, hubId string) ([]
 	for rows.Next() {
 		var scan models.ScanExt
 		var vuln models.Vulnerability
-		var projectName string
-		var projectOrganisation string
+		var projectName, projectOrganisation sql.NullString
 		if err := rows.Scan(
 			&scan.ScanId,
 			&scan.ProjectId,
@@ -354,8 +353,8 @@ func (s *ScanRepository) GetHubScansVulns(ctx context.Context, hubId string) ([]
 			scan.Vulnerabilites = append(scan.Vulnerabilites, &vuln)
 			projects = append(projects, &models.ProjectExt{
 				ProjectId:    scan.ProjectId,
-				ProjectName:  projectName,
-				Organisation: projectOrganisation,
+				ProjectName:  projectName.String,
+				Organisation: projectOrganisation.String,
 				Scans: []*models.ScanExt{
 					&scan,
 				},

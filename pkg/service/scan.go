@@ -71,6 +71,11 @@ func (s *ScanService) Rescan(ctx context.Context, req *RescanRequest) (string, s
 		return "", "", fmt.Errorf("scanning already in progress")
 	}
 
+	message, err := s.ssdService.Rescan(ctx, req, scanResult)
+	if err != nil {
+		return "", "", err
+	}
+
 	// CREATE SCANS ENTRY FOR POLLING
 	scan := &models.Scan{
 		ProjectID:  req.ProjectID,
@@ -83,11 +88,6 @@ func (s *ScanService) Rescan(ctx context.Context, req *RescanRequest) (string, s
 	}
 
 	if err := s.scanRepository.Create(ctx, scan); err != nil {
-		return "", "", err
-	}
-
-	message, err := s.ssdService.Rescan(ctx, req, scanResult)
-	if err != nil {
 		return "", "", err
 	}
 
