@@ -2,10 +2,9 @@ name: Build and Push AI Guardian API
 
 on:
   push:
-    branches:
-      - main
     tags:
-      - 'v*.*.*'
+      - v[0-9]+.[0-9]+.[0-9]+*
+
   workflow_dispatch:
 
 env:
@@ -69,3 +68,45 @@ jobs:
           imageName="${{ env.CONTAINER_REGISTRY }}/${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}-${{ steps.build_variables.outputs.GITHASH }}-${{ steps.build_variables.outputs.BUILDDATE }}"
           echo "image=$imageName" >> $GITHUB_OUTPUT
           echo "Built image: $imageName"
+
+  
+      - name: Send SSD Webhook (Build Event)
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          SSD_URL: ${{ vars.SSD_WEBHOOK }}
+          SSD_TOKEN: ${{ secrets.SSD_TOKEN }}
+          JOB_NAME: ${{ github.event.repository.name }}
+          BUILD_NUMBER: ${{ github.run_number }}
+          JOB_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GIT_URL: ${{ github.repositoryUrl }}
+          BRANCH_NAME: ${{ github.ref_name }}
+          IMAGENAME: ${{ env.CONTAINER_REGISTRY }}/${{ steps.build_variables.outputs.REPO }}:${{ steps.build_variables.outputs.VERSION }}-${{ steps.build_variables.outputs.GITHASH }}-${{ steps.build_variables.outputs.BUILDDATE }}
+          APPLICATION_NAME: ai-guardian-release
+        run: |
+          set -e
+  
+          echo "Sending build event to SSD..."
+          echo "Job Name: $JOB_NAME"
+          echo "Build Number: $BUILD_NUMBER"
+          echo "Image: $IMAGENAME"
+  
+          curl --location "$SSD_URL/webhook/v1/ssd" \
+            --header "Content-Type: application/json" \
+            --header "X-OpsMx-Auth: $SSD_TOKEN" \
+            --data '{
+              "jobname": "'"$JOB_NAME"'",
+              "buildnumber": "'"$BUILD_NUMBER"'",
+              "joburl": "'"$JOB_URL"'",
+              "builduser": "ssdadmin@opsmx.io",
+              "giturl": "'"$GIT_URL"'",
+              "gitbranch": "'"$BRANCH_NAME"'",
+              "account": "dev",
+              "applicationname": "'"$APPLICATION_NAME"'",
+              "deployedby": "ssdadmin@opsmx.io",
+              "namespace": "ai-guardian-release",
+              "artifacts": [
+                { "image": "'"$IMAGENAME"'" }
+              ]
+            }'
+  
+          echo "SSD Webhook sent successfully."
