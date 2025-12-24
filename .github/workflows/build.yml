@@ -17,8 +17,11 @@ jobs:
     steps:
     - name: Set GOPRIVATE for Go modules
       run: git config --global url."https://${{secrets.GIT_TOKEN}}:x-oauth-basic@github.com".insteadOf "https://github.com"
+
     - name: Checkout code
       uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
 
     - name: Set up Go
       uses: actions/setup-go@v4
@@ -33,3 +36,19 @@ jobs:
 
     - name: Build
       run: go build -v ./...
+
+    - name: Run tests with coverage
+      run: |
+        go clean -testcache
+        go test ./... -coverprofile=coverage.out
+
+    - name: Install coverage tools
+      run: |
+        go install github.com/jandelgado/gcov2lcov@latest
+        pip install diff-cover
+
+    - name: Convert coverage to lcov
+      run: gcov2lcov -infile=coverage.out -outfile=coverage.lcov
+
+    - name: Enforce 80% coverage on PR code only
+      run: diff-cover coverage.lcov --compare-branch=origin/main --fail-under=80
