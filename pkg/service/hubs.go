@@ -221,7 +221,7 @@ func (s *HubService) GetHubStats(ctx context.Context, hubId string) (*HubStats, 
 
 	remediationsMap := map[string][]models.Remediation{}
 	for _, r := range remediations.Data {
-		remediationsMap[r.VulnerabilityID.String()] = append(remediationsMap[r.VulnerabilityID.String()], r)
+		remediationsMap[r.VulnerabilityID.String()] = append(remediationsMap[r.VulnerabilityID.String()], *r)
 	}
 
 	var sastAllCount, sastCriticalCount, sastHighCount, sastMediumCount, sastLowCount, sastUnknownCount int
@@ -447,4 +447,101 @@ func (s *HubService) validateCreateHubRequest(req *CreateHubRequest) error {
 		return fmt.Errorf("invalid email format")
 	}
 	return nil
+}
+
+type HubRemediationResponse struct {
+	ID            string           `json:"id"`
+	Project       string           `json:"project"`
+	Platform      string           `json:"platform"`
+	Organization  *string          `json:"organization"`
+	Repository    *string          `json:"repository"`
+	Branch        *string          `json:"branch"`
+	ScanID        string           `json:"scan_id"`
+	Status        string           `json:"status"`
+	PRLink        *string          `json:"pr_link"`
+	Vulnerability HubVulnerability `json:"vulnerability"`
+	CreatedAt     *time.Time       `json:"created_at"`
+	UpdatedAt     *time.Time       `json:"updated_at"`
+}
+
+type HubVulnerability struct {
+	ID       string                 `json:"id"`
+	Type     string                 `json:"type"` // sast / sca
+	Severity string                 `json:"severity"`
+	Details  map[string]interface{} `json:"details"`
+}
+
+type HubRemediationsResult struct {
+	Remediations []HubRemediationResponse `json:"remediations"`
+	TotalSize    int                      `json:"totalSize"`
+}
+
+// GetHubRemediations returns paginated remediations for a hub
+func (s *HubService) GetHubRemediations(ctx context.Context, hubId string, page, pageSize int) (*HubRemediationsResult, error) {
+
+	result, count, err := s.remediationRepo.GetRemediationsForHub(ctx, hubId, page, pageSize)
+	if err != nil {
+		s.logger.LogError(err, "failed to get remediations by hub", map[string]interface{}{"hubId": hubId})
+		return nil, err
+	}
+
+	remediations := make([]HubRemediationResponse, 0, len(result))
+
+	for _, rem := range result {
+		remParsed := HubRemediationResponse{
+			ID:           rem.RemediationID,
+			Project:      rem.ProjectID,
+			Platform:     "github",
+			Organization: rem.Organisation,
+			Repository:   rem.Repository,
+			Branch:       rem.Branch,
+			ScanID:       rem.ScanID,
+			Status:       rem.Status,
+			PRLink:       rem.PRLink,
+			Vulnerability: HubVulnerability{
+				ID:       rem.VulnerabilityID,
+				Type:     rem.VulnerabilityType,
+				Severity: rem.Severity,
+			},
+			CreatedAt: &rem.CreatedAt,
+			UpdatedAt: &rem.UpdatedAt,
+		}
+
+		switch strings.ToLower(rem.VulnerabilityType) {
+		case "sca":
+			remParsed.Vulnerability.Details = map[string]interface{}{
+				"package": rem.Package,
+				"cve_id":  rem.VulnerabilityName,
+			}
+		case "sast":
+			// TODO: Fix the count mismatch in case of data issues
+			if rem.Package == nil {
+				s.logger.LogWarning("skipped remediation id as there were no packages found", map[string]interface{}{"hubId": hubId, "remId": rem.RemediationID})
+				continue
+			}
+
+			idx := strings.LastIndex(*rem.Package, ":")
+			if idx == -1 {
+				s.logger.LogWarning("skipped remediation id as path/line could not be derived", map[string]interface{}{"hubId": hubId, "remId": rem.RemediationID})
+				continue
+			}
+			path, line := (*rem.Package)[:idx], (*rem.Package)[idx+1:]
+
+			remParsed.Vulnerability.Details = map[string]interface{}{
+				"rule_name": rem.VulnerabilityName,
+				"message":   rem.Description,
+				"file_path": path,
+				"line_no":   line,
+			}
+		}
+
+		remediations = append(remediations, remParsed)
+	}
+
+	out := &HubRemediationsResult{
+		Remediations: remediations,
+		TotalSize:    count,
+	}
+
+	return out, nil
 }

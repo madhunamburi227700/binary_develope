@@ -176,7 +176,7 @@ func (a *auditService) getAuditReportViaEntities() ([]*UserReport, error) {
 
 	remediationsMap := map[string][]models.Remediation{}
 	for _, r := range remediations.Data {
-		remediationsMap[r.VulnerabilityID.String()] = append(remediationsMap[r.VulnerabilityID.String()], r)
+		remediationsMap[r.VulnerabilityID.String()] = append(remediationsMap[r.VulnerabilityID.String()], *r)
 	}
 
 	hubsScanData, err := a.scanRepo.GetScansVulns(ctx)

@@ -241,3 +241,41 @@ func (c *HubController) GetHubStats(w http.ResponseWriter, r *http.Request) {
 		"data":    hubStats,
 	})
 }
+
+func (c *HubController) GetHubRemediations(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	hubId, ok := vars["id"]
+	if !ok {
+		http.Error(w, "Hub ID is required", http.StatusBadRequest)
+		return
+	}
+
+	query := r.URL.Query()
+	pageNo := utils.StringToInt(query.Get("pageNo"), 0)
+	pageLimit := utils.StringToInt(query.Get("pageLimit"), 0)
+
+	// Validate pagination parameters
+	if pageNo < 0 {
+		pageNo = 0
+	}
+
+	if pageLimit < 1 {
+		pageLimit = 10
+	}
+
+	result, err := c.hubService.GetHubRemediations(r.Context(), hubId, pageNo, pageLimit)
+	if err != nil {
+		c.logger.LogError(err, "Failed to get hub remediations", map[string]interface{}{
+			"hubId": hubId,
+		})
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    result,
+	})
+}

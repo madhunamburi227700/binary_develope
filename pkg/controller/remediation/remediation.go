@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/gorilla/mux"
 	"github.com/opsmx/ai-guardian-api/pkg/auth/session"
 	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/config"
@@ -169,4 +170,28 @@ func fetchUserEmail(r *http.Request, userRepo *repository.UserRepository, logger
 	}
 
 	return userEmail, nil
+}
+
+func (c *RemediationController) Conversation(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	remId, ok := vars["id"]
+	if !ok {
+		http.Error(w, "Remediation ID is required", http.StatusBadRequest)
+		return
+	}
+
+	resp, err := c.remediationService.Conversation(r.Context(), remId)
+	if err != nil {
+		c.logger.LogError(err, err.Error(), nil)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
+		"data":    resp,
+	})
+
 }

@@ -95,6 +95,8 @@ func SetupRoutes() *mux.Router {
 			hubRouter.HandleFunc("/{id}/stats", hubController.GetHubStats).Methods(http.MethodGet) //working
 			// list hubs by owner for left sidebar
 			hubRouter.HandleFunc("/user/list", hubController.ListHubsByOwner).Methods(http.MethodGet) //working
+			// get hub related remediations
+			hubRouter.HandleFunc("/{id}/remediations/history", hubController.GetHubRemediations).Methods(http.MethodGet)
 		}
 
 		// vulnerabilities
@@ -143,6 +145,7 @@ func SetupRoutes() *mux.Router {
 		{
 			remediationsRouter.HandleFunc("/sast", remediationController.SASTRemediation).Methods(http.MethodPost)
 			remediationsRouter.HandleFunc("/cve", remediationController.CVERemediation).Methods(http.MethodPost)
+			remediationsRouter.HandleFunc("/conversation/{id}", remediationController.Conversation).Methods(http.MethodGet)
 		}
 
 		// remediation feedback

@@ -6,13 +6,15 @@ import (
 
 	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/config"
+	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
 
 type RemediationService struct {
-	SSDService *SSDService
-	SSEClient  *client.SSEClient
-	logger     *utils.ErrorLogger
+	SSDService      *SSDService
+	SSEClient       *client.SSEClient
+	remediationRepo *repository.RemediationRepository
+	logger          *utils.ErrorLogger
 }
 
 func NewRemediationService() *RemediationService {
@@ -24,9 +26,10 @@ func NewRemediationService() *RemediationService {
 	RESTClient := client.NewRESTClient(restConfig)
 
 	return &RemediationService{
-		SSEClient:  client.NewSSEClient(RESTClient),
-		SSDService: NewSSDService(),
-		logger:     utils.NewErrorLogger("remediation_service"),
+		SSEClient:       client.NewSSEClient(RESTClient),
+		SSDService:      NewSSDService(),
+		logger:          utils.NewErrorLogger("remediation_service"),
+		remediationRepo: repository.NewRemediationRepository(),
 	}
 }
 
@@ -162,4 +165,20 @@ func (s *RemediationService) CVE(ctx context.Context, req *CVERemediationRequest
 	}
 
 	return s.SSEClient.SSERequest(ctx, "/cve-remediation/v1/fix", "POST", req, options)
+}
+
+type RemediationConversationResponse struct {
+	Conversation any `json:"conversation"`
+}
+
+func (s *RemediationService) Conversation(ctx context.Context, remId string) (*RemediationConversationResponse, error) {
+
+	conversation, err := s.remediationRepo.GetConversation(ctx, remId)
+	if err != nil {
+		return nil, err
+	}
+
+	return &RemediationConversationResponse{
+		Conversation: conversation,
+	}, nil
 }
