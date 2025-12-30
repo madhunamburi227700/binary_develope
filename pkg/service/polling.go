@@ -57,8 +57,8 @@ func NewPollingService(ssdClient *client.SSDClient, pollingInterval time.Duratio
 func (ps *PollingService) Start(ctx context.Context) {
 	// Start scheduled scan poller if enabled
 	if config.GetScheduledScanPollingEnabled() {
-		log.Info().Msgf("Starting scheduled scan poller with interval: %v", ps.pollingInterval)
 		sleepInterval := config.GetScheduledScanPollingIntervalSeconds()
+		log.Info().Msgf("Starting scheduled scan poller with interval (seconds): %v", sleepInterval)
 		go ps.startScheduledScanPoller(ctx, sleepInterval)
 	} else {
 		log.Info().Msg("Scheduled scan polling is disabled")
