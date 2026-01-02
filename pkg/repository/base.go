@@ -493,14 +493,25 @@ func (r *BaseRepository) scanRows(rows pgx.Rows, dest interface{}) error {
 
 	for rows.Next() {
 		// Create new instance
-		item := reflect.New(destType).Elem()
+		var item reflect.Value
+		var structValue reflect.Value
+
+		if destType.Kind() == reflect.Ptr {
+			// If destType is a pointer, create the struct and then a pointer to it
+			structType := destType.Elem()
+			structValue = reflect.New(structType).Elem()
+			item = structValue.Addr()
+		} else {
+			item = reflect.New(destType).Elem()
+			structValue = item
+		}
 
 		// Create slice of pointers for scanning
 		values := make([]interface{}, len(columns))
 		for i, column := range columns {
 			field := r.findFieldByTag(destType, column)
 			if field != nil {
-				values[i] = item.FieldByIndex(field.Index).Addr().Interface()
+				values[i] = structValue.FieldByIndex(field.Index).Addr().Interface()
 			} else {
 				values[i] = new(interface{})
 			}
@@ -536,6 +547,16 @@ func (r *BaseRepository) ExistsWithFilters(ctx context.Context, table string, fi
 
 // findFieldByTag finds a struct field by its db tag
 func (r *BaseRepository) findFieldByTag(structType reflect.Type, tagValue string) *reflect.StructField {
+	// Handle pointer types by dereferencing
+	if structType.Kind() == reflect.Ptr {
+		structType = structType.Elem()
+	}
+
+	// Ensure we have a struct type
+	if structType.Kind() != reflect.Struct {
+		return nil
+	}
+
 	for i := 0; i < structType.NumField(); i++ {
 		field := structType.Field(i)
 		if dbTag := field.Tag.Get("db"); dbTag == tagValue {
