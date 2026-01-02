@@ -484,13 +484,6 @@ func (r *BaseRepository) scanRows(rows pgx.Rows, dest interface{}) error {
 	destType := destElem.Type().Elem()
 	slice := reflect.MakeSlice(destElem.Type(), 0, 0)
 
-	// If the slice element is a pointer, get the underlying type
-	isPointer := destType.Kind() == reflect.Ptr
-	structType := destType
-	if isPointer {
-		structType = destType.Elem()
-	}
-
 	// Get column names
 	fieldDescriptions := rows.FieldDescriptions()
 	columns := make([]string, len(fieldDescriptions))
@@ -500,23 +493,14 @@ func (r *BaseRepository) scanRows(rows pgx.Rows, dest interface{}) error {
 
 	for rows.Next() {
 		// Create new instance
-		var item reflect.Value
-		if isPointer {
-			item = reflect.New(structType)
-		} else {
-			item = reflect.New(destType).Elem()
-		}
+		item := reflect.New(destType).Elem()
 
 		// Create slice of pointers for scanning
 		values := make([]interface{}, len(columns))
 		for i, column := range columns {
-			field := r.findFieldByTag(structType, column)
+			field := r.findFieldByTag(destType, column)
 			if field != nil {
-				if isPointer {
-					values[i] = item.Elem().FieldByIndex(field.Index).Addr().Interface()
-				} else {
-					values[i] = item.FieldByIndex(field.Index).Addr().Interface()
-				}
+				values[i] = item.FieldByIndex(field.Index).Addr().Interface()
 			} else {
 				values[i] = new(interface{})
 			}
@@ -526,12 +510,7 @@ func (r *BaseRepository) scanRows(rows pgx.Rows, dest interface{}) error {
 		if err != nil {
 			return fmt.Errorf("failed to scan row: %w", err)
 		}
-
-		if isPointer {
-			slice = reflect.Append(slice, item)
-		} else {
-			slice = reflect.Append(slice, item.Elem())
-		}
+		slice = reflect.Append(slice, item)
 	}
 
 	destElem.Set(slice)
