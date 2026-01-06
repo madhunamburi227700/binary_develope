@@ -687,11 +687,7 @@ func (ps *PollingService) postPRCommentWithDiff(ctx context.Context, pairData *r
 		return fmt.Errorf("failed to post PR comment: %w", err)
 	}
 
-	ps.logger.LogInfo("PR comment posted successfully", map[string]interface{}{
-		"owner":     owner,
-		"repo":      repo,
-		"pr_number": pairData.PRNumber,
-	})
+	ps.logger.LogInfo("PR comment posted successfully", nil)
 
 	return nil
 }

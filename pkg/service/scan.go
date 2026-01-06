@@ -228,7 +228,7 @@ func (s *ScanService) executeSemgrep(ctx context.Context, filePath string, filen
 			"rule_set": ruleSet,
 			"filename": filename,
 		})
-		result, err := s.runSemgrepWithConfig(ctx, "semgrep", timeoutSeconds, filePath, ruleSet, false)
+		result, err := s.runSemgrepWithConfig(ctx, "semgrep", timeoutSeconds, filePath, ruleSet)
 		if err == nil {
 			return result, nil
 		}
@@ -243,7 +243,7 @@ func (s *ScanService) executeSemgrep(ctx context.Context, filePath string, filen
 	s.logger.LogInfo("Using semgrep auto config (online mode)", map[string]interface{}{
 		"filename": filename,
 	})
-	return s.runSemgrepWithConfig(ctx, "semgrep", timeoutSeconds, filePath, "auto", false)
+	return s.runSemgrepWithConfig(ctx, "semgrep", timeoutSeconds, filePath, "auto")
 }
 
 // getRuleSetForFile returns the appropriate semgrep rule set based on file extension
@@ -292,7 +292,7 @@ func (s *ScanService) getRuleSetForFile(filename string) string {
 // runSemgrepWithConfig executes semgrep with a specific config (cache path or "auto")
 // Note: When using a local file path for --config, semgrep automatically works offline
 // The offline parameter is kept for future compatibility but not used (semgrep doesn't support --offline flag)
-func (s *ScanService) runSemgrepWithConfig(ctx context.Context, cliPath string, timeoutSeconds int, filePath string, configValue string, offline bool) (*SemgrepData, error) {
+func (s *ScanService) runSemgrepWithConfig(ctx context.Context, cliPath string, timeoutSeconds int, filePath string, configValue string) (*SemgrepData, error) {
 	// Create context with timeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
