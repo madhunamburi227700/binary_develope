@@ -10,8 +10,11 @@ import (
 	"encoding/gob"
 	"errors"
 	"log"
+	"maps"
 	"net/http"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/securecookie"
 	"github.com/gorilla/sessions"
@@ -63,6 +66,11 @@ func InitMemSessionsStore(sessionTimeout int) {
 	usersMutex.Lock()
 	loggedInUsers = make(map[string]bool)
 	usersMutex.Unlock()
+
+	saMu.Lock()
+	sessionAccess = make(map[string]models.AuthUser)
+	saMu.Unlock()
+	startSessionTracking(float64(sessionTimeout))
 }
 
 // Initialize the Session Store to DB for Redis backend sessions
@@ -92,6 +100,12 @@ func InitRedisSessionsStore(sessionTimeout int, hostAndPort, username, password 
 	usersMutex.Lock()
 	loggedInUsers = make(map[string]bool) // Initialize the map
 	usersMutex.Unlock()
+
+	saMu.Lock()
+	sessionAccess = make(map[string]models.AuthUser)
+	saMu.Unlock()
+	startSessionTracking(float64(sessionTimeout))
+
 	return nil
 }
 
@@ -118,6 +132,12 @@ func InitPgSessionsStore(sessionTimeout int, dbuser, pass, hostAndPort, dbname, 
 	usersMutex.Lock()
 	loggedInUsers = make(map[string]bool) // Initialize the map
 	usersMutex.Unlock()
+
+	saMu.Lock()
+	sessionAccess = make(map[string]models.AuthUser)
+	saMu.Unlock()
+	startSessionTracking(float64(sessionTimeout))
+
 	return nil
 }
 
@@ -150,6 +170,11 @@ func CreateSession(w http.ResponseWriter, r *http.Request, refreshToken, usernam
 		return
 	}
 	saveUser(user.Username) // Save user as logged in
+	cookieSplitted := strings.Split(w.Header().Get("Set-Cookie"), ";")
+	if len(cookieSplitted) > 0 {
+		extSessionId := strings.ReplaceAll(cookieSplitted[0], "SESSION=", "")
+		saveUserSession(extSessionId, *user)
+	}
 	log.Printf("Session created successfully for user")
 }
 
@@ -183,10 +208,13 @@ func GetSessionExists(r *http.Request) *models.AuthUser {
 	}
 
 	if userTmp, ok := user.(models.AuthUser); ok {
-		return &models.AuthUser{
+		authUser := &models.AuthUser{
 			Username:      userTmp.Username,
 			Authenticated: true,
 		}
+		extSessionId := strings.ReplaceAll(r.Header.Get("Cookie"), "SESSION=", "")
+		saveUserSession(extSessionId, *authUser)
+		return authUser
 	} else {
 		log.Printf("Session Value was not a User")
 	}
@@ -217,6 +245,9 @@ func DeleteSession(w http.ResponseWriter, r *http.Request) {
 
 	session.Values["user"] = models.AuthUser{}
 	session.Options.MaxAge = -1
+
+	extSessionId := strings.ReplaceAll(r.Header.Get("Cookie"), "SESSION=", "")
+	saveUserSession(extSessionId, *user)
 
 	err = session.Save(r, w)
 	if err != nil {
@@ -265,4 +296,85 @@ func generateRand() string {
 
 	state := base64.URLEncoding.EncodeToString(b)
 	return state
+}
+
+// Below code is for session tracking
+
+// Thread-safe map for user sessions
+var (
+	sessionAccess = make(map[string]models.AuthUser)
+	saMu          sync.Mutex
+)
+
+var dbStore database.Postgres
+
+func saveUserSession(sessionId string, user models.AuthUser) {
+	saMu.Lock()
+	defer saMu.Unlock()
+	now := time.Now()
+	if s, sOk := sessionAccess[sessionId]; sOk {
+		s.Authenticated = user.Authenticated
+		s.LastAccessed = now
+		sessionAccess[sessionId] = s
+	} else {
+		user.LastAccessed = now
+		sessionAccess[sessionId] = user
+	}
+}
+
+func deleteSessionAccess(sessionId string) {
+	saMu.Lock()
+	defer saMu.Unlock()
+	delete(sessionAccess, sessionId)
+}
+
+func getAllSessionAccess() map[string]models.AuthUser {
+	saMu.Lock()
+	defer saMu.Unlock()
+	clone := maps.Clone(sessionAccess)
+	return clone
+}
+
+func startSessionTracking(sessionMaxDuration float64) {
+	dbStore = database.GetPostgres()
+	go func() {
+		for {
+			sessions := getAllSessionAccess()
+			now := time.Now()
+			for sessionId, user := range sessions {
+				// ops here for update
+				log.Println("updating session last accessed time", sessionId)
+				err := updateSessionLastAccessed(context.TODO(), sessionId, user.LastAccessed)
+				if err != nil {
+					log.Println("failed to update last accessed for ", sessionId)
+				}
+				// keep duration matched with session duration
+				if !user.Authenticated || now.Sub(user.LastAccessed).Seconds() > sessionMaxDuration {
+					deleteSessionAccess(sessionId)
+				}
+			}
+			// each 20 seconds we will update active sessions in db
+			time.Sleep(time.Duration(time.Second * 20))
+		}
+	}()
+}
+
+// Updates the user session's last accessed time
+func updateSessionLastAccessed(ctx context.Context, sessionId string, lastAccessed time.Time) error {
+	query := `
+		INSERT INTO user_sessions (id, last_accessed)
+		VALUES ($1, $2)
+		ON CONFLICT (id)
+		DO UPDATE
+		SET last_accessed = EXCLUDED.last_accessed
+		RETURNING id;
+	`
+
+	var id string
+	return dbStore.QueryRow(
+		ctx,
+		query,
+		sessionId,
+		lastAccessed,
+	).Scan(&id)
 }

@@ -190,3 +190,11 @@ CREATE TABLE IF NOT EXISTS users (
     updated_at timestamptz NOT NULL DEFAULT now(),
     CONSTRAINT unique_idx_provider_user_id UNIQUE (provider_user_id)
 );
+
+CREATE TABLE user_sessions (
+	id TEXT NOT NULL,
+	created_at timestamptz NOT NULL DEFAULT now(),
+	last_accessed timestamptz,
+	CONSTRAINT user_sessions_pkey PRIMARY KEY (id)
+);
+

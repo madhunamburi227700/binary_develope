@@ -8,6 +8,11 @@ import (
 type AuthUser struct {
 	Username      string
 	Authenticated bool
+
+	// used for session access and duration
+	ExtSessionId string    `db:"id"`
+	CreatedAt    time.Time `db:"created_at"`
+	LastAccessed time.Time `db:"last_accessed"`
 }
 
 // User represents a row in the "users" table.

@@ -135,6 +135,8 @@ func AuditLog(next http.Handler) http.Handler {
 				if v.Data.Email != "" {
 					username = v.Data.Email
 				}
+				entityID = getExtSessionId(w)
+
 			} else if strings.Contains(r.URL.Path, "/callback") {
 				location := w.Header().Get("Location")
 				// "http://localhost:8080/callback?success=true&email=actualemail@gmail.com"
@@ -145,6 +147,7 @@ func AuditLog(next http.Handler) http.Handler {
 						action = "LOGIN"
 					}
 				}
+				entityID = getExtSessionId(w)
 			}
 		}
 
@@ -247,4 +250,12 @@ func determineAction(r *http.Request) string {
 
 	// --- Fallback ---
 	return method + "_" + strings.ToUpper(strings.Trim(path, "/"))
+}
+
+func getExtSessionId(w http.ResponseWriter) string {
+	cookieSplitted := strings.Split(w.Header().Get("Set-Cookie"), ";")
+	if len(cookieSplitted) > 0 {
+		return strings.ReplaceAll(cookieSplitted[0], "SESSION=", "")
+	}
+	return ""
 }

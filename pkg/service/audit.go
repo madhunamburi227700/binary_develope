@@ -27,6 +27,8 @@ type auditService struct {
 	userRepo        *repository.UserRepository
 	scanRepo        *repository.ScanRepository
 	remediationRepo *repository.RemediationRepository
+
+	userSessionsRepo repository.UserSessionsRepository
 }
 
 type UserReport struct {
@@ -49,6 +51,8 @@ func NewAuditService() AuditService {
 		userRepo:        repository.NewUserRepository(),
 		remediationRepo: repository.NewRemediationRepository(),
 		scanRepo:        repository.NewScanRepository(),
+
+		userSessionsRepo: repository.NewUserSessionsRepository(),
 	}
 }
 
@@ -60,10 +64,10 @@ func (f *auditService) GetAuditReport(fromDate string) ([]*UserReport, error) {
 	if err != nil {
 		return nil, err
 	}
-	return genUserAuditReport(auditList), nil
+	return f.genUserAuditReport(auditList), nil
 }
 
-func genUserAuditReport(auditList []*models.AuditLog) []*UserReport {
+func (a *auditService) genUserAuditReport(auditList []*models.AuditLog) []*UserReport {
 	var userAudit []*UserReport
 	userDayIdx := map[string]int{}
 	processedRemediationAttempts := map[string]bool{}
@@ -90,7 +94,7 @@ func genUserAuditReport(auditList []*models.AuditLog) []*UserReport {
 
 		date := auditlog.CreatedAt.Format("2006-01-02")
 		if idx, ok := userDayIdx[auditlog.UserID+date]; ok {
-			analyseUserActionStat(userAudit[idx], auditlog)
+			a.analyseUserActionStat(userAudit[idx], auditlog)
 		} else {
 			email := fmt.Sprintf("%s@%s", auditlog.Email.String, auditlog.Provider.String)
 			if !auditlog.Email.Valid {
@@ -100,7 +104,7 @@ func genUserAuditReport(auditList []*models.AuditLog) []*UserReport {
 				Date:  date,
 				Email: email,
 			}
-			analyseUserActionStat(userDayStat, auditlog)
+			a.analyseUserActionStat(userDayStat, auditlog)
 			userAudit = append(userAudit, userDayStat)
 			userDayIdx[auditlog.UserID+date] = len(userAudit) - 1
 		}
@@ -109,7 +113,7 @@ func genUserAuditReport(auditList []*models.AuditLog) []*UserReport {
 	return userAudit
 }
 
-func analyseUserActionStat(user *UserReport, auditLog *models.AuditLog) {
+func (a *auditService) analyseUserActionStat(user *UserReport, auditLog *models.AuditLog) {
 	// no action to analyse stat
 	if !auditLog.Action.Valid {
 		return
@@ -127,6 +131,21 @@ func analyseUserActionStat(user *UserReport, auditLog *models.AuditLog) {
 	}
 	if action == models.ActionLogin {
 		user.lastLogin = auditLog.CreatedAt
+		// for login call external session id is being stored in entity_id
+		// and length of entity id would be greater than 15 in this case
+		// with latest logic using external session id we will pick-up
+		// duration direclly using db user_sessions
+		extSessionId := auditLog.EntityID.String
+		if len(extSessionId) > 15 {
+			authUser, err := a.userSessionsRepo.GetByID(context.TODO(), extSessionId)
+			if err != nil {
+				log.Error().Err(err).Msgf("failed to get session details of %s", extSessionId)
+			} else {
+				user.Duration += uint32(authUser.LastAccessed.Sub(authUser.CreatedAt).Seconds())
+			}
+			// will not track this login entry
+			user.lastLogin = time.Time{}
+		}
 	}
 	if action == models.ActionLogout && !user.lastLogin.IsZero() {
 		user.Duration += uint32(auditLog.CreatedAt.Sub(user.lastLogin).Seconds())
