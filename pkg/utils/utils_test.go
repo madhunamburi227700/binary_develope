@@ -526,6 +526,105 @@ func TestEncryptTokenErrorPaths(t *testing.T) {
 	})
 }
 
+// Test NormalizeSASTFilePathForDisplay function
+func TestNormalizeSASTFilePathForDisplay(t *testing.T) {
+	tests := []struct {
+		name     string
+		filePath string
+		expected string
+	}{
+		{
+			name:     "Empty string",
+			filePath: "",
+			expected: "",
+		},
+		{
+			name:     "Path with unzipped prefix and simple file",
+			filePath: "/tools/scanResult/unzipped-2457046228/main.go",
+			expected: "main.go",
+		},
+		{
+			name:     "Path with unzipped prefix and nested file",
+			filePath: "/tools/scanResult/unzipped-283303147/pkg/client/rest.go",
+			expected: "pkg/client/rest.go",
+		},
+		{
+			name:     "Path with unzipped prefix and deeply nested file",
+			filePath: "/tools/scanResult/unzipped-1544859276/pkg/auth/session/session-mgmt.go",
+			expected: "pkg/auth/session/session-mgmt.go",
+		},
+		{
+			name:     "Path with different unzipped directory number",
+			filePath: "/tools/scanResult/unzipped-3860432392/main.go",
+			expected: "main.go",
+		},
+		{
+			name:     "Path with unzipped prefix but no slash after directory",
+			filePath: "/tools/scanResult/unzipped-123456789",
+			expected: "123456789",
+		},
+		{
+			name:     "Path without unzipped prefix",
+			filePath: "/some/other/path/main.go",
+			expected: "/some/other/path/main.go",
+		},
+		{
+			name:     "Path starting with different prefix",
+			filePath: "/tmp/somefile.go",
+			expected: "/tmp/somefile.go",
+		},
+		{
+			name:     "Relative path",
+			filePath: "main.go",
+			expected: "main.go",
+		},
+		{
+			name:     "Path with unzipped prefix and root file",
+			filePath: "/tools/scanResult/unzipped-2684715519/main.go",
+			expected: "main.go",
+		},
+		{
+			name:     "Path with unzipped prefix and config file",
+			filePath: "/tools/scanResult/unzipped-283303147/pkg/config/token.go",
+			expected: "pkg/config/token.go",
+		},
+		{
+			name:     "Path with unzipped prefix and utils file",
+			filePath: "/tools/scanResult/unzipped-283303147/pkg/utils/utils.go",
+			expected: "pkg/utils/utils.go",
+		},
+		{
+			name:     "Path with unzipped prefix and cmd file",
+			filePath: "/tools/scanResult/unzipped-1544859276/cmd/main.go",
+			expected: "cmd/main.go",
+		},
+		{
+			name:     "Path with unzipped prefix and oauth file",
+			filePath: "/tools/scanResult/unzipped-1544859276/pkg/auth/oauth/google.go",
+			expected: "pkg/auth/oauth/google.go",
+		},
+		{
+			name:     "Path with unzipped prefix and client file",
+			filePath: "/tools/scanResult/unzipped-283303147/pkg/client/sse.go",
+			expected: "pkg/client/sse.go",
+		},
+		{
+			name:     "Path with unzipped prefix and service file",
+			filePath: "/tools/scanResult/unzipped-1544859276/pkg/service/scan.go",
+			expected: "pkg/service/scan.go",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NormalizeSASTFilePathForDisplay(tt.filePath)
+			if result != tt.expected {
+				t.Errorf("NormalizeSASTFilePathForDisplay(%q) = %q, want %q", tt.filePath, result, tt.expected)
+			}
+		})
+	}
+}
+
 // Benchmark tests
 func BenchmarkIsValidEmail(b *testing.B) {
 	for i := 0; i < b.N; i++ {

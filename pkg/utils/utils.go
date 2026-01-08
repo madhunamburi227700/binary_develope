@@ -153,3 +153,28 @@ func NormalizeSASTFilePath(packagePath string) string {
 	filename := filepath.Base(filePath)
 	return filename + ":" + lineNum
 }
+
+func NormalizeSASTFilePathForDisplay(filePath string) string {
+	if filePath == "" {
+		return ""
+	}
+
+	// Remove the /tools/scanResult/unzipped-XXXXX/ prefix
+	// Pattern: /tools/scanResult/unzipped- followed by digits, then /
+	prefixPattern := "/tools/scanResult/unzipped-"
+	if strings.HasPrefix(filePath, prefixPattern) {
+		// Find the next slash after the prefix
+		remainingPath := strings.TrimPrefix(filePath, prefixPattern)
+		// Find the first slash (end of the unzipped directory name)
+		slashIndex := strings.Index(remainingPath, "/")
+		if slashIndex > 0 {
+			// Return everything after the unzipped directory
+			return remainingPath[slashIndex+1:]
+		}
+		// If no slash found, return as-is (shouldn't happen normally)
+		return remainingPath
+	}
+
+	// If path doesn't match the pattern, return as-is
+	return filePath
+}
