@@ -6,20 +6,23 @@ import (
 	"strings"
 
 	"github.com/opsmx/ai-guardian-api/pkg/client"
+	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
 
 // IntegrationService handles integration-specific operations
 type IntegrationService struct {
-	ssdService *SSDService
-	logger     *utils.ErrorLogger
+	ssdService  *SSDService
+	projectRepo *repository.ProjectRepository
+	logger      *utils.ErrorLogger
 }
 
 // NewIntegrationService creates a new integration service
 func NewIntegrationService() *IntegrationService {
 	return &IntegrationService{
-		ssdService: NewSSDService(),
-		logger:     utils.NewErrorLogger("integration_service"),
+		ssdService:  NewSSDService(),
+		projectRepo: repository.NewProjectRepository(),
+		logger:      utils.NewErrorLogger("integration_service"),
 	}
 }
 
@@ -398,4 +401,24 @@ func (s *IntegrationService) getGithubIntegratorId(ctx context.Context, level,
 
 func (s *IntegrationService) DeleteIntegration(ctx context.Context, integrationId, integrationName, hubID string) error {
 	return s.ssdService.DeleteIntegration(ctx, integrationId, integrationName, hubID)
+}
+
+// GetGitHubTokenFromIntegrationID gets the GitHub token from an integration ID
+func (s *IntegrationService) GetGitHubTokenFromIntegrationID(ctx context.Context, hubID, owner string) (string, error) {
+	// get first project scanned
+	project, err := s.projectRepo.GetLatestByOwnerAndHubID(ctx, owner, hubID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get project by owner and hubID: %w", err)
+	}
+
+	if project == nil {
+		return "", fmt.Errorf("no project found for owner and hubID: %s/%s", owner, hubID)
+	}
+
+	token, err := s.ssdService.getIntegratorToken(ctx, project.ID)
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }

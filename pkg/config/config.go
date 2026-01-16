@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"go.yaml.in/yaml/v2"
 )
@@ -99,10 +100,12 @@ type configType struct {
 		Emails  []string `yaml:"emails"`
 	} `yaml:"notification"`
 	AuditUsers []string `yaml:"auditUsers"`
+	ApiAddr    string   `yaml:"apiAddr"`
 }
 
 var config configType
 var SessionTimeout uint = 3600
+var workflowContent string
 
 func validateConfigPath(path string) error {
 	s, err := os.Stat(path)
@@ -323,6 +326,31 @@ func GetSemgrepAllowedExtensions() []string {
 	}
 	// Default allowed extensions
 	return []string{".py", ".js", ".ts", ".jsx", ".tsx", ".go", ".java", ".cpp", ".c", ".rb", ".php", ".rs", ".swift", ".kt", ".scala", ".sh", ".yaml", ".yml", ".json", ".xml", ".html", ".css", ".sql", ".dockerfile", ".tf", ".tfvars"}
+}
+
+// Add this function to load the workflow template (call during startup)
+func LoadWorkflowTemplate(templatePath string) error {
+	content, err := os.ReadFile(templatePath)
+	if err != nil {
+		return fmt.Errorf("failed to read workflow template: %w", err)
+	}
+
+	// Replace {API_ADDR} placeholder with actual API address
+	workflowContent = strings.ReplaceAll(string(content), "{API_ADDR}", getApiAddr())
+
+	return nil
+}
+
+func getApiAddr() string {
+	if config.ApiAddr == "" {
+		return "https://ai-rem-demo-api.remediation.opsmx.net"
+	}
+	return config.ApiAddr
+}
+
+// GetWorkflowContent returns the cached workflow content
+func GetWorkflowContent() string {
+	return workflowContent
 }
 
 // GetScheduledScanPollingEnabled returns whether scheduled scan polling is enabled

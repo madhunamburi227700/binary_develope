@@ -25,6 +25,7 @@ RUN apt update && \
     rm -rf /var/lib/apt/lists/* && \
     semgrep --version
 
+COPY --from=build /workspace/schema/gh-actions ./schema/gh-actions
 COPY --from=build /workspace/app .
 
 ENTRYPOINT ["./app"]

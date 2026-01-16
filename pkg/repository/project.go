@@ -290,7 +290,7 @@ func (r *ProjectRepository) CheckProjectByOwnerAndRepo(ctx context.Context, owne
 }
 
 // GetProjectsByOwner retrieves projects by owner (organisation)
-func (r *ProjectRepository) GetProjectsByOwner(ctx context.Context, owner string) ([]models.Project, error) {
+func (r *ProjectRepository) GetProjectsByOwner(ctx context.Context, owner string) ([]*models.Project, error) {
 	query := `
 		SELECT * FROM projects WHERE organisation = $1
 		ORDER BY created_at DESC
@@ -301,11 +301,53 @@ func (r *ProjectRepository) GetProjectsByOwner(ctx context.Context, owner string
 	}
 	defer rows.Close()
 
-	var projects []models.Project
+	var projects []*models.Project
 	err = r.scanRows(rows, &projects)
 	if err != nil {
 		return nil, fmt.Errorf("failed to scan results: %w", err)
 	}
 
 	return projects, nil
+}
+
+// get one project by owner and repository
+func (r *ProjectRepository) GetLatestByOwnerAndHubID(
+	ctx context.Context,
+	owner, hubID string,
+) (*models.Project, error) {
+
+	query := `
+		SELECT
+			id,
+			name,
+			hub_id,
+			integration_id,
+			organisation,
+			created_at,
+			updated_at
+		FROM projects
+		WHERE organisation = $1
+		  AND hub_id = $2
+		ORDER BY created_at DESC
+		LIMIT 1
+	`
+
+	var project models.Project
+	err := r.db.QueryRow(ctx, query, owner, hubID).Scan(
+		&project.ID,
+		&project.Name,
+		&project.HubID,
+		&project.IntegrationID,
+		&project.Organisation,
+		&project.CreatedAt,
+		&project.UpdatedAt,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, nil // or custom NotFound error
+		}
+		return nil, fmt.Errorf("failed to query project: %w", err)
+	}
+
+	return &project, nil
 }

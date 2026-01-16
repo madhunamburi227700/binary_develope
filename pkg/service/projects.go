@@ -15,6 +15,19 @@ import (
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
 
+const (
+	// Webhook response messages
+	webhookErrorMessage   = "Please register repo and branch to scan and remediate vulnerabilities using AI Guardian PR scan feature."
+	webhookSuccessMessage = "PR scanning started. Any new vulnerability will be reported shortly in the PR comments with links to remediate it."
+
+	// Webhook status values
+	webhookStatusError   = "error"
+	webhookStatusSuccess = "success"
+
+	// Webhook URLs
+	webhookErrorURL = "https://ai-rem-demo.remediation.opsmx.net/login"
+)
+
 // ProjectService handles project business logic
 type ProjectService struct {
 	ssdService  *SSDService
@@ -115,7 +128,6 @@ func (s *ProjectService) CreateProject(ctx context.Context, req *CreateProjectRe
 	// same project name check would be auto applied via ssd
 	// current they do not have any api to check project via name
 
-	fmt.Println("-----INTEGRATION ID-----", req.IntegrationID)
 	// getting username from ssd based on account id
 	username, err := s.ssdService.GetGithubUsername(ctx, req.IntegrationID)
 	if err != nil {
@@ -816,7 +828,7 @@ func (s *ProjectService) CheckAndScanOrCreate(ctx context.Context, owner, repoNa
 			Branch:     branch,
 		}
 
-		fmt.Println("____________Triggering rescan_________________", rescanReq)
+		fmt.Println("____________Triggering rescan_________________")
 
 		// ScanService.Rescan creates a scan record and returns a message and scan ID
 		_, scanID, err := s.scanService.Rescan(ctx, rescanReq)
@@ -855,7 +867,7 @@ func (s *ProjectService) CheckAndScanOrCreate(ctx context.Context, owner, repoNa
 		ScheduledScan: false,
 	}
 
-	fmt.Println("____________Creating project_________________", createReq)
+	fmt.Println("____________Creating project_________________")
 
 	projectID, scanID, err := s.CreateProject(ctx, createReq)
 	if err != nil {
@@ -903,30 +915,40 @@ func (s *ProjectService) ValidateWebhookRequest(req *models.WebhookRequest) erro
 	return nil
 }
 
-// handle webhook request
 func (s *ProjectService) HandleWebhookRequest(ctx context.Context, payload models.WebhookRequest) (string, error) {
-	errUrl := "https://ai-rem-demo.remediation.opsmx.net/login"
+
+	headProjectID, url, err := s.HandleWebhook(ctx, payload)
+	if err != nil {
+		s.postPRCommentWithError(ctx, payload, "")
+		return webhookErrorURL, err
+	}
+	s.postPRComment(ctx, payload, headProjectID, url, webhookSuccessMessage, webhookStatusSuccess)
+	return url, nil
+}
+
+// handle webhook request
+func (s *ProjectService) HandleWebhook(ctx context.Context, payload models.WebhookRequest) (string, string, error) {
 	successUrl := config.GetUIAddress() + "/projects"
 
 	// filter owner from repo url
 	owner, repoName, err := utils.FilterOwnerAndRepoNameFromRepoURL(payload.RepoURL)
 	if err != nil {
-		return errUrl, fmt.Errorf("failed to filter owner and repo name from repo URL: %w", err)
+		return webhookErrorURL, "", fmt.Errorf("failed to filter owner and repo name from repo URL: %w", err)
 	}
 
 	projectExists, err := s.checkIfProjectExistsWithOwner(ctx, owner, repoName) //proiject id
 	if err != nil {
-		return errUrl, fmt.Errorf("failed to check if project exists: %w", err)
+		return webhookErrorURL, "", fmt.Errorf("failed to check if project exists: %w", err)
 	}
 
 	if !projectExists {
-		return errUrl, fmt.Errorf("project does not exist for owner: %s", owner)
+		return webhookErrorURL, "", fmt.Errorf("project does not exist for owner: %s", owner)
 	}
 
 	// Get HubID and IntegrationID from existing project with same owner
 	hubID, integrationID, err := s.getHubIDAndIntegrationIDFromOwner(ctx, owner)
 	if err != nil {
-		return errUrl, fmt.Errorf("failed to get hubID and integrationID: %w", err)
+		return webhookErrorURL, "", fmt.Errorf("failed to get hubID and integrationID: %w", err)
 	}
 
 	// Process base branch
@@ -948,7 +970,7 @@ func (s *ProjectService) HandleWebhookRequest(ctx context.Context, payload model
 			"headBranch": payload.HeadBranch,
 			"repoURL":    payload.RepoURL,
 		})
-		return errUrl, fmt.Errorf("failed to process head branch: %w", err)
+		return webhookErrorURL, "", fmt.Errorf("failed to process head branch: %w", err)
 	}
 
 	// Store project pair in Redis only if we have both project IDs
@@ -988,11 +1010,77 @@ func (s *ProjectService) HandleWebhookRequest(ctx context.Context, payload model
 		}
 	}
 
-	s.logger.LogInfo("Scans triggered successfully for both branches", map[string]interface{}{
-		"baseProjectID": baseProjectID,
-		"headProjectID": headProjectID,
-		"pr_number":     payload.PRNumber,
-	})
+	return headProjectID, successUrl, nil
+}
 
-	return successUrl, nil
+// postPRCommentWithError posts an error comment to the PR
+func (s *ProjectService) postPRCommentWithError(ctx context.Context, payload models.WebhookRequest, headProjectID string) {
+	s.postPRComment(ctx, payload, headProjectID, webhookErrorURL, webhookErrorMessage, webhookStatusError)
+}
+
+// postPRComment posts a comment to the PR with webhook response details
+// Uses the same format as the GitHub Actions workflow
+func (s *ProjectService) postPRComment(ctx context.Context, payload models.WebhookRequest, headProjectID, url, message, status string) {
+	owner, repo, err := utils.FilterOwnerAndRepoNameFromRepoURL(payload.RepoURL)
+	if err != nil {
+		s.logger.LogError(err, "Failed to parse repo URL for PR comment", map[string]interface{}{
+			"repo_url": payload.RepoURL,
+		})
+		return
+	}
+
+	githubToken, err := s.getGitHubTokenForPRComment(ctx, owner, headProjectID)
+	if err != nil {
+		s.logger.LogError(err, "Failed to get GitHub token for PR comment", map[string]interface{}{
+			"owner":           owner,
+			"head_project_id": headProjectID,
+		})
+		return
+	}
+
+	commentBody := s.formatPRComment(payload.PRNumber, message, status, url)
+
+	githubClient := client.NewGitHubClient()
+	_, err = githubClient.PostPRComment(ctx, githubToken, owner, repo, payload.PRNumber, commentBody)
+	if err != nil {
+		s.logger.LogError(err, "Failed to post PR comment", map[string]interface{}{
+			"owner":     owner,
+			"repo":      repo,
+			"pr_number": payload.PRNumber,
+		})
+		return
+	}
+}
+
+// getGitHubTokenForPRComment gets the GitHub token for posting PR comments
+func (s *ProjectService) getGitHubTokenForPRComment(ctx context.Context, owner, headProjectID string) (string, error) {
+	if headProjectID != "" {
+		return s.ssdService.getIntegratorToken(ctx, headProjectID)
+	}
+
+	// Fallback: get token from owner's first project
+	projects, err := s.projectRepo.GetProjectsByOwner(ctx, owner)
+	if err != nil {
+		return "", fmt.Errorf("failed to get projects by owner: %w", err)
+	}
+	if len(projects) == 0 {
+		return "", fmt.Errorf("no projects found for owner: %s", owner)
+	}
+
+	return s.ssdService.getIntegratorToken(ctx, projects[0].ID)
+}
+
+// formatPRComment formats the PR comment message matching the GitHub Actions format
+func (s *ProjectService) formatPRComment(prNumber, message, status, url string) string {
+	return fmt.Sprintf(`### PR API Callback Details
+
+**PR Number:** %s
+
+#### Response from AI Guardian:
+**Message:** %s
+
+**Status:** %s
+
+**URL:** %s
+`, prNumber, message, status, url)
 }

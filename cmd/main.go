@@ -70,6 +70,10 @@ func main() {
 		log.Fatal().Err(err).Msg("failed to parse config")
 	}
 
+	if err := config.LoadWorkflowTemplate("schema/gh-actions/aiguardian-remediation.yml"); err != nil {
+		log.Fatal().Err(err).Msg("failed to load workflow template")
+	}
+
 	log.Info().Msg(version.VersionString())
 	if config.GetShowVersion() {
 		os.Exit(0)

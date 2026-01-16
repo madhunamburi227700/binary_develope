@@ -138,6 +138,10 @@ func SetupRoutes() *mux.Router {
 			integrationsRouter.HandleFunc("/github/delete", integratorController.DeleteIntegration).Methods(http.MethodDelete)
 			// install github app integrator
 			integrationsRouter.HandleFunc("/github/install", integratorController.InstallGitHubAppIntegration).Methods(http.MethodGet)
+			// setup workflow
+			integrationsRouter.HandleFunc("/github/setup/workflow", webhookController.SetupWorkflow).Methods(http.MethodPost)
+			// check for workflow setup
+			integrationsRouter.HandleFunc("/github/check/workflow", webhookController.CheckWorkflowStatus).Methods(http.MethodPost)
 		}
 
 		// remediations

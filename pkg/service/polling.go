@@ -123,11 +123,11 @@ func (ps *PollingService) pollPendingScans(ctx context.Context) {
 		return
 	}
 
-	log.Debug().Msgf("Found %d pending scans to check", len(scans))
-
 	if len(scans) == 0 {
 		return
 	}
+
+	log.Debug().Msgf("Found %d pending scans to check", len(scans))
 
 	// Build project IDs list and scans map for efficient lookup
 	projectIds := make([]string, len(scans))
@@ -270,12 +270,6 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 
 		// If both projects are completed, process vulnerability diff immediately
 		if isPairComplete && pairData != nil {
-			ps.logger.LogInfo("Both projects completed, processing vulnerability diff", map[string]interface{}{
-				"pr_number":       pairData.PRNumber,
-				"base_project_id": pairData.BaseProjectID,
-				"head_project_id": pairData.HeadProjectID,
-			})
-
 			// Process vulnerability diff in background to not block notification
 			go func() {
 				if err := ps.processVulnerabilityDiff(context.Background(), pairData); err != nil {
@@ -404,9 +398,6 @@ func (ps *PollingService) getScanStatusFromSSD(ctx context.Context, projectIds [
 
 // insertVulnerabilities fetches and inserts vulnerability data for a completed scan
 func (ps *PollingService) insertVulnerabilities(ctx context.Context, scan repository.ScanRecord, scanData *client.ScanResultDataResponse, teamID string) error {
-
-	log.Debug().Msgf("Fetching vulnerabilities for scan %s", scan.ID)
-
 	// Fetch SAST vulnerabilities if SAST scan is available
 	sastVulnData := &client.VulnerabilityDataResponse{}
 	if scanData.ScannedFiledData.SAST.Semgrep.ScanName != "" {
@@ -632,20 +623,6 @@ func (ps *PollingService) processVulnerabilityDiff(ctx context.Context, pairData
 		return fmt.Errorf("failed to get vulnerability diff: %w", err)
 	}
 
-	// Log the diff results
-	ps.logger.LogInfo("Vulnerability diff calculated successfully", map[string]interface{}{
-		"pr_number":       pairData.PRNumber,
-		"base_project_id": pairData.BaseProjectID,
-		"head_project_id": pairData.HeadProjectID,
-		"base_scan_id":    baseScanID,
-		"head_scan_id":    headScanID,
-		"base_branch":     pairData.BaseBranch,
-		"head_branch":     pairData.HeadBranch,
-		"new_sast_count":  len(diffResponse.SAST),
-		"new_sca_count":   len(diffResponse.SCA),
-		"total_new_vulns": len(diffResponse.SAST) + len(diffResponse.SCA),
-	})
-
 	// Post PR comment with diff results
 	if err := ps.postPRCommentWithDiff(ctx, pairData, diffResponse); err != nil {
 		ps.logger.LogError(err, "Failed to post PR comment", map[string]interface{}{
@@ -686,9 +663,6 @@ func (ps *PollingService) postPRCommentWithDiff(ctx context.Context, pairData *r
 		})
 		return fmt.Errorf("failed to post PR comment: %w", err)
 	}
-
-	ps.logger.LogInfo("PR comment posted successfully", nil)
-
 	return nil
 }
 

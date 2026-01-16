@@ -87,14 +87,6 @@ func (r *WebhookScanPairRepository) StoreProjectPair(ctx context.Context, prNumb
 		})
 		return fmt.Errorf("failed to store project pair: %w", err)
 	}
-
-	r.logger.LogInfo("Stored project pair in Redis", map[string]interface{}{
-		"pr_number":       prNumber,
-		"base_project_id": baseProjectID,
-		"head_project_id": headProjectID,
-		"key":             key,
-	})
-
 	return nil
 }
 
@@ -223,7 +215,6 @@ func (r *WebhookScanPairRepository) CheckAndUpdateProjectCompletion(ctx context.
 
 	// Check if both projects are completed and diff not yet processed
 	if updatedPairData.BaseCompleted && updatedPairData.HeadCompleted && !updatedPairData.DiffProcessed {
-		r.logger.LogInfo("Both projects completed", nil)
 		return true, updatedPairData, nil
 	}
 
@@ -247,11 +238,6 @@ func (r *WebhookScanPairRepository) MarkDiffProcessed(ctx context.Context, prNum
 		})
 		return fmt.Errorf("failed to mark diff as processed: %w", err)
 	}
-
-	r.logger.LogInfo("Marked diff as processed", map[string]interface{}{
-		"pr_number": prNumber,
-	})
-
 	return nil
 }
 
