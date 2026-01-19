@@ -228,7 +228,7 @@ func (s *ScanService) executeSemgrep(ctx context.Context, filePath string, filen
 			"rule_set": ruleSet,
 			"filename": filename,
 		})
-		result, err := s.runSemgrepWithConfig(ctx, "semgrep", timeoutSeconds, filePath, ruleSet)
+		result, err := s.runSemgrepWithConfig(ctx, timeoutSeconds, filePath, ruleSet)
 		if err == nil {
 			return result, nil
 		}
@@ -243,7 +243,7 @@ func (s *ScanService) executeSemgrep(ctx context.Context, filePath string, filen
 	s.logger.LogInfo("Using semgrep auto config (online mode)", map[string]interface{}{
 		"filename": filename,
 	})
-	return s.runSemgrepWithConfig(ctx, "semgrep", timeoutSeconds, filePath, "auto")
+	return s.runSemgrepWithConfig(ctx, timeoutSeconds, filePath, "auto")
 }
 
 // getRuleSetForFile returns the appropriate semgrep rule set based on file extension
@@ -292,7 +292,8 @@ func (s *ScanService) getRuleSetForFile(filename string) string {
 // runSemgrepWithConfig executes semgrep with a specific config (cache path or "auto")
 // Note: When using a local file path for --config, semgrep automatically works offline
 // The offline parameter is kept for future compatibility but not used (semgrep doesn't support --offline flag)
-func (s *ScanService) runSemgrepWithConfig(ctx context.Context, cliPath string, timeoutSeconds int, filePath string, configValue string) (*SemgrepData, error) {
+func (s *ScanService) runSemgrepWithConfig(ctx context.Context, timeoutSeconds int, filePath string, configValue string) (*SemgrepData, error) {
+
 	// Create context with timeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, time.Duration(timeoutSeconds)*time.Second)
 	defer cancel()
@@ -302,7 +303,8 @@ func (s *ScanService) runSemgrepWithConfig(ctx context.Context, cliPath string, 
 	// --disable-version-check speeds up execution by skipping version checks
 	args := []string{"--json", "--disable-version-check", "--no-git-ignore", "--config=" + configValue, filePath}
 
-	cmd := exec.CommandContext(timeoutCtx, cliPath, args...)
+	// Use static command string to prevent SAST flagging of dynamic command execution
+	cmd := exec.CommandContext(timeoutCtx, "semgrep", args...)
 
 	// Capture stdout and stderr
 	stdout, err := cmd.StdoutPipe()
