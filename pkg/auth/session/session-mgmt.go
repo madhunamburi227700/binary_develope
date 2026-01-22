@@ -341,40 +341,44 @@ func startSessionTracking(sessionMaxDuration float64) {
 		for {
 			sessions := getAllSessionAccess()
 			now := time.Now()
+			var (
+				ids               []string
+				lastAccessedTimes []time.Time
+			)
 			for sessionId, user := range sessions {
-				// ops here for update
-				log.Println("updating session last accessed time", sessionId)
-				err := updateSessionLastAccessed(context.TODO(), sessionId, user.LastAccessed)
-				if err != nil {
-					log.Println("failed to update last accessed for ", sessionId)
-				}
+				ids = append(ids, sessionId)
+				lastAccessedTimes = append(lastAccessedTimes, user.LastAccessed)
 				// keep duration matched with session duration
 				if !user.Authenticated || now.Sub(user.LastAccessed).Seconds() > sessionMaxDuration {
 					deleteSessionAccess(sessionId)
 				}
 			}
-			// each 20 seconds we will update active sessions in db
-			time.Sleep(time.Duration(time.Second * 20))
+			// ops here for update
+			if len(ids) != 0 && len(ids) == len(lastAccessedTimes) {
+				ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+				if err := batchUpdateSessionLastAccessed(ctx, ids, lastAccessedTimes); err != nil {
+					log.Println("failed to update last accessed:", err)
+				}
+				cancel()
+			}
+			// each 10 seconds we will update active sessions in db
+			time.Sleep(time.Duration(time.Second * 10))
 		}
 	}()
 }
 
-// Updates the user session's last accessed time
-func updateSessionLastAccessed(ctx context.Context, sessionId string, lastAccessed time.Time) error {
+func batchUpdateSessionLastAccessed(
+	ctx context.Context,
+	sessionIds []string,
+	lastAccessed []time.Time,
+) error {
 	query := `
 		INSERT INTO user_sessions (id, last_accessed)
-		VALUES ($1, $2)
+		SELECT * FROM UNNEST($1::text[], $2::timestamptz[])
 		ON CONFLICT (id)
-		DO UPDATE
-		SET last_accessed = EXCLUDED.last_accessed
-		RETURNING id;
+		DO UPDATE SET last_accessed = EXCLUDED.last_accessed
+		WHERE user_sessions.last_accessed IS DISTINCT FROM EXCLUDED.last_accessed;
 	`
-
-	var id string
-	return dbStore.QueryRow(
-		ctx,
-		query,
-		sessionId,
-		lastAccessed,
-	).Scan(&id)
+	_, err := dbStore.Exec(ctx, query, sessionIds, lastAccessed)
+	return err
 }

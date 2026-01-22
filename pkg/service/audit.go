@@ -141,7 +141,9 @@ func (a *auditService) analyseUserActionStat(user *UserReport, auditLog *models.
 			if err != nil {
 				log.Error().Err(err).Msgf("failed to get session details of %s", extSessionId)
 			} else {
-				user.Duration += uint32(authUser.LastAccessed.Sub(authUser.CreatedAt).Seconds())
+				if authUser.LastAccessed.Unix() > auditLog.CreatedAt.Unix() {
+					user.Duration += uint32(authUser.LastAccessed.Sub(auditLog.CreatedAt).Seconds())
+				}
 			}
 			// will not track this login entry
 			user.lastLogin = time.Time{}
