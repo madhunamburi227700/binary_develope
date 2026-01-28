@@ -1,2 +1,9 @@
 # ignore vscode 
 .vscode
+
+
+# Test coverage files
+*.out
+coverage.html
+coverage/
+nul

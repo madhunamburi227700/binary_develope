@@ -212,8 +212,12 @@ func GetSessionExists(r *http.Request) *models.AuthUser {
 			Username:      userTmp.Username,
 			Authenticated: true,
 		}
-		extSessionId := strings.ReplaceAll(r.Header.Get("Cookie"), "SESSION=", "")
-		saveUserSession(extSessionId, *authUser)
+
+		cookie, err := r.Cookie("SESSION")
+		if err == nil {
+			extSessionId := cookie.Value
+			saveUserSession(extSessionId, *authUser)
+		}
 		return authUser
 	} else {
 		log.Printf("Session Value was not a User")
@@ -246,8 +250,11 @@ func DeleteSession(w http.ResponseWriter, r *http.Request) {
 	session.Values["user"] = models.AuthUser{}
 	session.Options.MaxAge = -1
 
-	extSessionId := strings.ReplaceAll(r.Header.Get("Cookie"), "SESSION=", "")
-	saveUserSession(extSessionId, *user)
+	cookie, err := r.Cookie("SESSION")
+	if err == nil {
+		extSessionId := cookie.Value
+		saveUserSession(extSessionId, *user)
+	}
 
 	err = session.Save(r, w)
 	if err != nil {

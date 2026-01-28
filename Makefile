@@ -4,7 +4,7 @@
 # Docker Commands
 build: ## Build all Docker images
 	@echo "Building Docker images..."
-	docker build --secret id=GIT_TOKEN,src=token -t ai-guardian-api -f build/Dockerfile .
+	docker build --platform linux/amd64 --secret id=GIT_TOKEN,src=token -t ai-guardian-api -f build/Dockerfile .
 
 up: ## Start all Docker services
 	@echo "Starting Docker services..."
