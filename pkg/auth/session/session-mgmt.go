@@ -28,18 +28,6 @@ import (
 	"github.com/antonlindstrom/pgstore"
 )
 
-// Thread-safe map for logged in users
-var (
-	loggedInUsers = make(map[string]bool)
-	usersMutex    sync.RWMutex
-)
-
-func saveUser(username string) {
-	usersMutex.Lock()
-	defer usersMutex.Unlock()
-	loggedInUsers[username] = true
-}
-
 // sessionStore is the actual gorilla/sessions store
 var sessionStore sessions.Store
 
@@ -62,10 +50,6 @@ func InitMemSessionsStore(sessionTimeout int) {
 
 	gob.Register(models.AuthUser{})
 	sessionStore = store
-
-	usersMutex.Lock()
-	loggedInUsers = make(map[string]bool)
-	usersMutex.Unlock()
 
 	saMu.Lock()
 	sessionAccess = make(map[string]models.AuthUser)
@@ -97,10 +81,6 @@ func InitRedisSessionsStore(sessionTimeout int, hostAndPort, username, password 
 	gob.Register(models.AuthUser{})
 	sessionStore = store
 
-	usersMutex.Lock()
-	loggedInUsers = make(map[string]bool) // Initialize the map
-	usersMutex.Unlock()
-
 	saMu.Lock()
 	sessionAccess = make(map[string]models.AuthUser)
 	saMu.Unlock()
@@ -128,10 +108,6 @@ func InitPgSessionsStore(sessionTimeout int, dbuser, pass, hostAndPort, dbname, 
 	}
 	gob.Register(models.AuthUser{})
 	sessionStore = store
-
-	usersMutex.Lock()
-	loggedInUsers = make(map[string]bool) // Initialize the map
-	usersMutex.Unlock()
 
 	saMu.Lock()
 	sessionAccess = make(map[string]models.AuthUser)
@@ -169,7 +145,6 @@ func CreateSession(w http.ResponseWriter, r *http.Request, refreshToken, usernam
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	saveUser(user.Username) // Save user as logged in
 	cookieSplitted := strings.Split(w.Header().Get("Set-Cookie"), ";")
 	if len(cookieSplitted) > 0 {
 		extSessionId := strings.ReplaceAll(cookieSplitted[0], "SESSION=", "")
@@ -239,21 +214,13 @@ func DeleteSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get username before clearing session
-	user := GetSessionExists(r)
-	if user != nil {
-		usersMutex.Lock()
-		delete(loggedInUsers, user.Username)
-		usersMutex.Unlock()
-	}
-
 	session.Values["user"] = models.AuthUser{}
 	session.Options.MaxAge = -1
 
 	cookie, err := r.Cookie("SESSION")
 	if err == nil {
 		extSessionId := cookie.Value
-		saveUserSession(extSessionId, *user)
+		saveUserSession(extSessionId, models.AuthUser{})
 	}
 
 	err = session.Save(r, w)
@@ -267,31 +234,6 @@ func DeleteSession(w http.ResponseWriter, r *http.Request) {
 // method to return the current session store
 func GetCurrentSessionStore() sessions.Store {
 	return sessionStore
-}
-
-// Check if a user is currently logged in
-func IsUserLoggedIn(username string) bool {
-	usersMutex.RLock()
-	defer usersMutex.RUnlock()
-	return loggedInUsers[username]
-}
-
-// Get all currently logged in users
-func GetLoggedInUsers() []string {
-	usersMutex.RLock()
-	defer usersMutex.RUnlock()
-	users := make([]string, 0, len(loggedInUsers))
-	for username := range loggedInUsers {
-		users = append(users, username)
-	}
-	return users
-}
-
-// Get count of logged in users
-func GetLoggedInUserCount() int {
-	usersMutex.RLock()
-	defer usersMutex.RUnlock()
-	return len(loggedInUsers)
 }
 
 func generateRand() string {
@@ -356,7 +298,7 @@ func startSessionTracking(sessionMaxDuration float64) {
 				ids = append(ids, sessionId)
 				lastAccessedTimes = append(lastAccessedTimes, user.LastAccessed)
 				// keep duration matched with session duration
-				if !user.Authenticated || now.Sub(user.LastAccessed).Seconds() > sessionMaxDuration {
+				if now.Sub(user.LastAccessed).Seconds() > sessionMaxDuration || !user.Authenticated {
 					deleteSessionAccess(sessionId)
 				}
 			}
