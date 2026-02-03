@@ -18,6 +18,7 @@ import (
 	vuln "github.com/opsmx/ai-guardian-api/pkg/controller/vulnerability"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/webhook"
 	"github.com/opsmx/ai-guardian-api/pkg/middleware"
+	"github.com/opsmx/ai-guardian-api/pkg/telemetry"
 )
 
 // SetupRoutes configures all application routes
@@ -205,6 +206,9 @@ func SetupRoutes() *mux.Router {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":"healthy"}`))
 	}).Methods("GET")
+
+	// Prometheus metrics endpoint
+	r.Handle("/metrics", telemetry.MetricsHandler()).Methods("GET")
 
 	// Root endpoint
 	r.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
