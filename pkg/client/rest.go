@@ -9,6 +9,8 @@ import (
 	"net/http"
 	"net/url"
 	"time"
+
+	"github.com/opsmx/ai-guardian-api/pkg/config"
 )
 
 // HTTPClient interface for making HTTP requests
@@ -162,8 +164,12 @@ func (c *RESTClient) request(ctx context.Context, method, endpoint string, body 
 	}, nil
 }
 
-func (c *RESTClient) prepareRequest(ctx context.Context, method, endpoint string, body interface{}, options *RequestOptions) (*http.Request, error) {
-	requestURL, err := url.Parse(c.baseURL + endpoint)
+func (c *RESTClient) prepareRequest(ctx context.Context, method, endpoint string, body interface{}, options *RequestOptions, isNLI bool) (*http.Request, error) {
+	base := c.baseURL
+	if isNLI {
+		base = config.GetNLIBaseURL()
+	}
+	requestURL, err := url.Parse(base + endpoint)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse URL: %w", err)
 	}

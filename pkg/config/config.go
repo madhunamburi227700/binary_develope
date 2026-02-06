@@ -99,8 +99,9 @@ type configType struct {
 		Type    string   `yaml:"type"` // "email"
 		Emails  []string `yaml:"emails"`
 	} `yaml:"notification"`
-	AuditUsers []string `yaml:"auditUsers"`
-	ApiAddr    string   `yaml:"apiAddr"`
+	AuditUsers   []string `yaml:"auditUsers"`
+	ApiAddr      string   `yaml:"apiAddr"`
+	NLIBaseURL   string   `yaml:"nliBaseURL"`
 }
 
 var config configType
@@ -364,4 +365,12 @@ func GetScheduledScanPollingIntervalSeconds() int {
 		return 60 // Default to 1 minute
 	}
 	return config.ScheduledScanPolling.IntervalSeconds
+}
+
+// GetNLIStreamURL returns the NLI stream URL
+func GetNLIBaseURL() string {
+	if config.NLIBaseURL == "" {
+		return "http://localhost:8599"
+	}
+	return config.NLIBaseURL
 }

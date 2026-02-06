@@ -99,7 +99,7 @@ func (s *RemediationService) SAST(ctx context.Context, req *SASTRemediationReque
 		req.Token = token
 	}
 
-	return s.SSEClient.SSERequest(ctx, "/sast-remediation/v1/fix", "POST", req, options)
+	return s.SSEClient.SSERequest(ctx, "/sast-remediation/v1/fix", "POST", req, options, false)
 }
 
 type CVERemediationRequest struct {
@@ -164,7 +164,7 @@ func (s *RemediationService) CVE(ctx context.Context, req *CVERemediationRequest
 		req.Token = token
 	}
 
-	return s.SSEClient.SSERequest(ctx, "/cve-remediation/v1/fix", "POST", req, options)
+	return s.SSEClient.SSERequest(ctx, "/cve-remediation/v1/fix", "POST", req, options, false)
 }
 
 type RemediationConversationResponse struct {
@@ -181,4 +181,10 @@ func (s *RemediationService) Conversation(ctx context.Context, remId string) (*R
 	return &RemediationConversationResponse{
 		Conversation: conversation,
 	}, nil
+}
+
+func (s *RemediationService) NLI(ctx context.Context, req map[string]interface{}, headers, queryParams map[string][]string) (*client.SSEResponse, error) {
+	options := client.MakeRequestOptions(headers, queryParams)
+
+	return s.SSEClient.SSERequest(ctx, "/api/v1/nli/stream", "POST", &req, options, true)
 }

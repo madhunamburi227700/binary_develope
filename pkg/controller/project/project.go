@@ -259,6 +259,9 @@ func (c *ProjectController) GetProjectSummariesForHub(w http.ResponseWriter, r *
 	pageNo := utils.StringToInt(query.Get("pageNo"), 1)
 	pageLimit := utils.StringToInt(query.Get("pageLimit"), 10)
 
+	projectName := query.Get("projectName")
+	status := query.Get("status")
+
 	if pageNo < 1 {
 		pageNo = 1
 	}
@@ -267,7 +270,7 @@ func (c *ProjectController) GetProjectSummariesForHub(w http.ResponseWriter, r *
 		pageLimit = 10
 	}
 
-	result, err := c.projectService.GetProjectSummariesForTeams(r.Context(), hubID, pageNo, pageLimit)
+	result, err := c.projectService.GetProjectSummariesForTeams(r.Context(), hubID, pageNo, pageLimit, projectName, status)
 	if err != nil {
 		c.logger.LogError(err, "Failed to get project summaries for hub", map[string]interface{}{
 			"hubID":     hubID,
@@ -284,6 +287,47 @@ func (c *ProjectController) GetProjectSummariesForHub(w http.ResponseWriter, r *
 		"success": true,
 		"data":    result,
 	})
+}
+
+// ListAllProjectsWithLatestScan returns all projects with repo/branch from the latest scan (if available).
+// @Summary List all projects with latest repo/branch
+// @Description Returns all projects with repo/branch taken from each project's latest scan (scans.created_at DESC)
+// @Tags Projects
+// @Accept  json
+// @Produce  json
+// @Param   hubId query string true "Hub ID"
+// @Param   search query string false "Optional project name search (ILIKE)"
+// @Success 200 {object} service.ProjectsListAllResponse
+// @Failure 400 {object} map[string]string "Missing/invalid hubId"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/projects/list/all [get]
+func (c *ProjectController) ListAllProjectsWithLatestScan(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query()
+
+	vars := mux.Vars(r)
+	hubIDStr, ok := vars["hub_id"]
+	if !ok {
+		http.Error(w, "Hub ID is required", http.StatusBadRequest)
+		return
+	}
+
+	search := query.Get("search")
+
+	result, err := c.projectService.ListAllProjectsWithLatestScan(r.Context(), hubIDStr, search)
+	if err != nil {
+		c.logger.LogError(err, "Failed to list all projects with latest scan", map[string]interface{}{
+			"hub_id": hubIDStr,
+			"search": search,
+		})
+		utils.SendErrorResponse(w, http.StatusInternalServerError, "Failed to list projects")
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	// Return the exact response shape expected by the AI chat interface.
+	json.NewEncoder(w).Encode(result)
 }
 
 // GetProjectSummaryCount returns the count of project summaries

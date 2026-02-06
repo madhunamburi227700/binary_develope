@@ -29,9 +29,9 @@ func NewSSEClient(restClient *RESTClient) *SSEClient {
 	}
 }
 
-func (c *SSEClient) SSERequest(ctx context.Context, endpoint string, method string, body interface{}, options *RequestOptions) (*SSEResponse, error) {
+func (c *SSEClient) SSERequest(ctx context.Context, endpoint string, method string, body interface{}, options *RequestOptions, isNLI bool) (*SSEResponse, error) {
 
-	req, err := c.RestClient.prepareRequest(ctx, method, endpoint, body, options)
+	req, err := c.RestClient.prepareRequest(ctx, method, endpoint, body, options, isNLI)
 	if err != nil {
 		return nil, err
 	}

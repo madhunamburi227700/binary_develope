@@ -195,3 +195,32 @@ func (c *RemediationController) Conversation(w http.ResponseWriter, r *http.Requ
 	})
 
 }
+
+func (c *RemediationController) NLI(w http.ResponseWriter, r *http.Request) {
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	var payload map[string]interface{}
+	err = json.Unmarshal(body, &payload)
+	if err != nil {
+		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	resp, err := c.remediationService.NLI(r.Context(), payload, r.Header, r.URL.Query())
+	if err != nil {
+		c.logger.LogError(err, err.Error(), nil)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if err = client.FlushSSE(r.Context(), w, *resp); err != nil {
+		c.logger.LogError(err, err.Error(), nil)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+}

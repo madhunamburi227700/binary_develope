@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -350,4 +351,57 @@ func (r *ProjectRepository) GetLatestByOwnerAndHubID(
 	}
 
 	return &project, nil
+}
+
+// ProjectWithLatestScan represents a project with repo/branch from its latest scan.
+type ProjectWithLatestScan struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Repo   string `json:"repo"`
+	Branch string `json:"branch"`
+}
+
+// ListAllWithLatestScan returns all projects (for a hub) along with repo/branch from the latest scan (by scans.created_at).
+// Optional search filters by project name (ILIKE %search%).
+func (r *ProjectRepository) ListAllWithLatestScan(ctx context.Context, hubID string, search string) ([]ProjectWithLatestScan, error) {
+	query := `
+  SELECT
+    p.id,
+    p.name,
+    COALESCE(ls.repository, '') AS repo,
+    COALESCE(ls.branch, '') AS branch
+  FROM projects p
+  LEFT JOIN LATERAL (
+    SELECT s.repository, s.branch
+    FROM scans s
+    WHERE s.project_id = p.id
+    ORDER BY s.created_at DESC NULLS LAST
+    LIMIT 1
+  ) ls ON true
+  WHERE p.hub_id = $1
+    AND ($2 = '' OR p.name ILIKE '%' || $2 || '%')
+  ORDER BY p.created_at DESC, p.name ASC;
+`
+
+	trimmedSearch := strings.TrimSpace(search)
+
+	rows, err := r.db.Query(ctx, query, hubID, trimmedSearch)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list projects with latest scan: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]ProjectWithLatestScan, 0)
+	for rows.Next() {
+		var it ProjectWithLatestScan
+		if err := rows.Scan(&it.ID, &it.Name, &it.Repo, &it.Branch); err != nil {
+			return nil, fmt.Errorf("failed to scan project row: %w", err)
+		}
+		items = append(items, it)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating project rows: %w", err)
+	}
+
+	return items, nil
 }

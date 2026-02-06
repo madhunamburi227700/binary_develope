@@ -37,7 +37,6 @@ func SetupRoutes() *mux.Router {
 	featuresController := features.NewFeaturesController()
 	auditController := audit.NewAuditController()
 	webhookController := webhook.NewWebhookController()
-
 	// Public auth routes (no authentication required)
 	authRouter := r.PathPrefix("/auth").Subrouter()
 	{
@@ -73,6 +72,8 @@ func SetupRoutes() *mux.Router {
 
 			// list projects by hub
 			projectRouter.HandleFunc("/list/summary/{hub_id}", projectController.GetProjectSummariesForHub).Methods(http.MethodGet) //working
+			// list all projects with repo/branch from latest scan
+			projectRouter.HandleFunc("/list/all/{hub_id}", projectController.ListAllProjectsWithLatestScan).Methods(http.MethodGet)
 			// projectRouter.HandleFunc("/details/{project_id}", projectController.GetProjectDetails).Methods(http.MethodGet) //working
 			projectRouter.HandleFunc("/summaryCount/{hub_id}", projectController.GetProjectSummaryCount).Methods(http.MethodGet) //working
 		}
@@ -189,6 +190,12 @@ func SetupRoutes() *mux.Router {
 		auditRouter := apiRouter.PathPrefix("/audit").Subrouter()
 		{
 			auditRouter.HandleFunc("/report", auditController.GetAuditReport).Methods(http.MethodGet)
+		}
+
+		// NLI stream (forwards request body to NLI_BASE_URL/stream, response as-is)
+		nliRouter := apiRouter.PathPrefix("/nli").Subrouter()
+		{
+			nliRouter.HandleFunc("/stream", remediationController.NLI).Methods(http.MethodPost)
 		}
 	}
 

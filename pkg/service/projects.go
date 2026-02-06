@@ -381,6 +381,29 @@ func (s *ProjectService) ListProjects(ctx context.Context, req *ProjectListReque
 	return result, nil
 }
 
+// ProjectsListAllResponse is the response for listing all projects with repo/branch from latest scan.
+type ProjectsListAllResponse struct {
+	Total int                              `json:"total"`
+	Items []repository.ProjectWithLatestScan `json:"items"`
+}
+
+// ListAllProjectsWithLatestScan returns all projects with repo/branch taken from each project's latest scan.
+// Optional search filters by project name (ILIKE %search%).
+func (s *ProjectService) ListAllProjectsWithLatestScan(ctx context.Context, hubID string, search string) (*ProjectsListAllResponse, error) {
+	items, err := s.projectRepo.ListAllWithLatestScan(ctx, hubID, search)
+	if err != nil {
+		s.logger.LogError(err, "Failed to list all projects with latest scan", map[string]interface{}{
+			"hub_id": hubID,
+			"search": search,
+		})
+		return nil, fmt.Errorf("failed to list all projects with latest scan: %w", err)
+	}
+	return &ProjectsListAllResponse{
+		Total: len(items),
+		Items: items,
+	}, nil
+}
+
 // GetProjectStats retrieves a project stats by ID
 func (s *ProjectService) GetProjectStats(ctx context.Context, projectId, db string) (*ProjectStats, error) {
 	// send stats from postgres
@@ -454,11 +477,13 @@ func (s *ProjectService) validateUpdateRequest(req *UpdateProjectRequest) error 
 }
 
 // /////////New//////////////
-func (s *ProjectService) GetProjectSummariesForTeams(ctx context.Context, hubID string, pageNo int, pageLimit int) (*client.ProjectSummaryResponse, error) {
+func (s *ProjectService) GetProjectSummariesForTeams(ctx context.Context, hubID string, pageNo int, pageLimit int, projectName string, status string) (*client.ProjectSummaryResponse, error) {
 	return s.ssdService.GetProjectSummariesForTeams(ctx, &GetProjectSummariesForTeamsRequest{
 		HubID:     hubID,
 		PageNo:    pageNo,
 		PageLimit: pageLimit,
+		ProjectName: projectName,
+		Status: status,
 	})
 }
 
