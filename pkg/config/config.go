@@ -99,9 +99,10 @@ type configType struct {
 		Type    string   `yaml:"type"` // "email"
 		Emails  []string `yaml:"emails"`
 	} `yaml:"notification"`
-	AuditUsers   []string `yaml:"auditUsers"`
-	ApiAddr      string   `yaml:"apiAddr"`
-	NLIBaseURL   string   `yaml:"nliBaseURL"`
+	AuditUsers         []string `yaml:"auditUsers"`
+	ChatInterfaceUsers []string `yaml:"chatInterfaceUsers"`
+	ApiAddr            string   `yaml:"apiAddr"`
+	NLIBaseURL         string   `yaml:"nliBaseURL"`
 }
 
 var config configType
@@ -302,6 +303,11 @@ func GetNotificationConfig() (string, []string) {
 // GetAuditUsers the users which are allowed to do audit
 func GetAuditUsers() []string {
 	return config.AuditUsers
+}
+
+// GetChatInterfaceUsers the users which are allowed to use chat interface
+func GetChatInterfaceUsers() []string {
+	return config.ChatInterfaceUsers
 }
 
 // GetSemgrepTimeoutSeconds returns the semgrep timeout in seconds (default: 60)
