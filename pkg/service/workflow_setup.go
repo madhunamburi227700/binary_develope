@@ -109,10 +109,13 @@ func (s *WorkflowSetupService) SetupWorkflow(ctx context.Context, req SetupWorkf
 		return nil, fmt.Errorf("failed to create branch: %w", err)
 	}
 
+	// If branch already existed, force update it to latest base SHA
 	if branchExisted {
-		s.logger.LogInfo("Reusing existing workflow branch", map[string]interface{}{
-			"branch": workflowBranch,
-		})
+		err = s.githubClient.UpdateBranchRef(ctx, githubToken, owner, req.Repository, workflowBranch, baseSHA)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update branch to latest: %w", err)
+		}
+		s.logger.LogInfo("Updated existing workflow branch to latest", map[string]interface{}{})
 	}
 
 	// Create or update workflow file on the branch

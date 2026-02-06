@@ -440,3 +440,37 @@ func (c *GitHubClient) GetOpenPullRequest(ctx context.Context, token, owner, rep
 
 	return nil, nil // No open PR found
 }
+
+// UpdateBranchRef updates a branch to point to a new SHA (force update)
+func (c *GitHubClient) UpdateBranchRef(ctx context.Context, token, owner, repo, branch, newSHA string) error {
+	if token == "" {
+		return fmt.Errorf("GitHub token is required")
+	}
+	if owner == "" || repo == "" || branch == "" || newSHA == "" {
+		return fmt.Errorf("owner, repo, branch, and newSHA are required")
+	}
+
+	endpoint := fmt.Sprintf("/repos/%s/%s/git/refs/heads/%s", owner, repo, branch)
+
+	reqBody := map[string]interface{}{
+		"sha":   newSHA,
+		"force": true,
+	}
+
+	options := &RequestOptions{
+		Headers: map[string]string{
+			"Authorization": fmt.Sprintf("token %s", token),
+		},
+	}
+
+	resp, err := c.restClient.Patch(ctx, endpoint, reqBody, options)
+	if err != nil {
+		return fmt.Errorf("failed to update branch ref: %w", err)
+	}
+
+	if !resp.IsSuccess() {
+		return fmt.Errorf("GitHub API returned status %d: %s", resp.StatusCode, resp.String())
+	}
+
+	return nil
+}

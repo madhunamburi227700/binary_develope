@@ -84,6 +84,11 @@ func (c *RESTClient) Delete(ctx context.Context, endpoint string, options *Reque
 	return c.request(ctx, http.MethodDelete, endpoint, nil, options)
 }
 
+// Patch makes a PATCH request to the specified endpoint
+func (c *RESTClient) Patch(ctx context.Context, endpoint string, body interface{}, options *RequestOptions) (*Response, error) {
+	return c.request(ctx, http.MethodPatch, endpoint, body, options)
+}
+
 // request makes an HTTP request with the given method, endpoint, and body
 func (c *RESTClient) request(ctx context.Context, method, endpoint string, body interface{}, options *RequestOptions) (*Response, error) {
 	// Build URL

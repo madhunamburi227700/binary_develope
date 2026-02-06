@@ -52,13 +52,6 @@ func SetupRoutes() *mux.Router {
 		// GitHub OAuth
 	}
 
-	// Public webhook routes (no authentication required)
-	webhookRouter := r.PathPrefix("/webhooks").Subrouter()
-	{
-		// GitHub Actions webhook endpoint
-		webhookRouter.HandleFunc("/github/actions", webhookController.HandleWebhook).Methods(http.MethodPost)
-	}
-
 	// Protected routes (authentication required)
 	apiRouter := r.PathPrefix("/api/v1").Subrouter()
 	apiRouter.Use(middleware.RequireAuth)

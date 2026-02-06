@@ -810,9 +810,6 @@ func (ps *PollingService) pollScheduledScanProjects(ctx context.Context) {
 	}
 
 	// Step 4: Process projects that exist in PostgreSQL
-	scansCreated := 0
-	projectsUpdated := 0
-
 	for _, dbProject := range dbProjects {
 		ssdProject, existsInSSD := ssdProjectsMap[dbProject.ID]
 		if !existsInSSD {
@@ -876,8 +873,6 @@ func (ps *PollingService) pollScheduledScanProjects(ctx context.Context) {
 							"project_id": dbProject.ID,
 						})
 						delete(updates, "last_scanned_time")
-					} else {
-						scansCreated++
 					}
 				}
 			}
@@ -889,12 +884,7 @@ func (ps *PollingService) pollScheduledScanProjects(ctx context.Context) {
 				ps.logger.LogError(err, "Failed to update project", map[string]interface{}{
 					"project_id": dbProject.ID,
 				})
-			} else {
-				projectsUpdated++
 			}
 		}
 	}
-
-	log.Debug().Msgf("Scheduled scan polling completed: %d scans created, %d projects updated",
-		scansCreated, projectsUpdated)
 }
