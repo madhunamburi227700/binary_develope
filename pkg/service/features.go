@@ -40,6 +40,8 @@ func (f *featuresService) GetUserFeatures(username string) (map[string]string, e
 	// chatInterface features flag addition
 	if slices.Contains(config.GetChatInterfaceUsers(), user.Email.String) {
 		userFeatures["chatInterface"] = "true"
+	} else {
+		userFeatures["chatInterface"] = "false"
 	}
 
 	return userFeatures, nil
