@@ -27,7 +27,6 @@ type auditService struct {
 	userRepo        *repository.UserRepository
 	scanRepo        *repository.ScanRepository
 	remediationRepo *repository.RemediationRepository
-
 	userSessionsRepo repository.UserSessionsRepository
 }
 

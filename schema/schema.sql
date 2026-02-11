@@ -18,18 +18,6 @@ CREATE TABLE IF NOT EXISTS hubs (
 
 CREATE INDEX IF NOT EXISTS idx_hubs_owner_email ON hubs(owner_email);
 
-CREATE TABLE IF NOT EXISTS settings (
-  id          uuid            PRIMARY KEY DEFAULT gen_random_uuid(),
-  hub_id      varchar(64)     NOT NULL,
-  key         varchar(190)    NOT NULL,
-  value       varchar(1000),
-  created_at  timestamptz     NOT NULL DEFAULT now(),
-  updated_at  timestamptz     NOT NULL DEFAULT now(),
-  CONSTRAINT fk_settings_hub FOREIGN KEY (hub_id) REFERENCES hubs(id) ON DELETE CASCADE
-);
-
-CREATE UNIQUE INDEX IF NOT EXISTS ux_settings_hub_key ON settings(hub_id, key);
-
 CREATE TABLE IF NOT EXISTS projects (
   id              varchar(64)    PRIMARY KEY,
   name            varchar(255)   NOT NULL,
@@ -130,37 +118,6 @@ CREATE TABLE IF NOT EXISTS remediations (
 
 CREATE INDEX IF NOT EXISTS idx_remediations_vuln ON remediations(vulnerability_id);
 CREATE INDEX IF NOT EXISTS idx_remediations_status ON remediations(status);
-
-CREATE TABLE IF NOT EXISTS remediation_verification (
-  id                 uuid                PRIMARY KEY DEFAULT gen_random_uuid(),
-  vulnerability_id   uuid                NOT NULL,
-  remediation_id     uuid                NOT NULL,
-  verification_tool  varchar(128),
-  status             verification_status_t NOT NULL,
-  pr_link            varchar(1024),
-  description        text,
-  created_at         timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT fk_ver_vuln FOREIGN KEY (vulnerability_id) REFERENCES vulnerabilities(id) ON DELETE CASCADE,
-  CONSTRAINT fk_ver_rem FOREIGN KEY (remediation_id) REFERENCES remediations(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_ver_remediation ON remediation_verification(remediation_id);
-CREATE INDEX IF NOT EXISTS idx_ver_tool ON remediation_verification(verification_tool);
-CREATE INDEX IF NOT EXISTS idx_ver_status ON remediation_verification(status);
-
-CREATE TABLE IF NOT EXISTS remediation_feedback (
-  id               uuid          PRIMARY KEY DEFAULT gen_random_uuid(),
-  remediation_id   uuid          NOT NULL,
-  vulnerability_id  uuid         NOT NULL,
-  comments         text,
-  rating           numeric(3,2),
-  created_at       timestamptz   NOT NULL DEFAULT now(),
-  CONSTRAINT fk_feedback_rem FOREIGN KEY (remediation_id) REFERENCES remediations(id) ON DELETE CASCADE,
-  CONSTRAINT fk_feedback_vuln FOREIGN KEY (vulnerability_id) REFERENCES vulnerabilities(id) ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS idx_feedback_rem ON remediation_feedback(remediation_id);
-CREATE INDEX IF NOT EXISTS idx_feedback_vuln ON remediation_feedback(vulnerability_id);
 
 CREATE TABLE IF NOT EXISTS audit_logs (
   id BIGSERIAL PRIMARY KEY,
