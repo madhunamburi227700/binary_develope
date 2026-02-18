@@ -383,7 +383,7 @@ func (s *ProjectService) ListProjects(ctx context.Context, req *ProjectListReque
 
 // ProjectsListAllResponse is the response for listing all projects with repo/branch from latest scan.
 type ProjectsListAllResponse struct {
-	Total int                              `json:"total"`
+	Total int                                `json:"total"`
 	Items []repository.ProjectWithLatestScan `json:"items"`
 }
 
@@ -479,11 +479,11 @@ func (s *ProjectService) validateUpdateRequest(req *UpdateProjectRequest) error 
 // /////////New//////////////
 func (s *ProjectService) GetProjectSummariesForTeams(ctx context.Context, hubID string, pageNo int, pageLimit int, projectName string, status string) (*client.ProjectSummaryResponse, error) {
 	return s.ssdService.GetProjectSummariesForTeams(ctx, &GetProjectSummariesForTeamsRequest{
-		HubID:     hubID,
-		PageNo:    pageNo,
-		PageLimit: pageLimit,
+		HubID:       hubID,
+		PageNo:      pageNo,
+		PageLimit:   pageLimit,
 		ProjectName: projectName,
-		Status: status,
+		Status:      status,
 	})
 }
 
@@ -783,4 +783,125 @@ func (s *ProjectService) ValidateWebhookRequest(req *models.WebhookRequest) erro
 		return fmt.Errorf("REPO_URL is required")
 	}
 	return nil
+}
+
+// checkIfProjectExists checks if a project exists with the given owner, repo name, and branch name
+// Returns the project if found, found in database and found in ssd
+func (s *ProjectService) checkIfProjectExists(ctx context.Context, owner, repoName, branchName string) (*models.Project, bool, bool) {
+
+	var foundInDatabase bool
+	var foundInSSD bool
+
+	projects, err := s.projectRepo.GetProjectsByOwnerAndRepoName(ctx, owner, repoName, branchName)
+	if err != nil {
+		return nil, foundInDatabase, foundInSSD
+	}
+
+	foundInDatabase = true
+
+	if len(projects) > 0 {
+		_, err := s.getProjectDetailsFromSSD(ctx, projects[0].ID)
+		if err != nil {
+			return nil, foundInDatabase, foundInSSD
+		}
+		foundInSSD = true
+		return &projects[0], foundInDatabase, foundInSSD
+	}
+
+	return nil, foundInDatabase, foundInSSD
+}
+
+// get details of project from ssd
+func (s *ProjectService) getProjectDetailsFromSSD(ctx context.Context, projectId string) (*client.ProjectRef, error) {
+	project, err := s.ssdService.GetProjectDetails(ctx, projectId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get project details: %w", err)
+	}
+	return project, nil
+}
+
+// CheckAndScanOrCreate checks if a project exists with the given owner, repo, and branch.
+// If it exists, triggers a rescan. If it doesn't exist, creates a new project (which triggers a scan).
+// Returns the scan ID for the triggered/created scan.
+func (s *ProjectService) CheckAndScanOrCreate(ctx context.Context, owner, repoName, branch string, hubID, integrationID string) (string, string, error) {
+	// Check if project exists
+	existingProject, foundInDatabase, foundInSSD := s.checkIfProjectExists(ctx, owner, repoName, branch)
+
+	if existingProject != nil && foundInSSD && foundInDatabase {
+		// Trigger rescan using ScanService which creates a scan record
+		rescanReq := &RescanRequest{
+			ProjectID:  existingProject.ID,
+			HubID:      existingProject.HubID,
+			Repository: repoName,
+			Branch:     branch,
+		}
+
+		fmt.Println("____________Triggering rescan_________________")
+
+		// ScanService.Rescan creates a scan record and returns a message and scan ID
+		_, scanID, err := s.scanService.Rescan(ctx, rescanReq)
+		if err != nil {
+			s.logger.LogError(err, "Failed to trigger rescan", map[string]interface{}{
+				"projectId": existingProject.ID,
+				"branch":    branch,
+			})
+			return "", "", fmt.Errorf("failed to trigger rescan: %w", err)
+		}
+		return existingProject.ID, scanID, nil
+	}
+
+	// Create new project flow
+	if hubID == "" || integrationID == "" {
+		return "", "", fmt.Errorf("hubID and integrationID are required for creating new project")
+	}
+
+	// Extract project name from repo URL (use repo name as project name)
+	projectName := repoName
+	if strings.Contains(repoName, "/") {
+		parts := strings.Split(repoName, "/")
+		if len(parts) > 0 {
+			// Get the last part and remove .git if present
+			projectName = strings.TrimSuffix(parts[len(parts)-1], ".git")
+		}
+	}
+
+	createReq := &CreateProjectRequest{
+		HubID:         hubID,
+		IntegrationID: integrationID,
+		Name:          projectName + "-" + branch + "-" + time.Now().Format("2006-01-02 15:04:05"),
+		RepoName:      repoName,
+		Branch:        branch,
+		ScheduleTime:  0,
+		ScheduledScan: false,
+	}
+
+	fmt.Println("____________Creating project_________________")
+
+	projectID, scanID, err := s.CreateProject(ctx, createReq)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to create project: %w", err)
+	}
+	return projectID, scanID, nil
+}
+
+// check if any project exist with this owner
+func (s *ProjectService) checkIfProjectExistsWithOwner(ctx context.Context, owner, repoName string) (bool, error) {
+	exists, err := s.projectRepo.CheckProjectByOwnerAndRepo(ctx, owner, repoName)
+	if err != nil {
+		return false, fmt.Errorf("failed to check if project exists: %w", err)
+	}
+	return exists, nil
+}
+
+// getHubIDAndIntegrationIDFromOwner gets HubID and IntegrationID from the first project with matching owner
+func (s *ProjectService) getHubIDAndIntegrationIDFromOwner(ctx context.Context, owner string) (string, string, error) {
+	projects, err := s.projectRepo.GetProjectsByOwner(ctx, owner)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get projects by owner: %w", err)
+	}
+	if len(projects) == 0 {
+		return "", "", fmt.Errorf("no projects found for owner: %s", owner)
+	}
+	// Return HubID and IntegrationID from the first project
+	return projects[0].HubID, projects[0].IntegrationID, nil
 }
