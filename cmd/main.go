@@ -16,7 +16,6 @@ import (
 	"github.com/opsmx/ai-guardian-api/pkg/database"
 	"github.com/opsmx/ai-guardian-api/pkg/handlers"
 	"github.com/opsmx/ai-guardian-api/pkg/service"
-	"github.com/opsmx/ai-guardian-api/pkg/telemetry"
 	"github.com/rs/zerolog/log"
 
 	// Swagger imports
@@ -83,25 +82,6 @@ func main() {
 	// Create main context for the application
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-
-	// Initialize OpenTelemetry with Prometheus
-	enabled, serviceName, serviceVersion, _, _ := config.GetTelemetryConfig()
-
-	telemetryProvider, err := telemetry.Initialize(telemetry.Config{
-		Enabled:        enabled,
-		ServiceName:    serviceName,
-		ServiceVersion: serviceVersion,
-	})
-	if err != nil {
-		log.Fatal().Err(err).Msg("Failed to initialize telemetry")
-	}
-	defer func() {
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer shutdownCancel()
-		if err := telemetryProvider.Shutdown(shutdownCtx); err != nil {
-			log.Error().Err(err).Msg("Error shutting down telemetry")
-		}
-	}()
 
 	// Start session manager
 	if err := config.StartSessionManager(ctx); err != nil {

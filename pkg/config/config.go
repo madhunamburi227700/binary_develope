@@ -99,16 +99,9 @@ type configType struct {
 		Type    string   `yaml:"type"` // "email"
 		Emails  []string `yaml:"emails"`
 	} `yaml:"notification"`
-	Telemetry struct {
-		Enabled        bool   `yaml:"enabled"`
-		ServiceName    string `yaml:"serviceName"`
-		ServiceVersion string `yaml:"serviceVersion"`
-		Environment    string `yaml:"environment"`
-		Namespace      string `yaml:"namespace"` // Prometheus namespace (e.g., "ai_guardian")
-	} `yaml:"telemetry"`
 	AuditUsers         []string `yaml:"auditUsers"`
-	ApiAddr            string   `yaml:"apiAddr"`
 	ChatInterfaceUsers []string `yaml:"chatInterfaceUsers"`
+	ApiAddr            string   `yaml:"apiAddr"`
 	NLIBaseURL         string   `yaml:"nliBaseURL"`
 }
 
@@ -378,31 +371,6 @@ func GetScheduledScanPollingIntervalSeconds() int {
 		return 60 // Default to 1 minute
 	}
 	return config.ScheduledScanPolling.IntervalSeconds
-}
-
-// GetTelemetryConfig returns the telemetry configuration with defaults
-func GetTelemetryConfig() (enabled bool, serviceName, serviceVersion, environment, namespace string) {
-	serviceName = config.Telemetry.ServiceName
-	if serviceName == "" {
-		serviceName = "ai-guardian-api"
-	}
-
-	serviceVersion = config.Telemetry.ServiceVersion
-	if serviceVersion == "" {
-		serviceVersion = "1.0.0"
-	}
-
-	environment = config.Telemetry.Environment
-	if environment == "" {
-		environment = "development"
-	}
-
-	namespace = config.Telemetry.Namespace
-	if namespace == "" {
-		namespace = "ai_guardian"
-	}
-
-	return config.Telemetry.Enabled, serviceName, serviceVersion, environment, namespace
 }
 
 // GetNLIStreamURL returns the NLI stream URL
