@@ -235,12 +235,11 @@ func determineAction(r *http.Request) string {
 	// --- Remediation ---
 	case strings.Contains(path, "/remediation") && isPost:
 		mode := r.URL.Query().Get("mode")
-		action := r.URL.Query().Get("action")
 
-		if mode == "apply" || action == "approve" {
+		if mode == "apply" {
 			return models.ActionRemediationApprove
 		}
-		if mode == "generate" || action == "generate" {
+		if mode == "generate" {
 			return models.ActionRemediationAttempt
 		}
 
