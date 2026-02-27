@@ -398,27 +398,21 @@ func (ps *PollingService) getScanStatusFromSSD(ctx context.Context, projectIds [
 
 // insertVulnerabilities fetches and inserts vulnerability data for a completed scan
 func (ps *PollingService) insertVulnerabilities(ctx context.Context, scan repository.ScanRecord, scanData *client.ScanResultDataResponse, teamID string) error {
-	// Fetch SAST vulnerabilities if SAST scan is available
 	sastVulnData := &client.VulnerabilityDataResponse{}
-	if scanData.ScannedFiledData.SAST.Semgrep.ScanName != "" {
-		scanData, err := ps.vulnService.GetSastVulnerabilities(ctx, scan.ProjectID, teamID, scan.Repository, scan.Branch)
+	if scanData.ScannedFiledData.SAST.Semgrep.ScanName != "" || scanData.ScannedFiledData.SAST.Opengrep.ScanName != "" {
+		fetched, err := ps.vulnService.GetSastVulnerabilities(ctx, scan.ProjectID, teamID, scan.Repository, scan.Branch)
 		if err != nil {
-			log.Error().Err(err).Msgf("Failed to fetch SAST vulnerabilities for scan %s", scan.ID)
 			return fmt.Errorf("failed to fetch SAST vulnerabilities: %w", err)
 		}
-
-		if scanData == nil || len(scanData.Results) == 0 {
-			return fmt.Errorf("no SAST vulnerabilities found for scan %s", scan.ID)
-		}
-
-		sastVulnData.Results = scanData.Results
+		sastVulnData.Results = fetched.Results
+	} else {
+		log.Error().Msgf("no SAST tool found for scan %s", scan.ID)
+		return fmt.Errorf("no SAST ")
 	}
 
 	// Fetch SCA vulnerabilities if SCA scans are available
 	var scaVulnData *client.VulnerabilityListResponse
-	// if scanData.ScannedFiledData.SCA.CodeLicense.ScanName != "" ||
-	// 	scanData.ScannedFiledData.SCA.CodeSecret.ScanName != "" ||
-	// 	scanData.ScannedFiledData.SCA.Sbom.ScanName != "" {
+
 	if scanData.ScannedFiledData.SBOM.SBOM.ScanName != "" {
 		// Fetch all SCA vulnerabilities with pagination
 		scaVulnData = &client.VulnerabilityListResponse{VulnerabilityList: []client.VulnerabilityItem{}}
@@ -437,8 +431,6 @@ func (ps *PollingService) insertVulnerabilities(ctx context.Context, scan reposi
 			}
 
 			scaVulnData.VulnerabilityList = append(scaVulnData.VulnerabilityList, pageData.VulnerabilityList...)
-			log.Debug().Msgf("Fetched page %d with %d SCA vulnerabilities for scan %s", pageNo, len(pageData.VulnerabilityList), scan.ID)
-
 			// If we got fewer results than the page limit, we've reached the end
 			if len(pageData.VulnerabilityList) < pageLimit {
 				break
@@ -450,6 +442,7 @@ func (ps *PollingService) insertVulnerabilities(ctx context.Context, scan reposi
 
 	// Insert SAST vulnerabilities into database using repository
 	if len(sastVulnData.Results) > 0 {
+		log.Debug().Msgf("Inserting %d SAST vulnerabilities for scan %s", len(sastVulnData.Results), scan.ID)
 		if err := ps.vulnRepository.InsertVulnerabilities(ctx, scan.ID, sastVulnData); err != nil {
 			log.Error().Err(err).Msgf("Failed to insert SAST vulnerabilities for scan %s", scan.ID)
 		}
@@ -461,6 +454,7 @@ func (ps *PollingService) insertVulnerabilities(ctx context.Context, scan reposi
 
 	// Insert SCA vulnerabilities into database using repository
 	if scaVulnData != nil && len(scaVulnData.VulnerabilityList) > 0 {
+		log.Debug().Msgf("Inserting %d SCA vulnerabilities for scan %s", len(scaVulnData.VulnerabilityList), scan.ID)
 		// Expand items with comma-separated components into individual entries
 		scaVulnData = ps.expandScaVulnerabilitiesByComponent(scaVulnData)
 

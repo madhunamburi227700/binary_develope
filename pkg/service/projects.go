@@ -494,61 +494,72 @@ func (s *ProjectService) GetProjectSummaryCount(ctx context.Context, hubIDs []st
 func (s *ProjectService) calculateProjectStats(ctx context.Context,
 	projectRef *client.ProjectRef) (*ProjectStats, error) {
 	pstats := &ProjectStats{}
-	// picking up semgrep sast findings now
-	sastTool := "semgrep"
+	// Prefer opengrep SAST findings for new scans; fall back to semgrep for legacy scans.
+	preferredSASTTool := "opengrep"
+	legacySASTTool := "semgrep"
 
 	for _, scanTarget := range projectRef.Scans {
 		var dayDateTime time.Time
 		dayCountLastIdx := 0
 
-		// expecting only one sast results for now
+		// expecting only one SAST result for now
 		if pstats.SASTVulnerabilities == nil {
 			for _, scanResult := range scanTarget.ScanResults {
-				if scanResult.ScanTool == sastTool {
-					sastResults, err := s.ssdService.GetSASTScanResults(ctx,
-						"sourceScan", projectRef.ID, *scanTarget.Id, &client.SASTScanRequest{
-							Semgrep: client.SASTScanToolDetails{
-								ScanName:   scanResult.ScanType,
-								ScanTool:   scanResult.ScanTool,
-								ResultFile: scanResult.ResultFile,
-								Status:     string(scanResult.RiskStatus),
-							},
-						})
-					if err != nil {
-						s.logger.LogError(err, "Failed to get sast findings", map[string]interface{}{
-							"projectId": projectRef.ID,
-							"scanId":    *scanTarget.Id,
-						})
-						return nil, fmt.Errorf("failed to get sast findings: %w", err)
-					}
+				// Decide which tool to use: prefer opengrep, otherwise fall back to semgrep.
+				if scanResult.ScanTool != preferredSASTTool && scanResult.ScanTool != legacySASTTool {
+					continue
+				}
 
-					var criticalCount, highCount, mediumCount, lowCount, unknownCount int
-					for _, sr := range sastResults {
-						if sr.ScanName == sastTool {
-							for _, srd := range sr.Data {
-								switch srd.Severity {
-								case "critical":
-									criticalCount++
-								case "high":
-									highCount++
-								case "medium":
-									mediumCount++
-								case "low":
-									lowCount++
-								case "undefined":
-									unknownCount++
-								}
-							}
-							break
+				request := &client.SASTScanRequest{}
+				if scanResult.ScanTool == preferredSASTTool {
+					request.OpenGrep = client.SASTScanToolDetails{
+						ScanName:   scanResult.ScanType,
+						ScanTool:   scanResult.ScanTool,
+						ResultFile: scanResult.ResultFile,
+						Status:     string(scanResult.RiskStatus),
+					}
+				} else {
+					request.Semgrep = client.SASTScanToolDetails{
+						ScanName:   scanResult.ScanType,
+						ScanTool:   scanResult.ScanTool,
+						ResultFile: scanResult.ResultFile,
+						Status:     string(scanResult.RiskStatus),
+					}
+				}
+
+				sastResults, err := s.ssdService.GetSASTScanResults(ctx,
+					"sourceScan", projectRef.ID, *scanTarget.Id, request)
+				if err != nil {
+					s.logger.LogError(err, "Failed to get sast findings", map[string]interface{}{
+						"projectId": projectRef.ID,
+						"scanId":    *scanTarget.Id,
+					})
+					return nil, fmt.Errorf("failed to get sast findings: %w", err)
+				}
+
+				var criticalCount, highCount, mediumCount, lowCount, unknownCount int
+				for _, sr := range sastResults {
+					for _, srd := range sr.Data {
+						switch srd.Severity {
+						case "critical":
+							criticalCount++
+						case "high":
+							highCount++
+						case "medium":
+							mediumCount++
+						case "low":
+							lowCount++
+						case "undefined":
+							unknownCount++
 						}
 					}
-					pstats.SASTVulnerabilities = &VulnerabilityCounts{
-						CriticalCount: &criticalCount,
-						HighCount:     &highCount,
-						MediumCount:   &mediumCount,
-						LowCount:      &lowCount,
-						UnknownCount:  &unknownCount,
-					}
+				}
+				pstats.SASTVulnerabilities = &VulnerabilityCounts{
+					CriticalCount: &criticalCount,
+					HighCount:     &highCount,
+					MediumCount:   &mediumCount,
+					LowCount:      &lowCount,
+					UnknownCount:  &unknownCount,
 				}
 			}
 		}
@@ -705,15 +716,11 @@ func (s *ProjectService) getProjectStats(ctx context.Context, projectId string) 
 }
 
 func calculateProjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCounts, *VulnerabilityCounts) {
-	// sast tool
-	sastTool := "semgrep"
-	// sca tool
-	scaTool := "syft"
 	uniqueSCAVulns := map[string]bool{}
 	var sastAllCounts, sastCriticalCount, sastHighCount, sastMediumCount, sastLowCount, sastUnknownCount int
 	var scaAllCounts, scaCriticalCount, scaHighCount, scaMediumCount, scaLowCount, scaUnknownCount int
 	for _, vuln := range vulns {
-		if vuln.Tool.String == sastTool {
+		if vuln.ScanType.String == models.ScanTypeSAST {
 			sastAllCounts++
 			switch vuln.Severity.String {
 			case "critical":
@@ -728,7 +735,7 @@ func calculateProjectVulnStats(vulns []*models.Vulnerability) (*VulnerabilityCou
 				sastUnknownCount++
 			}
 		}
-		if vuln.Tool.String == scaTool {
+		if vuln.ScanType.String == models.ScanTypeSCA {
 			scaAllCounts++
 			uniqueSCAVulns[vuln.Name.String] = true
 			switch vuln.Severity.String {

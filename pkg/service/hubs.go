@@ -352,14 +352,10 @@ func calculateHubVulnStats(vulns []*models.Vulnerability,
 ) (*VulnerabilityCounts, *VulnerabilityCounts, map[string]bool, int) {
 	var sastStats, scaStats VulnerabilityCounts
 	var prRaised int
-	// sast tool
-	sastTool := "semgrep"
-	// sca tool
-	scaTool := "syft"
 	var sastAllCounts, sastCriticalCount, sastHighCount, sastMediumCount, sastLowCount, sastUnknownCount int
 	var scaAllCounts, scaCriticalCount, scaHighCount, scaMediumCount, scaLowCount, scaUnknownCount int
 	for _, vuln := range vulns {
-		if vuln.Tool.String == sastTool {
+		if vuln.ScanType.String == models.ScanTypeSAST {
 			sastAllCounts++
 			switch vuln.Severity.String {
 			case "critical":
@@ -374,7 +370,7 @@ func calculateHubVulnStats(vulns []*models.Vulnerability,
 				sastUnknownCount++
 			}
 		}
-		if vuln.Tool.String == scaTool {
+		if vuln.ScanType.String == models.ScanTypeSCA {
 			scaAllCounts++
 			uniqueSCAVulns[vuln.Name.String] = true
 			switch vuln.Severity.String {

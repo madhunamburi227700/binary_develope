@@ -197,9 +197,17 @@ func (r *ScanRepository) updateScanTypes(ctx context.Context, tx *Transaction, s
 	// 	}
 	// }
 
-	// Process SAST scans
+	// Process SAST scans: first priority semgrep, second opengrep
+	var sastScan *client.ScanFiles
+
 	if scanData.ScannedFiledData.SAST.Semgrep.ScanName != "" {
-		if err := r.upsertScanType(ctx, tx, scanID, "sast", &scanData.ScannedFiledData.SAST.Semgrep); err != nil {
+		sastScan = &scanData.ScannedFiledData.SAST.Semgrep
+	} else if scanData.ScannedFiledData.SAST.Opengrep.ScanName != "" {
+		sastScan = &scanData.ScannedFiledData.SAST.Opengrep
+	}
+
+	if sastScan != nil {
+		if err := r.upsertScanType(ctx, tx, scanID, "sast", sastScan); err != nil {
 			return err
 		}
 	}

@@ -428,7 +428,8 @@ type OpenSSFData struct {
 
 // SASTData represents SAST scan data
 type SASTData struct {
-	Semgrep ScanFiles `json:"semgrep"`
+	Semgrep  ScanFiles `json:"semgrep"`
+	Opengrep ScanFiles `json:"opengrep"`
 }
 
 // SemgrepScanData represents Semgrep scan data
@@ -592,7 +593,8 @@ type DeleteIntegrationRequest struct {
 }
 
 type SASTScanRequest struct {
-	Semgrep SASTScanToolDetails `json:"semgrep"`
+	Semgrep  SASTScanToolDetails `json:"semgrep"`
+	OpenGrep SASTScanToolDetails `json:"opengrep"`
 }
 
 type SASTScanToolDetails struct {
