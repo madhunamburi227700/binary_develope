@@ -1073,32 +1073,21 @@ func (c *SSDClient) GetVulnerabilityList(ctx context.Context, req *Vulnerability
 		params = append(params, fmt.Sprintf("pageLimit=%d", req.PageLimit))
 	}
 
-	// Sorting parameters
-	if req.SortBy != "" {
-		params = append(params, fmt.Sprintf("sortBy=%s", req.SortBy))
-	}
-
-	if req.SortOrder != "" {
-		params = append(params, fmt.Sprintf("sortOrder=%s", req.SortOrder))
-	}
-
-	// Filter parameters
 	if req.Artifacts != "" {
-		params = append(params, fmt.Sprintf("Artifacts=%s", req.Artifacts))
+		params = append(params, fmt.Sprintf("artifact=%s", req.Artifacts))
 	}
 
 	if req.ArtifactSha != "" {
-		params = append(params, fmt.Sprintf("ArtifactSha=%s", req.ArtifactSha))
+		params = append(params, fmt.Sprintf("artifactSha=%s", req.ArtifactSha))
 	}
 
 	if req.Tools != "" {
-		params = append(params, fmt.Sprintf("Tools=%s", req.Tools))
+		params = append(params, fmt.Sprintf("tool=%s", strings.ToLower(req.Tools)))
 	}
 
 	params = append(params, fmt.Sprintf("orgId=%s", c.orgID))
 
-	// Build endpoint
-	endpoint := "/gate/ssdservice/v1/vulnerability/inpage"
+	endpoint := "/gate/ssdservice/v1/vulnerability/artifact"
 	if len(params) > 0 {
 		endpoint += "?" + strings.Join(params, "&")
 	}

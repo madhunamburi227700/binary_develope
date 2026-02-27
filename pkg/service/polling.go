@@ -416,7 +416,7 @@ func (ps *PollingService) insertVulnerabilities(ctx context.Context, scan reposi
 	if scanData.ScannedFiledData.SBOM.SBOM.ScanName != "" {
 		// Fetch all SCA vulnerabilities with pagination
 		scaVulnData = &client.VulnerabilityListResponse{VulnerabilityList: []client.VulnerabilityItem{}}
-		pageNo := 0
+		pageNo := 1
 		pageLimit := 99 // API requires less than 100
 
 		for {
