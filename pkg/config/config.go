@@ -343,15 +343,12 @@ func LoadWorkflowTemplate(templatePath string) error {
 	}
 
 	// Replace {API_ADDR} placeholder with actual API address
-	workflowContent = strings.ReplaceAll(string(content), "{API_ADDR}", getApiAddr())
+	workflowContent = strings.ReplaceAll(string(content), "{API_ADDR}", GetApiAddr())
 
 	return nil
 }
 
-func getApiAddr() string {
-	if config.ApiAddr == "" {
-		return "https://ai-rem-demo-api.remediation.opsmx.net"
-	}
+func GetApiAddr() string {
 	return config.ApiAddr
 }
 

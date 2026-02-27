@@ -108,7 +108,8 @@ func (c *WebhookController) HandleWebhook(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	url, err := c.projectService.HandleWebhookRequest(r.Context(), payload)
+	// TODO: Remove r.Host once the endpoint is deprecated
+	url, err := c.projectService.HandleWebhookRequest(r.Context(), payload, r.Host)
 	if err != nil {
 		sendWebhookResponse(w, url, "Please register repo and branch to scan and remediate vulnerabilities using AI Guardian PR scan feature.", "error")
 		return

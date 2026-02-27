@@ -77,6 +77,9 @@ func NewWorkflowSetupService() *WorkflowSetupService {
 }
 
 // SetupWorkflow sets up the AI Guardian workflow in a GitHub repository
+// TODO: Remove requestHost once the endpoint is deprecated.
+// requestHost is the host of the request coming to the endpoint.
+// It is used to determine if the request is coming from the deprecated '-api' endpoint.
 func (s *WorkflowSetupService) SetupWorkflow(ctx context.Context, req SetupWorkflowRequest) (*SetupWorkflowResponse, error) {
 
 	// Get the workflow branch name based on target branch
@@ -102,6 +105,7 @@ func (s *WorkflowSetupService) SetupWorkflow(ctx context.Context, req SetupWorkf
 	// If open PR exists, return it
 	if existingPR != nil {
 		s.logger.LogInfo("Found existing open PR for workflow setup", nil)
+
 		return &SetupWorkflowResponse{
 			PRURL:    existingPR.URL,
 			PRNumber: fmt.Sprintf("%d", existingPR.Number),
@@ -195,14 +199,14 @@ func (s *WorkflowSetupService) CheckWorkflowStatus(ctx context.Context, req Setu
 	return false, nil
 }
 
-func (s *ProjectService) HandleWebhookRequest(ctx context.Context, payload models.WebhookRequest) (string, error) {
+func (s *ProjectService) HandleWebhookRequest(ctx context.Context, payload models.WebhookRequest, requestHost string) (string, error) {
 
 	headProjectID, url, err := s.HandleWebhook(ctx, payload)
 	if err != nil {
-		s.postPRCommentWithError(ctx, payload, "")
+		s.postPRCommentWithError(ctx, payload, "", requestHost)
 		return webhookErrorURL, err
 	}
-	s.postPRComment(ctx, payload, headProjectID, url, webhookSuccessMessage, webhookStatusSuccess)
+	s.postPRComment(ctx, payload, headProjectID, url, webhookSuccessMessage, webhookStatusSuccess, requestHost)
 	return url, nil
 }
 
@@ -294,13 +298,13 @@ func (s *ProjectService) HandleWebhook(ctx context.Context, payload models.Webho
 }
 
 // postPRCommentWithError posts an error comment to the PR
-func (s *ProjectService) postPRCommentWithError(ctx context.Context, payload models.WebhookRequest, headProjectID string) {
-	s.postPRComment(ctx, payload, headProjectID, webhookErrorURL, webhookErrorMessage, webhookStatusError)
+func (s *ProjectService) postPRCommentWithError(ctx context.Context, payload models.WebhookRequest, headProjectID, requestHost string) {
+	s.postPRComment(ctx, payload, headProjectID, webhookErrorURL, webhookErrorMessage, webhookStatusError, requestHost)
 }
 
 // postPRComment posts a comment to the PR with webhook response details
 // Uses the same format as the GitHub Actions workflow
-func (s *ProjectService) postPRComment(ctx context.Context, payload models.WebhookRequest, headProjectID, url, message, status string) {
+func (s *ProjectService) postPRComment(ctx context.Context, payload models.WebhookRequest, headProjectID, url, message, status, requestHost string) {
 	owner, repo, err := utils.FilterOwnerAndRepoNameFromRepoURL(payload.RepoURL)
 	if err != nil {
 		s.logger.LogError(err, "Failed to parse repo URL for PR comment", map[string]interface{}{
@@ -330,6 +334,17 @@ func (s *ProjectService) postPRComment(ctx context.Context, payload models.Webho
 		})
 		return
 	}
+
+	// Post endpoint deprecation comment on the new PR
+	// TODO: Remove this once the endpoint is deprecated
+	s.postEndpointDeprecationComment(
+		ctx,
+		githubToken,
+		owner,
+		repo,
+		payload.PRNumber,
+		requestHost,
+	)
 }
 
 // getGitHubTokenForPRComment gets the GitHub token for posting PR comments
@@ -363,4 +378,39 @@ func (s *ProjectService) formatPRComment(prNumber, message, status, url string) 
 
 **URL:** %s
 `, prNumber, message, status, url)
+}
+
+// postEndpointDeprecationComment posts a comment on the workflow setup PR
+// informing the user about the endpoint change.
+// TODO: Remove this once the endpoint is deprecated
+func (s *ProjectService) postEndpointDeprecationComment(
+	ctx context.Context,
+	token, owner, repo, prNumber, requestHost string,
+) {
+	// Only post deprecation warning if request is coming from "-api" endpoint
+	if !strings.Contains(requestHost, "-api") {
+		s.logger.LogInfo("Skipping deprecation comment - request not from deprecated '-api' endpoint", map[string]interface{}{
+			"request_host": requestHost,
+		})
+		return
+	}
+	oldEndpoint := "https://ai-rem-demo-api.remediation.opsmx.net"
+	newEndpoint := config.GetApiAddr()
+
+	comment := fmt.Sprintf(
+		`AI Guardian notice:
+
+The AI Guardian API endpoint %q is **deprecated**.
+Please update your workflow configuration to use the new endpoint %q for API requests.`,
+		oldEndpoint,
+		newEndpoint,
+	)
+
+	githubClient := client.NewGitHubClient()
+	if _, err := githubClient.PostPRComment(ctx, token, owner, repo, prNumber, comment); err != nil {
+		s.logger.LogError(err, "Failed to post workflow endpoint deprecation comment", map[string]interface{}{
+			"repo":      repo,
+			"pr_number": prNumber,
+		})
+	}
 }
