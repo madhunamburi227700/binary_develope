@@ -16,6 +16,7 @@ const (
 	ActionProjectDelete      = "PROJECT_DELETE"
 	ActionRemediationAttempt = "REMEDIATION_ATTEMPTED"
 	ActionRemediationApprove = "REMEDIATION_APPROVED"
+	ActionStream             = "STREAM"
 )
 
 type AuditLog struct {

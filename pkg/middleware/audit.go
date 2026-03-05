@@ -61,7 +61,8 @@ func shouldAudit(path string) bool {
 		strings.Contains(path, "/remediation") ||
 		strings.Contains(path, "/login") ||
 		strings.Contains(path, "/logout") ||
-		strings.Contains(path, "/callback")
+		strings.Contains(path, "/callback") ||
+		strings.Contains(path, "/stream")
 }
 
 // AuditLog middleware logs user requests to database
@@ -189,7 +190,7 @@ func extractEntity(path string) (entityName, entityID string) {
 
 	// Extract entity from path
 	for i, part := range parts {
-		if part == "scans" || part == "projects" || part == "remediation" || part == "auth" {
+		if part == "scans" || part == "projects" || part == "remediation" || part == "auth" || part == "stream" {
 			entityName = part
 			// Try to get ID from next part if exists
 			if i+1 < len(parts) && parts[i+1] != "" && parts[i+1] != "rescan" {
@@ -245,6 +246,10 @@ func determineAction(r *http.Request) string {
 
 		// Default if no query param
 		return models.ActionRemediationAttempt
+
+	// --- Stream ---
+	case strings.Contains(path, "/stream"):
+		return models.ActionStream
 	}
 
 	// --- Fallback ---
