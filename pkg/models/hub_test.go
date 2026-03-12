@@ -11,7 +11,6 @@ import (
 )
 
 func TestHubJSONMarshaling(t *testing.T) {
-	hubID := uuid.New()
 	ownerID := uuid.New()
 	collabID1 := uuid.New()
 	collabID2 := uuid.New()
@@ -19,7 +18,7 @@ func TestHubJSONMarshaling(t *testing.T) {
 	description := "Test Hub Description"
 
 	hub := Hub{
-		ID:             hubID,
+		ID:             "7922c93d-848a-4bf8-ba9a-cd141b0e1149",
 		Name:           "Test Hub",
 		Description:    &description,
 		OwnerID:        &ownerID,
@@ -48,10 +47,8 @@ func TestHubJSONMarshaling(t *testing.T) {
 }
 
 func TestHubWithNullFields(t *testing.T) {
-	hubID := uuid.New()
-
 	hub := Hub{
-		ID:             hubID,
+		ID:             "7922c93d-848a-4bf8-ba9a-cd141b0e1149",
 		Name:           "Minimal Hub",
 		CollaboratorID: []uuid.UUID{},
 		Projects:       []*ProjectExt{},
@@ -75,9 +72,8 @@ func TestHubWithNullFields(t *testing.T) {
 }
 
 func TestHubStructTags(t *testing.T) {
-	hubID := uuid.New()
 	hub := Hub{
-		ID:             hubID,
+		ID:             "7922c93d-848a-4bf8-ba9a-cd141b0e1149",
 		Name:           "Test Hub",
 		CollaboratorID: []uuid.UUID{},
 	}

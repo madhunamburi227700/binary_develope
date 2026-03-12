@@ -52,6 +52,7 @@ func (r *ScanRepository) Create(ctx context.Context, scan *models.Scan) error {
 // ScanRecord represents a scan record from the database for polling
 type ScanRecord struct {
 	ID              string
+	HubID           string
 	ProjectID       string
 	Status          string
 	Repository      string
@@ -71,6 +72,7 @@ func (r *ScanRepository) GetPendingScans(ctx context.Context) ([]ScanRecord, err
 			s.repository, 
 			s.branch,
 			s.commit_sha,
+			s.hub_id,
 			p.last_scanned_time
 		FROM scans s
 		LEFT JOIN projects p ON s.project_id = p.id
@@ -95,6 +97,7 @@ func (r *ScanRepository) GetPendingScans(ctx context.Context) ([]ScanRecord, err
 			&scan.Repository,
 			&scan.Branch,
 			&scan.CommitSHA,
+			&scan.HubID,
 			&scan.LastScannedTime,
 		)
 		if err != nil {
@@ -127,7 +130,7 @@ func (r *ScanRepository) GetLatestScanByProjectAndBranch(ctx context.Context, pr
 }
 
 // UpdateScanStatus updates the scan status and related fields
-func (r *ScanRepository) UpdateScanStatus(ctx context.Context, scanID string, scanData *client.ScanResultDataResponse) error {
+func (r *ScanRepository) UpdateScanStatus(ctx context.Context, hubID, scanID string, scanData *client.ScanResultDataResponse) error {
 	tx, err := r.NewTransaction(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -163,7 +166,7 @@ func (r *ScanRepository) UpdateScanStatus(ctx context.Context, scanID string, sc
 	}
 
 	// Update or insert scan_type records for each scan type
-	if err := r.updateScanTypes(ctx, tx, scanID, scanData); err != nil {
+	if err := r.updateScanTypes(ctx, tx, hubID, scanID, scanData); err != nil {
 		return fmt.Errorf("failed to update scan types: %w", err)
 	}
 
@@ -189,7 +192,7 @@ func (r *ScanRepository) UpdateScanStatusInBulk(ctx context.Context, scanIDs []s
 }
 
 // updateScanTypes updates the scan_type table with scan results
-func (r *ScanRepository) updateScanTypes(ctx context.Context, tx *Transaction, scanID string, scanData *client.ScanResultDataResponse) error {
+func (r *ScanRepository) updateScanTypes(ctx context.Context, tx *Transaction, hubID, scanID string, scanData *client.ScanResultDataResponse) error {
 	// Process OpenSSF scans
 	// if scanData.ScannedFiledData.OpenSSF.Openssf.ScanName != "" {
 	// 	if err := r.upsertScanType(ctx, tx, scanID, "openssf", &scanData.ScannedFiledData.OpenSSF.Openssf); err != nil {
@@ -207,7 +210,7 @@ func (r *ScanRepository) updateScanTypes(ctx context.Context, tx *Transaction, s
 	}
 
 	if sastScan != nil {
-		if err := r.upsertScanType(ctx, tx, scanID, "sast", sastScan); err != nil {
+		if err := r.upsertScanType(ctx, tx, hubID, scanID, "sast", sastScan); err != nil {
 			return err
 		}
 	}
@@ -226,7 +229,7 @@ func (r *ScanRepository) updateScanTypes(ctx context.Context, tx *Transaction, s
 	// }
 
 	if scanData.ScannedFiledData.SBOM.SBOM.ScanName != "" {
-		if err := r.upsertScanType(ctx, tx, scanID, "sca", &scanData.ScannedFiledData.SBOM.SBOM); err != nil {
+		if err := r.upsertScanType(ctx, tx, hubID, scanID, "sca", &scanData.ScannedFiledData.SBOM.SBOM); err != nil {
 			return err
 		}
 	}
@@ -235,7 +238,7 @@ func (r *ScanRepository) updateScanTypes(ctx context.Context, tx *Transaction, s
 }
 
 // upsertScanType inserts or updates a scan_type record
-func (r *ScanRepository) upsertScanType(ctx context.Context, tx *Transaction, scanID, scanType string, scanFiles *client.ScanFiles) error {
+func (r *ScanRepository) upsertScanType(ctx context.Context, tx *Transaction, hubID, scanID, scanType string, scanFiles *client.ScanFiles) error {
 	scanTypeID := fmt.Sprintf("%s-%s", scanID, scanType)
 
 	// Convert scan files to JSON for raw_json field
@@ -251,8 +254,9 @@ func (r *ScanRepository) upsertScanType(ctx context.Context, tx *Transaction, sc
 			scan_type, 
 			tool, 
 			file_url, 
-			raw_json
-		) VALUES ($1, $2, $3, $4, $5, $6)
+			raw_json,
+			hub_id
+		) VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (id) 
 		DO UPDATE SET
 			tool = EXCLUDED.tool,
@@ -267,6 +271,7 @@ func (r *ScanRepository) upsertScanType(ctx context.Context, tx *Transaction, sc
 		scanFiles.ScanTool,
 		scanFiles.ResultFile,
 		rawJSON,
+		hubID,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to upsert scan_type: %w", err)
@@ -275,7 +280,6 @@ func (r *ScanRepository) upsertScanType(ctx context.Context, tx *Transaction, sc
 	return nil
 }
 
-// UpdateScanTypeCountsForType updates the count fields for a specific scan_type
 // UpdateScanTypeCountsForType updates the count fields for a specific scan_type
 func (r *ScanRepository) UpdateScanTypeCountsForType(ctx context.Context, scanID, scanType string, counts map[string]int) error {
 	query := `
@@ -441,7 +445,7 @@ func (s *ScanRepository) GetScansVulns(ctx context.Context) ([]*models.Hub, erro
 	for rows.Next() {
 		var scan models.ScanExt
 		var vuln models.Vulnerability
-		var hubId uuid.UUID
+		var hubId string
 		if err := rows.Scan(
 			&scan.ScanId,
 			&scan.ProjectId,
@@ -453,9 +457,9 @@ func (s *ScanRepository) GetScansVulns(ctx context.Context) ([]*models.Hub, erro
 		); err != nil {
 			return nil, err
 		}
-		pKey := hubId.String() + scan.ProjectId
-		sKey := hubId.String() + scan.ProjectId + scan.ScanId
-		if hIdx, hok := hubIdx[hubId.String()]; hok {
+		pKey := hubId + scan.ProjectId
+		sKey := hubId + scan.ProjectId + scan.ScanId
+		if hIdx, hok := hubIdx[hubId]; hok {
 			if pIdx, pok := projectsIdx[pKey]; pok {
 				if sIdx, sok := scansIdx[sKey]; sok {
 					hubs[hIdx].Projects[pIdx].Scans[sIdx].Vulnerabilites = append(hubs[hIdx].Projects[pIdx].Scans[sIdx].Vulnerabilites, &vuln)
@@ -490,7 +494,7 @@ func (s *ScanRepository) GetScansVulns(ctx context.Context) ([]*models.Hub, erro
 			})
 			projectsIdx[pKey] = 0
 			scansIdx[sKey] = 0
-			hubIdx[hubId.String()] = len(hubs) - 1
+			hubIdx[hubId] = len(hubs) - 1
 		}
 	}
 	return hubs, nil

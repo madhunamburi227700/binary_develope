@@ -205,7 +205,7 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 			ps.logger.LogError(err, "Failed to get scan result data", map[string]interface{}{
 				"scan_id": scan.ID,
 			})
-			if err := ps.updateScanStatus(ctx, scan.ID, &client.ScanResultDataResponse{
+			if err := ps.updateScanStatus(ctx, scan.HubID, scan.ID, &client.ScanResultDataResponse{
 				Status: string(client.RiskStatusFail),
 			}); err != nil {
 				return fmt.Errorf("failed to update scan in database: %w", err)
@@ -225,7 +225,7 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 		scanData.Status = string(client.RiskStatusCompleted)
 
 		// Update scan status using repository
-		if err := ps.updateScanStatus(ctx, scan.ID, scanData); err != nil {
+		if err := ps.updateScanStatus(ctx, scan.HubID, scan.ID, scanData); err != nil {
 			return fmt.Errorf("failed to update scan in database: %w", err)
 		}
 
@@ -321,7 +321,7 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 		log.Debug().Msgf("Scan %s failed, updating database with failed status", scan.ID)
 
 		// Update scan status using repository
-		if err := ps.updateScanStatus(ctx, scan.ID, &client.ScanResultDataResponse{
+		if err := ps.updateScanStatus(ctx, scan.HubID, scan.ID, &client.ScanResultDataResponse{
 			Status: string(client.RiskStatusFail),
 		}); err != nil {
 			return fmt.Errorf("failed to update scan in database: %w", err)
@@ -372,8 +372,8 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 }
 
 // update scan status in database
-func (ps *PollingService) updateScanStatus(ctx context.Context, scanID string, scanData *client.ScanResultDataResponse) error {
-	if err := ps.scanRepository.UpdateScanStatus(ctx, scanID, scanData); err != nil {
+func (ps *PollingService) updateScanStatus(ctx context.Context, hubID, scanID string, scanData *client.ScanResultDataResponse) error {
+	if err := ps.scanRepository.UpdateScanStatus(ctx, hubID, scanID, scanData); err != nil {
 		return fmt.Errorf("failed to update scan in database: %w", err)
 	}
 	return nil
@@ -443,7 +443,7 @@ func (ps *PollingService) insertVulnerabilities(ctx context.Context, scan reposi
 	// Insert SAST vulnerabilities into database using repository
 	if len(sastVulnData.Results) > 0 {
 		log.Debug().Msgf("Inserting %d SAST vulnerabilities for scan %s", len(sastVulnData.Results), scan.ID)
-		if err := ps.vulnRepository.InsertVulnerabilities(ctx, scan.ID, sastVulnData); err != nil {
+		if err := ps.vulnRepository.InsertVulnerabilities(ctx, scan.HubID, scan.ID, sastVulnData); err != nil {
 			log.Error().Err(err).Msgf("Failed to insert SAST vulnerabilities for scan %s", scan.ID)
 		}
 		// update scan type count for sast
@@ -458,7 +458,7 @@ func (ps *PollingService) insertVulnerabilities(ctx context.Context, scan reposi
 		// Expand items with comma-separated components into individual entries
 		scaVulnData = ps.expandScaVulnerabilitiesByComponent(scaVulnData)
 
-		if err := ps.vulnRepository.InsertScaVulnerabilities(ctx, scan.ID, scaVulnData); err != nil {
+		if err := ps.vulnRepository.InsertScaVulnerabilities(ctx, scan.HubID, scan.ID, scaVulnData); err != nil {
 			log.Error().Err(err).Msgf("Failed to insert SCA vulnerabilities for scan %s", scan.ID)
 		}
 		// update scan type count for sca

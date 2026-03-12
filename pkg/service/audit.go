@@ -21,12 +21,12 @@ type AuditService interface {
 }
 
 type auditService struct {
-	logger          *utils.ErrorLogger
-	ssdService      *SSDService
-	auditRepo       *repository.AuditRepository
-	userRepo        *repository.UserRepository
-	scanRepo        *repository.ScanRepository
-	remediationRepo *repository.RemediationRepository
+	logger           *utils.ErrorLogger
+	ssdService       *SSDService
+	auditRepo        *repository.AuditRepository
+	userRepo         *repository.UserRepository
+	scanRepo         *repository.ScanRepository
+	remediationRepo  *repository.RemediationRepository
 	userSessionsRepo repository.UserSessionsRepository
 }
 
@@ -212,7 +212,7 @@ func (a *auditService) getAuditReportViaEntities() ([]*UserReport, error) {
 	}{}
 	processedUsers := map[string]bool{}
 	for _, hub := range hubsScanData {
-		team, tok := teamMap[hub.ID.String()]
+		team, tok := teamMap[hub.ID]
 		// if hub is not matching then skip that hub
 		if !tok {
 			continue
