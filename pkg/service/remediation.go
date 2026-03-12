@@ -35,6 +35,7 @@ func NewRemediationService() *RemediationService {
 
 type SASTRemediationRequest struct {
 	ID              string  `json:"id"`
+	HubID           string  `json:"hub_id"`
 	VulnerabilityID string  `json:"vulnerability_id"`
 	SessionID       *string `json:"session_id,omitempty"`
 	Platform        string  `json:"platform"`
@@ -54,6 +55,9 @@ type SASTRemediationRequest struct {
 func (s *RemediationService) ValidateSASTRequest(req *SASTRemediationRequest) error {
 	if req.ID == "" {
 		return fmt.Errorf("id is required")
+	}
+	if req.HubID == "" {
+		return fmt.Errorf("hub_id is required")
 	}
 	if req.VulnerabilityID == "" {
 		return fmt.Errorf("vulnerability_id is required")
@@ -104,6 +108,7 @@ func (s *RemediationService) SAST(ctx context.Context, req *SASTRemediationReque
 
 type CVERemediationRequest struct {
 	ID              string  `json:"id"`
+	HubID           string  `json:"hub_id"`
 	VulnerabilityID string  `json:"vulnerability_id"`
 	SessionID       *string `json:"session_id,omitempty"`
 	Token           string  `json:"token"`
@@ -121,6 +126,9 @@ type CVERemediationRequest struct {
 func (s *RemediationService) ValidateCVERequest(req *CVERemediationRequest) error {
 	if req.ID == "" {
 		return fmt.Errorf("id is required")
+	}
+	if req.HubID == "" {
+		return fmt.Errorf("hub_id is required")
 	}
 	if req.VulnerabilityID == "" {
 		return fmt.Errorf("vulnerability_id is required")
