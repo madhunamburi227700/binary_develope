@@ -62,7 +62,8 @@ CREATE INDEX IF NOT EXISTS idx_scans_repo_branch ON scans(repository, branch);
 
 CREATE TABLE IF NOT EXISTS scan_type (
   id             varchar(80)    PRIMARY KEY,           -- e.g., "{scanid}-{type}" or SSD-provided id
-  scan_id        varchar(64)    NOT NULL,
+  scan_id        varchar(64)    NOT NULL,              -- refers to scans.id 
+  hub_id         varchar(64)    NOT NULL,
   scan_type      varchar(32)    NOT NULL,              -- sca, sast, etc.
   tool           varchar(128),
   file_name      varchar(512),
@@ -83,7 +84,8 @@ CREATE INDEX IF NOT EXISTS idx_scan_type_rawjson_gin ON scan_type USING GIN (raw
 
 CREATE TABLE IF NOT EXISTS vulnerabilities (
   id           uuid           PRIMARY KEY DEFAULT gen_random_uuid(),
-  scan_id      varchar(64)    NOT NULL,                 -- refers to scans.id (SSD)
+  scan_id      varchar(64)    NOT NULL,                 -- refers to scans.id
+  hub_id       varchar(64)    NOT NULL,
   name         varchar(800)   NOT NULL,                 -- rule/file/line or CVE id or hashed composite
   scan_type    varchar(32)    NOT NULL,                           -- 'sast' or 'sca' etc
   tool         varchar(128)   NOT NULL,
