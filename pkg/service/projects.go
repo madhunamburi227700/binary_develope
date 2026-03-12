@@ -891,24 +891,6 @@ func (s *ProjectService) CheckAndScanOrCreate(ctx context.Context, owner, repoNa
 	return projectID, scanID, nil
 }
 
-// check if any project exist with this owner
-func (s *ProjectService) checkIfProjectExistsWithOwner(ctx context.Context, owner, repoName string) (bool, error) {
-	exists, err := s.projectRepo.CheckProjectByOwnerAndRepo(ctx, owner, repoName)
-	if err != nil {
-		return false, fmt.Errorf("failed to check if project exists: %w", err)
-	}
-	return exists, nil
-}
-
-// getHubIDAndIntegrationIDFromOwner gets HubID and IntegrationID from the first project with matching owner
-func (s *ProjectService) getHubIDAndIntegrationIDFromOwner(ctx context.Context, owner string) (string, string, error) {
-	projects, err := s.projectRepo.GetProjectsByOwner(ctx, owner)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to get projects by owner: %w", err)
-	}
-	if len(projects) == 0 {
-		return "", "", fmt.Errorf("no projects found for owner: %s", owner)
-	}
-	// Return HubID and IntegrationID from the first project
-	return projects[0].HubID, projects[0].IntegrationID, nil
+func (s *ProjectService) getLatestCompletedHubByOwnerAndRepo(ctx context.Context, owner, repoName string) (string, error) {
+	return s.projectRepo.GetLatestCompletedHubByOwnerAndRepo(ctx, owner, repoName)
 }

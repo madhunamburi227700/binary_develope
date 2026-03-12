@@ -405,3 +405,33 @@ func (r *ProjectRepository) ListAllWithLatestScan(ctx context.Context, hubID str
 
 	return items, nil
 }
+
+// TODO
+// this function needs update after new schema changes with new hub_id column
+func (r *ProjectRepository) GetLatestCompletedHubByOwnerAndRepo(
+	ctx context.Context,
+	owner, repoName string,
+) (string, error) {
+
+	query := `
+        SELECT s.hub_id
+        FROM scans s
+        JOIN projects p ON p.id = s.project_id
+        WHERE p.organisation = $1
+          AND s.repository = $2
+          AND s.status = 'completed'
+        ORDER BY s.created_at DESC
+        LIMIT 1;
+    `
+
+	var hubID string
+	err := r.db.QueryRow(ctx, query, owner, repoName).Scan(&hubID)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return "", nil // not found
+		}
+		return "", fmt.Errorf("failed to get latest completed hub: %w", err)
+	}
+
+	return hubID, nil
+}

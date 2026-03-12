@@ -59,20 +59,22 @@ type SetupWorkflowResponse struct {
 }
 
 // WorkflowSetupService handles workflow setup operations
-type WorkflowSetupService struct {
+type WorkflowService struct {
 	integrationService *IntegrationService
+	projectService     *ProjectService
 	ssdService         *SSDService
 	githubClient       *client.GitHubClient
 	logger             *utils.ErrorLogger
 }
 
 // NewWorkflowSetupService creates a new workflow setup service
-func NewWorkflowSetupService() *WorkflowSetupService {
-	return &WorkflowSetupService{
+func NewWorkflowService() *WorkflowService {
+	return &WorkflowService{
 		integrationService: NewIntegrationService(),
+		projectService:     NewProjectService(),
 		githubClient:       client.NewGitHubClient(),
 		ssdService:         NewSSDService(),
-		logger:             utils.NewErrorLogger("workflow_setup_service"),
+		logger:             utils.NewErrorLogger("workflow_service"),
 	}
 }
 
@@ -80,7 +82,7 @@ func NewWorkflowSetupService() *WorkflowSetupService {
 // TODO: Remove requestHost once the endpoint is deprecated.
 // requestHost is the host of the request coming to the endpoint.
 // It is used to determine if the request is coming from the deprecated '-api' endpoint.
-func (s *WorkflowSetupService) SetupWorkflow(ctx context.Context, req SetupWorkflowRequest) (*SetupWorkflowResponse, error) {
+func (s *WorkflowService) SetupWorkflow(ctx context.Context, req SetupWorkflowRequest) (*SetupWorkflowResponse, error) {
 
 	// Get the workflow branch name based on target branch
 	workflowBranch := getWorkflowBranchName(req.Branch)
@@ -155,7 +157,7 @@ func (s *WorkflowSetupService) SetupWorkflow(ctx context.Context, req SetupWorkf
 }
 
 // CheckWorkflowStatus checks if the workflow is setup for the given repository and branch
-func (s *WorkflowSetupService) CheckWorkflowStatus(ctx context.Context, req SetupWorkflowRequest) (bool, error) {
+func (s *WorkflowService) CheckWorkflowStatus(ctx context.Context, req SetupWorkflowRequest) (bool, error) {
 	// Get GitHub username from integration ID
 	owner, err := s.ssdService.GetGithubUsername(ctx, req.IntegrationID)
 	if err != nil {
@@ -199,19 +201,19 @@ func (s *WorkflowSetupService) CheckWorkflowStatus(ctx context.Context, req Setu
 	return false, nil
 }
 
-func (s *ProjectService) HandleWebhookRequest(ctx context.Context, payload models.WebhookRequest, requestHost string) (string, error) {
+func (s *WorkflowService) HandleWebhookRequest(ctx context.Context, payload models.WebhookRequest, requestHost string) (string, error) {
 
 	headProjectID, url, err := s.HandleWebhook(ctx, payload)
 	if err != nil {
-		s.postPRCommentWithError(ctx, payload, "", requestHost)
+		s.projectService.postPRCommentWithError(ctx, payload, "", requestHost)
 		return webhookErrorURL, err
 	}
-	s.postPRComment(ctx, payload, headProjectID, url, webhookSuccessMessage, webhookStatusSuccess, requestHost)
+	s.projectService.postPRComment(ctx, payload, headProjectID, url, webhookSuccessMessage, webhookStatusSuccess, requestHost)
 	return url, nil
 }
 
 // handle webhook request
-func (s *ProjectService) HandleWebhook(ctx context.Context, payload models.WebhookRequest) (string, string, error) {
+func (s *WorkflowService) HandleWebhook(ctx context.Context, payload models.WebhookRequest) (string, string, error) {
 	successUrl := config.GetUIAddress() + "/projects"
 
 	// filter owner from repo url
@@ -220,23 +222,44 @@ func (s *ProjectService) HandleWebhook(ctx context.Context, payload models.Webho
 		return webhookErrorURL, "", fmt.Errorf("failed to filter owner and repo name from repo URL: %w", err)
 	}
 
-	projectExists, err := s.checkIfProjectExistsWithOwner(ctx, owner, repoName) //proiject id
-	if err != nil {
-		return webhookErrorURL, "", fmt.Errorf("failed to check if project exists: %w", err)
-	}
-
-	if !projectExists {
-		return webhookErrorURL, "", fmt.Errorf("project does not exist for owner: %s", owner)
-	}
-
 	// Get HubID and IntegrationID from existing project with same owner
-	hubID, integrationID, err := s.getHubIDAndIntegrationIDFromOwner(ctx, owner)
+	hubID, err := s.projectService.getLatestCompletedHubByOwnerAndRepo(ctx, owner, repoName)
 	if err != nil {
+		s.logger.LogError(err, "Failed to get latest completed hub by owner and repo", map[string]interface{}{
+			"owner":     owner,
+			"repo_name": repoName,
+		})
 		return webhookErrorURL, "", fmt.Errorf("failed to get hubID and integrationID: %w", err)
 	}
 
+	if hubID == "" {
+		s.logger.LogError(err, "No completed scans found for owner and repo", map[string]interface{}{
+			"owner":     owner,
+			"repo_name": repoName,
+		})
+		return webhookErrorURL, "", fmt.Errorf("no completed scans found for owner and repo: %s/%s", owner, repoName)
+	}
+
+	// get active integration id for the owner
+	integrations, err := s.integrationService.getActiveIntegrationsByTeamID(ctx, "github", hubID)
+	if err != nil {
+		s.logger.LogError(err, "Failed to get active integrations", map[string]interface{}{
+			"owner": owner,
+		})
+		return webhookErrorURL, "", fmt.Errorf("failed to get active integrations: %w", err)
+	}
+
+	if len(integrations) == 0 {
+		s.logger.LogError(err, "No active integrations found", map[string]interface{}{
+			"owner": owner,
+		})
+		return webhookErrorURL, "", fmt.Errorf("no active integrations found for owner: %s", owner)
+	}
+
+	integrationID := integrations[0].ID
+
 	// Process base branch
-	baseProjectID, baseScanID, err := s.CheckAndScanOrCreate(ctx, owner, repoName, payload.BaseBranch, hubID, integrationID)
+	baseProjectID, baseScanID, err := s.projectService.CheckAndScanOrCreate(ctx, owner, repoName, payload.BaseBranch, hubID, integrationID)
 	if err != nil {
 		s.logger.LogError(err, "Failed to process base branch", map[string]interface{}{
 			"baseBranch": payload.BaseBranch,
@@ -248,7 +271,7 @@ func (s *ProjectService) HandleWebhook(ctx context.Context, payload models.Webho
 	}
 
 	// Process head branch
-	headProjectID, headScanID, err := s.CheckAndScanOrCreate(ctx, owner, repoName, payload.HeadBranch, hubID, integrationID)
+	headProjectID, headScanID, err := s.projectService.CheckAndScanOrCreate(ctx, owner, repoName, payload.HeadBranch, hubID, integrationID)
 	if err != nil {
 		s.logger.LogError(err, "Failed to process head branch", map[string]interface{}{
 			"headBranch": payload.HeadBranch,

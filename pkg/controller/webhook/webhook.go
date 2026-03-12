@@ -12,14 +12,14 @@ import (
 
 type WebhookController struct {
 	projectService  *service.ProjectService
-	workflowService *service.WorkflowSetupService
+	workflowService *service.WorkflowService
 	logger          *utils.ErrorLogger
 }
 
 func NewWebhookController() *WebhookController {
 	return &WebhookController{
 		projectService:  service.NewProjectService(),
-		workflowService: service.NewWorkflowSetupService(),
+		workflowService: service.NewWorkflowService(),
 		logger:          utils.NewErrorLogger("webhook_controller"),
 	}
 }
@@ -109,7 +109,7 @@ func (c *WebhookController) HandleWebhook(w http.ResponseWriter, r *http.Request
 	}
 
 	// TODO: Remove r.Host once the endpoint is deprecated
-	url, err := c.projectService.HandleWebhookRequest(r.Context(), payload, r.Host)
+	url, err := c.workflowService.HandleWebhookRequest(r.Context(), payload, r.Host)
 	if err != nil {
 		sendWebhookResponse(w, url, "Please register repo and branch to scan and remediate vulnerabilities using AI Guardian PR scan feature.", "error")
 		return

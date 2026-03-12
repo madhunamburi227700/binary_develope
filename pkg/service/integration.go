@@ -13,6 +13,7 @@ import (
 // IntegrationService handles integration-specific operations
 type IntegrationService struct {
 	ssdService  *SSDService
+	ssdClient   *client.SSDClient
 	projectRepo *repository.ProjectRepository
 	logger      *utils.ErrorLogger
 }
@@ -21,6 +22,7 @@ type IntegrationService struct {
 func NewIntegrationService() *IntegrationService {
 	return &IntegrationService{
 		ssdService:  NewSSDService(),
+		ssdClient:   client.NewSSDClient(),
 		projectRepo: repository.NewProjectRepository(),
 		logger:      utils.NewErrorLogger("integration_service"),
 	}
@@ -60,9 +62,7 @@ type InstallGitHubAppRequest struct {
 
 // GetIntegrationsByType retrieves integrations by type
 func (s *IntegrationService) GetIntegrationsByType(ctx context.Context, integratorType, teamIDs string) ([]client.Integration, error) {
-	ssdClient := client.NewSSDClient()
-
-	integrations, err := ssdClient.GetIntegrations(ctx, integratorType, teamIDs)
+	integrations, err := s.ssdClient.GetIntegrations(ctx, integratorType, teamIDs)
 	if err != nil {
 		s.logger.LogError(err, "Failed to get integrations", map[string]interface{}{
 			"integrator_type": integratorType,
@@ -107,9 +107,7 @@ func (s *IntegrationService) ValidateGitHubIntegration(ctx context.Context, req 
 		ID:   utils.GenerateUUID(),
 	}
 
-	ssdClient := client.NewSSDClient()
-
-	return ssdClient.ValidateIntegration(ctx, reqClient, req.TeamIDs)
+	return s.ssdClient.ValidateIntegration(ctx, reqClient, req.TeamIDs)
 }
 
 // CreateIntegration creates a new integration
@@ -172,9 +170,7 @@ func (s *IntegrationService) CreateIntegration(ctx context.Context, req *client.
 		return "", err
 	}
 
-	ssdClient := client.NewSSDClient()
-
-	result, err := ssdClient.CreateIntegration(ctx, req, teamIDs)
+	result, err := s.ssdClient.CreateIntegration(ctx, req, teamIDs)
 	if err != nil {
 		s.logger.LogError(err, "Failed to create integration", map[string]interface{}{
 			"integration_id": req.ID,
@@ -250,9 +246,7 @@ func (s *IntegrationService) ListActiveIntegrations(ctx context.Context, integra
 
 // GetResourceCounts retrieves resource counts from SSD
 func (s *IntegrationService) GetResourceCounts(ctx context.Context) (*client.ResourceResponse, error) {
-	ssdClient := client.NewSSDClient()
-
-	resources, err := ssdClient.GetResources(ctx)
+	resources, err := s.ssdClient.GetResources(ctx)
 	if err != nil {
 		s.logger.LogError(err, "Failed to get resources", map[string]interface{}{})
 		return nil, fmt.Errorf("failed to get resources: %w", err)
@@ -421,4 +415,12 @@ func (s *IntegrationService) GetGitHubTokenFromIntegrationID(ctx context.Context
 	}
 
 	return token, nil
+}
+
+func (s *IntegrationService) getActiveIntegrationsByTeamID(ctx context.Context, integratorType, teamID string) ([]client.Integration, error) {
+	integrations, err := s.ssdClient.GetActiveIntegrationsByTeamID(ctx, integratorType, teamID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get active integrations: %w", err)
+	}
+	return integrations, nil
 }

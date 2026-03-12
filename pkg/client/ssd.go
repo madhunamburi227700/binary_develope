@@ -1231,3 +1231,25 @@ func (c *SSDClient) DownloadSBOMJSON(ctx context.Context, fileName string) ([]by
 	}
 	return resp.Body, nil
 }
+
+// Integration operations
+func (c *SSDClient) GetActiveIntegrationsByTeamID(ctx context.Context, integratorType, teamID string) ([]Integration, error) {
+	endpoint := fmt.Sprintf("/gate/ssdservice/v1/team/active/integration?integratorType=%s&teamId=%s",
+		integratorType, teamID)
+
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to get integrations: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result []Integration
+	if err := resp.ParseJSON(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse integrations response: %w", err)
+	}
+
+	return result, nil
+}

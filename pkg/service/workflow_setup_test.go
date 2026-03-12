@@ -87,10 +87,10 @@ func TestSetupWorkflowResponse(t *testing.T) {
 
 // TestNewWorkflowSetupService tests service creation
 // Note: This test requires database initialization, skipping in unit tests
-func TestNewWorkflowSetupService(t *testing.T) {
+func TestNewWorkflowService(t *testing.T) {
 	t.Skip("Skipping: requires database initialization")
 
-	service := NewWorkflowSetupService()
+	service := NewWorkflowService()
 
 	assert.NotNil(t, service)
 	assert.NotNil(t, service.integrationService)
