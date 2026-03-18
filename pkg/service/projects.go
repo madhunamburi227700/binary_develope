@@ -96,6 +96,7 @@ type RecentScan struct {
 	ScanId             string     `json:"scan_id"`
 	Branch             string     `json:"branch"`
 	CommitId           string     `json:"commit_id"`
+	CommitSha          string     `json:"commit_sha"`
 	ScanTime           *time.Time `json:"scan_time"`
 	IssueCriticalCount *int       `json:"issue_critical_count"`
 	IssueHighCount     *int       `json:"issue_high_count"`
@@ -704,6 +705,7 @@ func (s *ProjectService) getProjectStats(ctx context.Context, projectId string) 
 			ScanId:             entry.ScanId,
 			Branch:             entry.Branch,
 			CommitId:           commitSha,
+			CommitSha:          entry.CommitSHA,
 			ScanTime:           &scanTime,
 			IssueCriticalCount: &totalCriticalCount,
 			IssueHighCount:     &totalHighCount,

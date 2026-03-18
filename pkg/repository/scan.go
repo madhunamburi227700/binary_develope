@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/models"
 )
@@ -498,4 +499,33 @@ func (s *ScanRepository) GetScansVulns(ctx context.Context) ([]*models.Hub, erro
 		}
 	}
 	return hubs, nil
+}
+
+// GetScanWithProjectByScanID returns repository and organisation for a scan (single join).
+func (r *ScanRepository) GetScanWithProjectByScanID(ctx context.Context, scanID string) (*models.ScanWithProject, error) {
+	query := `
+	SELECT 
+		s.id,
+		s.project_id,
+		s.repository,
+		p.organisation
+	FROM scans s
+	JOIN projects p ON p.id = s.project_id
+	WHERE s.id = $1
+	LIMIT 1;
+	`
+	var out models.ScanWithProject
+	err := r.db.QueryRow(ctx, query, scanID).Scan(
+		&out.ScanID,
+		&out.ProjectID,
+		&out.Repository,
+		&out.Organisation,
+	)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return nil, fmt.Errorf("scan not found: %s", scanID)
+		}
+		return nil, fmt.Errorf("failed to get scan with project: %w", err)
+	}
+	return &out, nil
 }

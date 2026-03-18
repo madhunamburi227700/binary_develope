@@ -60,3 +60,10 @@ type ScanExt struct {
 	CreatedAt      time.Time  `db:"created_at"`
 	Vulnerabilites []*Vulnerability
 }
+
+type ScanWithProject struct {
+	ScanID       string
+	ProjectID    string
+	Repository   string
+	Organisation string
+}

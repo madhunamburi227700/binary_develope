@@ -7,6 +7,7 @@ import (
 
 	"github.com/opsmx/ai-guardian-api/pkg/controller/audit"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/auth"
+	"github.com/opsmx/ai-guardian-api/pkg/controller/cspm"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/features"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/feedback"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/hub"
@@ -37,6 +38,8 @@ func SetupRoutes() *mux.Router {
 	featuresController := features.NewFeaturesController()
 	auditController := audit.NewAuditController()
 	webhookController := webhook.NewWebhookController()
+	cspmController := cspm.NewCSPMController()
+
 	// Public auth routes (no authentication required)
 	authRouter := r.PathPrefix("/auth").Subrouter()
 	{
@@ -203,6 +206,25 @@ func SetupRoutes() *mux.Router {
 		nliRouter := apiRouter.PathPrefix("/nli").Subrouter()
 		{
 			nliRouter.HandleFunc("/stream", remediationController.NLI).Methods(http.MethodPost)
+		}
+
+		// CSPM routes
+		cspmRouter := apiRouter.PathPrefix("/cspm").Subrouter()
+		{
+			// Network map (artifact-centric)
+			cspmRouter.HandleFunc("/networkmap", cspmController.GetNetworkMap).Methods(http.MethodGet)
+
+			// Resources
+			cspmRouter.HandleFunc("/resources", cspmController.GetResources).Methods(http.MethodGet)
+
+			// Resources summary
+			cspmRouter.HandleFunc("/resources/summary", cspmController.GetResourcesSummary).Methods(http.MethodGet)
+
+			// Blast radius
+			cspmRouter.HandleFunc("/resources/blast-radius", cspmController.GetBlastRadius).Methods(http.MethodGet)
+
+			// Get deployments
+			cspmRouter.HandleFunc("/deployments", cspmController.GetDeployments).Methods(http.MethodGet)
 		}
 	}
 

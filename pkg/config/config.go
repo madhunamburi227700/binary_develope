@@ -104,6 +104,10 @@ type configType struct {
 	CSPMUsers          []string `yaml:"cspmUsers"`
 	ApiAddr            string   `yaml:"apiAddr"`
 	NLIBaseURL         string   `yaml:"nliBaseURL"`
+	CSPMMCP            struct {
+		BaseURL        string `yaml:"baseURL"`
+		TimeoutSeconds int    `yaml:"timeoutSeconds"`
+	} `yaml:"cspm_mcp_service"`
 }
 
 var config configType
@@ -382,4 +386,17 @@ func GetNLIBaseURL() string {
 		return "http://localhost:8599"
 	}
 	return config.NLIBaseURL
+}
+
+// GetCSPMMCPBaseURL returns the base URL for the CSPM MCP service.
+func GetCSPMMCPBaseURL() string {
+	if config.CSPMMCP.BaseURL == "" {
+		return "http://ssd-api-mcp"
+	}
+	return config.CSPMMCP.BaseURL
+}
+
+// CSPM MCP timeout
+func GetCSPMMCPTimeout() int {
+	return config.CSPMMCP.TimeoutSeconds
 }

@@ -610,3 +610,164 @@ type SASTScanResult struct {
 		Severity string `json:"severity"`
 	} `json:"data"`
 }
+
+// SSD CSPM MCP APIs below
+
+// Request params for GET /api/v1/networkmap
+type GetNetworkMapParams struct {
+	// Either set Sha, or set Name (+ optional Tag).
+	Name string
+	Tag  string
+	Sha  string
+}
+
+// Network map response types
+type NetworkMapResponse struct {
+	Data NetworkMapData `json:"data"`
+}
+
+type NetworkMapData struct {
+	ArtifactName string                     `json:"artifactName"`
+	ArtifactTag  string                     `json:"artifactTag"`
+	ArtifactSha  string                     `json:"artifactSha"`
+	Deployments  []NetworkMapDeploymentInfo `json:"deployments"`
+}
+
+type NetworkMapDeploymentInfo struct {
+	DeploymentID     string          `json:"deploymentId"`
+	CloudProvider    string          `json:"cloudProvider"`
+	CloudAccountName string          `json:"cloudAccountName"`
+	Graph            NetworkMapGraph `json:"graph"`
+}
+
+// Generic graph node – recursive structure
+type NetworkMapGraph struct {
+	ID                  string            `json:"id,omitempty"`
+	Name                string            `json:"name"`
+	ResourceType        string            `json:"resourceType"`
+	Path                []string          `json:"path"`
+	ConnectionType      string            `json:"connectionType,omitempty"`
+	ChildResources      []NetworkMapGraph `json:"childResources,omitempty"`
+	AssociatedResources []NetworkMapGraph `json:"associatedResources,omitempty"`
+}
+
+// GetCSPMResourcesParams holds query parameters for
+// GET /api/v1/cspm/resources.
+type GetCSPMResourcesParams struct {
+	ID               string
+	CloudProvider    string
+	CloudAccountName string
+	ResourceType     string
+	Name             string
+	NameRegex        string
+	HasFindings      *bool // nil = omit, non-nil = include true/false
+	Page             int
+	PerPage          int
+}
+
+// GetCSPMResourcesResponse is the top-level response for
+// GET /api/v1/cspm/resources.
+type GetCSPMResourcesResponse struct {
+	Data     []CSPMResourceGroup `json:"data"`
+	PageInfo PageInfo            `json:"pageInfo"`
+}
+
+// CSPMResourceGroup groups resources by cloud provider and account.
+type CSPMResourceGroup struct {
+	CloudProvider    string         `json:"cloudProvider"`
+	CloudAccountName string         `json:"cloudAccountName"`
+	Resources        []CSPMResource `json:"resources"`
+}
+
+// CSPMResource represents a single CSPM resource entry.
+type CSPMResource struct {
+	ID                  string              `json:"id"`
+	Name                string              `json:"name"`
+	ResourceType        string              `json:"resourceType"`
+	NetworkResourceType string              `json:"networkResourceType"`
+	Details             string              `json:"details"`
+	ParentResource      *CSPMParentResource `json:"parentResource,omitempty"`
+	// If the API later adds more fields, extend here.
+}
+
+// CSPMParentResource represents the parent of a CSPM resource.
+type CSPMParentResource struct {
+	ID           string `json:"id"`
+	Name         string `json:"name"`
+	ResourceType string `json:"resourceType"`
+}
+
+// PageInfo contains pagination metadata for CSPM list responses.
+type PageInfo struct {
+	Page       int `json:"page"`
+	PerPage    int `json:"perPage"`
+	TotalItems int `json:"totalItems"`
+	TotalPages int `json:"totalPages"`
+}
+
+// GetCSPMResourcesSummaryParams holds query parameters for
+// GET /api/v1/cspm/resources/summary.
+type GetCSPMResourcesSummaryParams struct {
+	CloudProvider    string
+	CloudAccountName string
+	HasFindings      *bool // nil = omit; non-nil = include true/false
+}
+
+// GetCSPMResourcesSummaryResponse is the top-level response for
+// GET /api/v1/cspm/resources/summary.
+type GetCSPMResourcesSummaryResponse struct {
+	Data CSPMResourcesSummaryData `json:"data"`
+}
+
+// CSPMResourcesSummaryData contains the aggregated counts.
+type CSPMResourcesSummaryData struct {
+	TotalResources int                        `json:"totalResources"`
+	ByResourceType []CSPMResourcesByTypeEntry `json:"byResourceType"`
+}
+
+// CSPMResourcesByTypeEntry holds count per resource type.
+type CSPMResourcesByTypeEntry struct {
+	ResourceType string `json:"resourceType"`
+	Count        int    `json:"count"`
+}
+
+// GetCSPMResourceBlastRadiusParams holds query parameters for
+// GET /api/v1/cspm/resources/blast-radius.
+type GetCSPMResourceBlastRadiusParams struct {
+	ID               string
+	MaxDepth         int
+	CloudProvider    string
+	CloudAccountName string
+}
+
+// BlastRadiusResponse is the top-level response for
+// GET /api/v1/cspm/resources/blast-radius.
+type BlastRadiusResponse struct {
+	Data BlastRadiusData `json:"data"`
+}
+
+// BlastRadiusData contains blast-radius metadata and reachable resources.
+type BlastRadiusData struct {
+	StartResourceID  string                    `json:"startResourceId"`
+	CloudProvider    string                    `json:"cloudProvider"`
+	CloudAccountName string                    `json:"cloudAccountName"`
+	MaxDepth         int                       `json:"maxDepth"`
+	Resources        []BlastRadiusResourceEdge `json:"resources"`
+	TotalFindings    int                       `json:"totalFindings"`
+}
+
+// BlastRadiusResourceEdge represents a single node in the blast-radius graph.
+type BlastRadiusResourceEdge struct {
+	Resource       BlastRadiusResource `json:"resource"`
+	Depth          int                 `json:"depth"`
+	Path           []string            `json:"path"`
+	ConnectionType string              `json:"connectionType,omitempty"`
+}
+
+// BlastRadiusResource is the minimal resource representation within blast-radius.
+type BlastRadiusResource struct {
+	ID                  string `json:"id"`
+	Name                string `json:"name"`
+	ResourceType        string `json:"resourceType"`
+	NetworkResourceType string `json:"networkResourceType"`
+}

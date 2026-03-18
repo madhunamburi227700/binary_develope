@@ -1253,3 +1253,33 @@ func (c *SSDClient) GetActiveIntegrationsByTeamID(ctx context.Context, integrato
 
 	return result, nil
 }
+
+type ArtifactResponse struct {
+	ArtifactNodes ArtifactNode `json:"artifactNode"`
+}
+
+type ArtifactNode struct {
+	ArtifactName string `json:"artifactName"`
+	ArtifactTag  string `json:"artifactTag"`
+	ArtifactSha  string `json:"artifactSha"`
+}
+
+func (c *SSDClient) GetArtifact(ctx context.Context, commitsha, githubUrl string) ([]*ArtifactResponse, error) {
+	endpoint := fmt.Sprintf("/gate/ssdservice/v1/source/artifact?commit=%s&sourcerepo=%s", commitsha, githubUrl)
+
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get artifact: %w", err)
+	}
+
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to get artifact: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result []*ArtifactResponse
+	if err := resp.ParseJSON(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse artifact response: %w", err)
+	}
+
+	return result, nil
+}
