@@ -40,5 +40,9 @@ func (f *featuresService) GetUserFeatures(username string) (map[string]string, e
 	// chatInterface features flag addition true for all users for now
 	userFeatures["chatInterface"] = "true"
 
+	if slices.Contains(config.GetCSPMUsers(), user.Email.String) {
+		userFeatures["cspm"] = "true"
+	}
+
 	return userFeatures, nil
 }

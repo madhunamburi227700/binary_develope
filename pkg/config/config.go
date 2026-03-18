@@ -101,6 +101,7 @@ type configType struct {
 	} `yaml:"notification"`
 	AuditUsers         []string `yaml:"auditUsers"`
 	ChatInterfaceUsers []string `yaml:"chatInterfaceUsers"`
+	CSPMUsers          []string `yaml:"cspmUsers"`
 	ApiAddr            string   `yaml:"apiAddr"`
 	NLIBaseURL         string   `yaml:"nliBaseURL"`
 }
@@ -308,6 +309,11 @@ func GetAuditUsers() []string {
 // GetChatInterfaceUsers the users which are allowed to use chat interface
 func GetChatInterfaceUsers() []string {
 	return config.ChatInterfaceUsers
+}
+
+// GetCSPMUsers the users which are allowed to use CSPM feature
+func GetCSPMUsers() []string {
+	return config.CSPMUsers
 }
 
 // GetSemgrepTimeoutSeconds returns the semgrep timeout in seconds (default: 60)
