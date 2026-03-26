@@ -160,6 +160,7 @@ func fetchUserEmail(r *http.Request, userRepo *repository.UserRepository, logger
 	// Fetch user email from database
 	dbUser, err := userRepo.GetByProviderUserID(r.Context(), sessionUser.Username)
 	if err != nil {
+		logger.LogError(err, "Failed to fetch user information", nil)
 		return "", errors.New("Failed to fetch user information")
 	}
 
@@ -215,6 +216,73 @@ func (c *RemediationController) NLI(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		c.logger.LogError(err, err.Error(), nil)
 		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if err = client.FlushSSE(r.Context(), w, *resp); err != nil {
+		c.logger.LogError(err, err.Error(), nil)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+}
+
+// CSPMRemediation handles CSPM (Cloud Security Posture Management) remediation
+// @Summary Process CSPM remediation
+// @Description Processes CSPM findings and provides remediation suggestions
+// @Tags Remediation
+// @Accept  json
+// @Produce  json
+// @Param   request body service.CSPMRemediationRequest true "CSPM remediation request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid request body"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/remediation/cspm [post]
+func (c *RemediationController) CSPMRemediation(w http.ResponseWriter, r *http.Request) {
+
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		c.logger.LogError(err, "failed to parse request body", nil)
+		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	projectId := r.URL.Query().Get("projectId")
+	commitsha := r.URL.Query().Get("commitsha")
+	if strings.TrimSpace(commitsha) == "" || strings.TrimSpace(projectId) == "" {
+		utils.SendErrorResponse(w, http.StatusBadRequest, "commitsha and projectId cannot be blank")
+		return
+	}
+
+	var payload service.CSPMRemediationRequest
+	if err := json.Unmarshal(body, &payload); err != nil {
+		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if err := c.remediationService.ValidateCSPMRequest(&payload); err != nil {
+		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	if config.GetNotificationEnabled() {
+		userEmail, err := fetchUserEmail(r, c.userRepo, c.logger)
+		if err != nil {
+			c.logger.LogError(err, "Failed to fetch email for the user", nil)
+		}
+		payload.UserEmail = userEmail
+	}
+
+	resp, err := c.remediationService.CSPM(r.Context(), &payload, projectId, r.Header, r.URL.Query(), commitsha)
+	if err != nil {
+		c.logger.LogError(err, err.Error(), nil)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	if resp == nil {
+		c.logger.LogError(errors.New("failed to get remediation response"), "failed to get remediation response", nil)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, "failed to get remediation response")
 		return
 	}
 

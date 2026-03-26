@@ -322,3 +322,31 @@ func (s *SSDService) DeleteIntegration(ctx context.Context, integrationId, integ
 		TeamID:          hubID,
 	})
 }
+
+func (s *SSDService) GetArtifactSha(ctx context.Context, organisation, repository string, commitsha string) string {
+
+	ssdClient := client.NewSSDClient()
+
+	githubUrl := fmt.Sprintf("https://github.com/%s/%s", organisation, repository)
+
+	artifactResponse, err := ssdClient.GetArtifact(ctx, commitsha, githubUrl)
+	if err != nil {
+		s.logger.LogError(err, "failed to get artifact", map[string]interface{}{
+			"organisation": organisation,
+			"repository":   repository,
+			"commitsha":    commitsha,
+		})
+		return ""
+	}
+
+	if len(artifactResponse) == 0 {
+		s.logger.LogError(fmt.Errorf("no artifact found"), "no artifact found", map[string]interface{}{
+			"organisation": organisation,
+			"repository":   repository,
+			"commitsha":    commitsha,
+		})
+		return ""
+	}
+
+	return artifactResponse[0].ArtifactNodes.ArtifactSha
+}

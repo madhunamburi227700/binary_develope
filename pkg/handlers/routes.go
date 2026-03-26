@@ -153,6 +153,7 @@ func SetupRoutes() *mux.Router {
 		{
 			remediationsRouter.HandleFunc("/sast", remediationController.SASTRemediation).Methods(http.MethodPost)
 			remediationsRouter.HandleFunc("/cve", remediationController.CVERemediation).Methods(http.MethodPost)
+			remediationsRouter.HandleFunc("/cspm", remediationController.CSPMRemediation).Methods(http.MethodPost)
 			remediationsRouter.HandleFunc("/conversation/{id}", remediationController.Conversation).Methods(http.MethodGet)
 		}
 
