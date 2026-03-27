@@ -63,12 +63,15 @@ func TestSendSlack_Success(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var payload map[string]string
+		var payload map[string]interface{}
 		if err := json.Unmarshal(body, &payload); err != nil {
 			t.Fatal(err)
 		}
-		if payload["text"] != "test message" {
-			t.Errorf("payload text %q, want %q", payload["text"], "test message")
+		if got, ok := payload["text"].(string); !ok || got != "@here test message" {
+			t.Errorf("payload text %v, want %q", payload["text"], "@here test message")
+		}
+		if ln, ok := payload["link_names"].(bool); !ok || !ln {
+			t.Errorf("payload link_names %v, want true", payload["link_names"])
 		}
 		w.WriteHeader(http.StatusOK)
 	}))
