@@ -108,6 +108,32 @@ type configType struct {
 		BaseURL        string `yaml:"baseURL"`
 		TimeoutSeconds int    `yaml:"timeoutSeconds"`
 	} `yaml:"cspm_mcp_service"`
+
+	// Uptime Tracker Config
+	UptimeTracker struct {
+		Services []Service `yaml:"services"`
+	} `yaml:"uptimeTracker"`
+}
+
+// uptime tracker Service struct
+type Service struct {
+	Name string `yaml:"name"`
+	URL  string `yaml:"url"`
+
+	IntervalSeconds int `yaml:"intervalSeconds"`
+	TimeoutSeconds  int `yaml:"timeoutSeconds"`
+
+	Notifications struct {
+		Email struct {
+			Enabled   bool     `yaml:"enabled"`
+			Addresses []string `yaml:"addresses"`
+		} `yaml:"email"`
+
+		Slack struct {
+			Enabled   bool     `yaml:"enabled"`
+			Addresses []string `yaml:"addresses"`
+		} `yaml:"slack"`
+	} `yaml:"notifications"`
 }
 
 var config configType
@@ -215,6 +241,11 @@ func GetS3BucketName() string {
 
 func GetScanningServiceAddr() string {
 	return config.ScanningService.Addr
+}
+
+// uptimetracker related getters
+func GetUptimeServices() []Service {
+	return config.UptimeTracker.Services
 }
 
 // GetShowVersion returns whether the version should be shown

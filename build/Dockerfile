@@ -2,12 +2,16 @@ FROM golang:alpine AS build
 
 RUN apk update && apk add --no-cache git
 WORKDIR /workspace
-COPY ./ .
+
 RUN --mount=type=secret,id=GIT_TOKEN \
     git config --global url."https://$(cat /run/secrets/GIT_TOKEN)@github.com/OpsMx".insteadOf "https://github.com/OpsMx"
 
+COPY go.mod go.sum ./
+
 RUN go env -w GOPRIVATE=github.com/OpsMx && \
     go mod download
+
+COPY ./ .
 
 RUN go build -o app cmd/main.go
 

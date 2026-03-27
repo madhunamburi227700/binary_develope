@@ -16,3 +16,6 @@ down: ## Stop all Docker services
 
 logs: ## View logs
 	cd build && docker-compose logs -f
+
+test:
+	go clean -testcache && go test ./... -cover

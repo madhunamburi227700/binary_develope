@@ -16,6 +16,7 @@ import (
 	"github.com/opsmx/ai-guardian-api/pkg/database"
 	"github.com/opsmx/ai-guardian-api/pkg/handlers"
 	"github.com/opsmx/ai-guardian-api/pkg/service"
+	"github.com/opsmx/ai-guardian-api/pkg/uptimetracker"
 	"github.com/rs/zerolog/log"
 
 	// Swagger imports
@@ -82,6 +83,10 @@ func main() {
 	// Create main context for the application
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// Start uptime tracker in background
+	tracker := uptimetracker.NewUptimeTracker()
+	go tracker.Start(ctx)
 
 	// Start session manager
 	if err := config.StartSessionManager(ctx); err != nil {
