@@ -105,8 +105,9 @@ type configType struct {
 	ApiAddr            string   `yaml:"apiAddr"`
 	NLIBaseURL         string   `yaml:"nliBaseURL"`
 	CSPMMCP            struct {
-		BaseURL        string `yaml:"baseURL"`
-		TimeoutSeconds int    `yaml:"timeoutSeconds"`
+		BaseURL          string `yaml:"baseURL"`
+		TimeoutSeconds   int    `yaml:"timeoutSeconds"`
+		ResourceCacheTTL int    `yaml:"resourceCacheTTL"`
 	} `yaml:"cspm_mcp_service"`
 
 	// Uptime Tracker Config
@@ -430,4 +431,9 @@ func GetCSPMMCPBaseURL() string {
 // CSPM MCP timeout
 func GetCSPMMCPTimeout() int {
 	return config.CSPMMCP.TimeoutSeconds
+}
+
+// GetCSPMStaticResourceCloudAccountName returns the static resource cloud account name
+func GetCSPMStaticResource() int {
+	return config.CSPMMCP.ResourceCacheTTL
 }

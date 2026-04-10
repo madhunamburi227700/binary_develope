@@ -90,6 +90,36 @@ func (c *CSPMController) GetResources(w http.ResponseWriter, r *http.Request) {
 	utils.SendSuccessResponse(w, result, "CSPM resources fetched successfully")
 }
 
+// GET /api/v1/cspm/resources/all?id=...&cloudProvider=...&...
+func (c *CSPMController) GetAllResources(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+
+	var hasFindings *bool
+	if v := q.Get("hasFindings"); v != "" {
+		b := v == "true"
+		hasFindings = &b
+	}
+
+	params := client.GetCSPMResourcesParams{
+		ID:               q.Get("id"),
+		CloudProvider:    q.Get("cloudProvider"),
+		CloudAccountName: q.Get("cloudAccountName"),
+		ResourceType:     q.Get("resourceType"),
+		Name:             q.Get("name"),
+		NameRegex:        q.Get("nameRegex"),
+		HasFindings:      hasFindings,
+	}
+
+	result, err := c.cspmService.GetAllResourcesCached(r.Context(), params)
+	if err != nil {
+		c.logger.LogError(err, "failed to get all CSPM resources", nil)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, "failed to get all CSPM resources")
+		return
+	}
+
+	utils.SendSuccessResponse(w, result, "All CSPM resources fetched successfully")
+}
+
 // GET /api/v1/cspm/resources/summary?cloudProvider=...&cloudAccountName=...&hasFindings=...
 func (c *CSPMController) GetResourcesSummary(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()

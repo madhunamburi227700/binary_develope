@@ -3,8 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/opsmx/ai-guardian-api/pkg/client"
+	"github.com/opsmx/ai-guardian-api/pkg/config"
 	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
@@ -15,15 +19,78 @@ type CSPMService struct {
 	scanRepo   *repository.ScanRepository
 	ssdClient  *client.SSDClient
 	logger     *utils.ErrorLogger
+	cacheMu    sync.RWMutex
+	cache      map[string]cspmResourcesCacheEntry
+}
+
+type cspmResourcesCacheEntry struct {
+	response  *client.GetCSPMResourcesResponse
+	expiresAt time.Time
+}
+
+const (
+	cspmAllResourcesPerPage         = 1000
+	cspmResourcesCacheSweepInterval = 2 * time.Minute // periodic removal of expired cache keys
+)
+
+func (s *CSPMService) cspmResourcesCacheGet(key string) (cspmResourcesCacheEntry, bool) {
+	s.cacheMu.RLock()
+	defer s.cacheMu.RUnlock()
+	e, ok := s.cache[key]
+	return e, ok
+}
+
+func (s *CSPMService) cspmResourcesCacheSet(key string, entry cspmResourcesCacheEntry) {
+	s.cacheMu.Lock()
+	defer s.cacheMu.Unlock()
+	s.cache[key] = entry
+}
+
+func (s *CSPMService) cspmResourcesCacheDelete(key string) {
+	s.cacheMu.Lock()
+	defer s.cacheMu.Unlock()
+	delete(s.cache, key)
 }
 
 // NewCSPMService creates a new CSPM service.
 func NewCSPMService() *CSPMService {
-	return &CSPMService{
+	s := &CSPMService{
 		cspmClient: client.NewCspmMcpClient(),
 		scanRepo:   repository.NewScanRepository(),
 		ssdClient:  client.NewSSDClient(),
 		logger:     utils.NewErrorLogger("cspm_service"),
+		cache:      make(map[string]cspmResourcesCacheEntry),
+	}
+	go s.runCSPMResourcesCacheSweeper()
+	return s
+}
+
+func (s *CSPMService) runCSPMResourcesCacheSweeper() {
+	ticker := time.NewTicker(cspmResourcesCacheSweepInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		s.sweepExpiredCSPMResourcesCache()
+	}
+}
+
+func (s *CSPMService) sweepExpiredCSPMResourcesCache() {
+	now := time.Now()
+	s.cacheMu.Lock()
+	removed := 0
+	for key, entry := range s.cache {
+		if !now.Before(entry.expiresAt) {
+			delete(s.cache, key)
+			removed++
+		}
+	}
+	remaining := len(s.cache)
+	s.cacheMu.Unlock()
+
+	if removed > 0 {
+		s.logger.LogInfo("CSPM resources cache sweep removed expired entries", map[string]interface{}{
+			"removed":   removed,
+			"remaining": remaining,
+		})
 	}
 }
 
@@ -47,6 +114,131 @@ func (s *CSPMService) GetResources(ctx context.Context, params client.GetCSPMRes
 		return nil, fmt.Errorf("failed to get CSPM resources: %w", err)
 	}
 	return result, nil
+}
+
+func (s *CSPMService) GetAllResourcesCached(ctx context.Context, params client.GetCSPMResourcesParams) (*client.GetCSPMResourcesResponse, error) {
+	params.Page = 0
+	params.PerPage = 0
+
+	cacheKey := s.cspmResourcesCacheKey(params)
+	now := time.Now()
+
+	if entry, ok := s.cspmResourcesCacheGet(cacheKey); ok {
+		if now.Before(entry.expiresAt) {
+			return entry.response, nil
+		}
+		s.cspmResourcesCacheDelete(cacheKey)
+	}
+
+	baseParams := params
+	baseParams.Page = 1
+	baseParams.PerPage = cspmAllResourcesPerPage
+
+	firstPage, err := s.cspmClient.GetCSPMResources(ctx, baseParams)
+	if err != nil {
+		s.logger.LogError(err, "failed to get CSPM resources first page", nil)
+		return nil, fmt.Errorf("failed to get CSPM resources first page: %w", err)
+	}
+
+	mergedGroups := make(map[string]*client.CSPMResourceGroup)
+	groupOrder := make([]string, 0)
+	mergePageGroups := func(groups []client.CSPMResourceGroup) {
+		for _, g := range groups {
+			key := g.CloudProvider + "|" + g.CloudAccountName
+			existing, found := mergedGroups[key]
+			if !found {
+				groupCopy := client.CSPMResourceGroup{
+					CloudProvider:    g.CloudProvider,
+					CloudAccountName: g.CloudAccountName,
+					Resources:        append([]client.CSPMResource{}, g.Resources...),
+				}
+				mergedGroups[key] = &groupCopy
+				groupOrder = append(groupOrder, key)
+				continue
+			}
+
+			existing.Resources = append(existing.Resources, g.Resources...)
+		}
+	}
+
+	mergePageGroups(firstPage.Data)
+	totalPages := firstPage.PageInfo.TotalPages
+
+	if totalPages < 1 {
+		if len(firstPage.Data) > 0 {
+			totalPages = 1
+		} else {
+			totalPages = 0
+		}
+	}
+
+	for page := 2; page <= totalPages; page++ {
+		pageParams := baseParams
+		pageParams.Page = page
+
+		pageResult, pageErr := s.cspmClient.GetCSPMResources(ctx, pageParams)
+		if pageErr != nil {
+			s.logger.LogError(pageErr, "failed to get CSPM resources page", map[string]interface{}{
+				"page": page,
+			})
+			return nil, fmt.Errorf("failed to get CSPM resources page %d: %w", page, pageErr)
+		}
+
+		mergePageGroups(pageResult.Data)
+	}
+
+	allData := make([]client.CSPMResourceGroup, 0, len(groupOrder))
+	for _, key := range groupOrder {
+		allData = append(allData, *mergedGroups[key])
+	}
+
+	totalItems := firstPage.PageInfo.TotalItems
+	if totalItems == 0 {
+		totalItems = 0
+		for _, group := range allData {
+			totalItems += len(group.Resources)
+		}
+	}
+
+	aggregated := &client.GetCSPMResourcesResponse{
+		Data: allData,
+		PageInfo: client.PageInfo{
+			Page:       1,
+			PerPage:    totalItems,
+			TotalItems: totalItems,
+			TotalPages: 1,
+		},
+	}
+
+	s.cspmResourcesCacheSet(cacheKey, cspmResourcesCacheEntry{
+		response:  aggregated,
+		expiresAt: now.Add(time.Duration(config.GetCSPMStaticResource()) * time.Hour),
+	})
+
+	return aggregated, nil
+}
+
+func (s *CSPMService) cspmResourcesCacheKey(params client.GetCSPMResourcesParams) string {
+	var hasFindings string
+	if params.HasFindings == nil {
+		hasFindings = "nil"
+	} else if *params.HasFindings {
+		hasFindings = "true"
+	} else {
+		hasFindings = "false"
+	}
+
+	parts := []string{
+		params.ID,
+		params.CloudProvider,
+		params.CloudAccountName,
+		params.ResourceType,
+		params.Name,
+		params.NameRegex,
+		hasFindings,
+	}
+
+	return strings.Join(parts, "|")
 }
 
 func (s *CSPMService) GetResourcesSummary(ctx context.Context, params client.GetCSPMResourcesSummaryParams) (*client.GetCSPMResourcesSummaryResponse, error) {

@@ -217,6 +217,7 @@ func SetupRoutes() *mux.Router {
 
 			// Resources
 			cspmRouter.HandleFunc("/resources", cspmController.GetResources).Methods(http.MethodGet)
+			cspmRouter.HandleFunc("/resources/all", cspmController.GetAllResources).Methods(http.MethodGet)
 
 			// Resources summary
 			cspmRouter.HandleFunc("/resources/summary", cspmController.GetResourcesSummary).Methods(http.MethodGet)
