@@ -2026,37 +2026,6 @@ func TestSSDClient_GetSupportedIntegrators_Error(t *testing.T) {
 	mockHTTPClient.AssertExpectations(t)
 }
 
-// TestSSDClient_DownloadSBOMJSON_Error tests HTTP error
-func TestSSDClient_DownloadSBOMJSON_Error(t *testing.T) {
-	mockHTTPClient := new(MockHTTPClient)
-
-	mockHTTPClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&http.Response{
-		StatusCode: 404,
-		Body:       io.NopCloser(bytes.NewBufferString("File not found")),
-		Header:     http.Header{},
-	}, nil)
-
-	restClient := &RESTClient{
-		baseURL:    "https://api.example.com",
-		httpClient: mockHTTPClient,
-		headers:    map[string]string{},
-		cookies:    map[string]string{},
-	}
-
-	ssdClient := &SSDClient{
-		restClient: restClient,
-		orgID:      "org-123",
-		sessionID:  "session-456",
-	}
-
-	result, err := ssdClient.DownloadSBOMJSON(context.Background(), "nonexistent.json")
-
-	assert.Error(t, err)
-	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "failed to download SBOM JSON")
-	mockHTTPClient.AssertExpectations(t)
-}
-
 // TestSSDClient_Rescan_Error tests HTTP error
 func TestSSDClient_Rescan_Error(t *testing.T) {
 	mockHTTPClient := new(MockHTTPClient)

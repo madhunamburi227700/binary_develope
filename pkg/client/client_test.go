@@ -3,7 +3,6 @@ package client
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -12,7 +11,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 // MockHTTPClient is a mock implementation of HTTPClient
@@ -861,41 +859,5 @@ func TestSSDClient_GetGithubOauthUrl(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "https://github.com/apps/test-app/installations/new", result)
-	mockHTTPClient.AssertExpectations(t)
-}
-
-// TestSSDClient_DownloadSBOMJSON tests DownloadSBOMJSON method
-func TestSSDClient_DownloadSBOMJSON(t *testing.T) {
-	mockHTTPClient := new(MockHTTPClient)
-	sbomData := []byte(`{"packages": [{"name": "package1"}]}`)
-
-	mockHTTPClient.On("Do", mock.AnythingOfType("*http.Request")).Return(&http.Response{
-		StatusCode: 200,
-		Body:       io.NopCloser(bytes.NewBuffer(sbomData)),
-		Header:     http.Header{},
-	}, nil)
-
-	restClient := &RESTClient{
-		baseURL:    "https://api.example.com",
-		httpClient: mockHTTPClient,
-		headers:    map[string]string{},
-		cookies:    map[string]string{},
-	}
-
-	ssdClient := &SSDClient{
-		restClient: restClient,
-		orgID:      "org-123",
-		sessionID:  "session-456",
-	}
-
-	result, err := ssdClient.DownloadSBOMJSON(context.Background(), "sbom-file.json")
-
-	require.NoError(t, err)
-	assert.Equal(t, sbomData, result)
-
-	// Verify it's valid JSON
-	var data map[string]interface{}
-	err = json.Unmarshal(result, &data)
-	assert.NoError(t, err)
 	mockHTTPClient.AssertExpectations(t)
 }

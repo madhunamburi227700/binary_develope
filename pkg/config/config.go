@@ -102,6 +102,7 @@ type configType struct {
 	AuditUsers         []string `yaml:"auditUsers"`
 	ChatInterfaceUsers []string `yaml:"chatInterfaceUsers"`
 	CSPMUsers          []string `yaml:"cspmUsers"`
+	ContextGraphUsers  []string `yaml:"contextGraphUsers"`
 	ApiAddr            string   `yaml:"apiAddr"`
 	NLIBaseURL         string   `yaml:"nliBaseURL"`
 	CSPMMCP            struct {
@@ -350,6 +351,11 @@ func GetChatInterfaceUsers() []string {
 // GetCSPMUsers the users which are allowed to use CSPM feature
 func GetCSPMUsers() []string {
 	return config.CSPMUsers
+}
+
+// GetContextGraphUsers the users which are allowed to use CSPM feature
+func GetContextGraphUsers() []string {
+	return config.ContextGraphUsers
 }
 
 // GetSemgrepTimeoutSeconds returns the semgrep timeout in seconds (default: 60)

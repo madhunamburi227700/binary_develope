@@ -128,8 +128,14 @@ func SetupRoutes() *mux.Router {
 		// integrations
 		integrationsRouter := apiRouter.PathPrefix("/integrations").Subrouter()
 		{
+			integrationsRouter.HandleFunc("/cloud", integratorController.CreateCloudIntegration).Methods(http.MethodPost)
+			integrationsRouter.HandleFunc("/cloud", integratorController.UpdateCloudIntegration).Methods(http.MethodPut)
+
 			// list Integrations
 			integrationsRouter.HandleFunc("/", integratorController.ListIntegrations).Methods(http.MethodGet)
+			// TODO: check and remove thi below /team API
+			// list integrations for a team
+			integrationsRouter.HandleFunc("/team", integratorController.ListIntegrationsForTeam).Methods(http.MethodGet)
 			// create integration
 			integrationsRouter.HandleFunc("/github/create", integratorController.CreateGitHubIntegration).Methods(http.MethodPost)
 			// update integration
@@ -227,6 +233,15 @@ func SetupRoutes() *mux.Router {
 
 			// Get deployments
 			cspmRouter.HandleFunc("/deployments", cspmController.GetDeployments).Methods(http.MethodGet)
+
+			// CSPM cloud findings
+			cspmRouter.HandleFunc("/scan/dashboard", cspmController.GetCSPMDashboard).Methods(http.MethodGet)
+			cspmRouter.HandleFunc("/scan/rulesStatusSummary", cspmController.GetCSPMRulesStatusSummary).Methods(http.MethodGet)
+			cspmRouter.HandleFunc("/scan/policy/{policyId}", cspmController.GetCSPMPolicy).Methods(http.MethodGet)
+			cspmRouter.HandleFunc("/scan/regions", cspmController.GetCSPMRegions).Methods(http.MethodGet)
+			cspmRouter.HandleFunc("/scan/scanResult", cspmController.GetCSPMScanResult).Methods(http.MethodGet)
+			cspmRouter.HandleFunc("/scan/trigger", cspmController.PostCSPMScan).Methods(http.MethodPost)
+			cspmRouter.HandleFunc("/scan/cloudIntegration", cspmController.GetCloudSecurityIntegrationScan).Methods(http.MethodGet)
 		}
 	}
 

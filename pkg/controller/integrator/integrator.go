@@ -3,7 +3,9 @@ package integrator
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
+	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/service"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
@@ -211,8 +213,60 @@ func (c *IntegratorController) GetIntegrationsGithubDetails(w http.ResponseWrite
 	})
 }
 
-// failed to get repo branch list: failed to get repo branch list: status 500, body: {"status":"error","code":500,"error":"unable to fetch github token, error while receiving token response: HTTP 400: {\"success\":false,\"error\":\"failed to create installation token: POST https://api.github.com/app/installations/88096131/access_tokens: 404 Not Found []\",\"code\":\"GITHUB_API_ERROR\"}\n"}
-// github app is not available, please reinstall the app
+// POST /api/v1/integrations/cloud?teamId=uuid1,uuid2&orgId=optional
+func (c *IntegratorController) CreateCloudIntegration(w http.ResponseWriter, r *http.Request) {
+	teamID := r.URL.Query().Get("teamId")
+	if teamID == "" {
+		utils.SendErrorResponse(w, http.StatusBadRequest, "teamId is required")
+		return
+	}
+
+	var req client.CreateIntegrationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		c.logger.LogError(err, "failed to decode cloud integration request", nil)
+		utils.SendErrorResponse(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	msg, err := c.integratorService.CreateCloudIntegration(r.Context(), teamID, &req)
+	if err != nil {
+		c.logger.LogError(err, "failed to create cloud integration", nil)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.SendSuccessResponse(w, msg, "Cloud integration saved successfully")
+}
+
+// PUT /api/v1/integrations/cloud?teamId=uuid&orgId=optional
+func (c *IntegratorController) UpdateCloudIntegration(w http.ResponseWriter, r *http.Request) {
+	teamID := r.URL.Query().Get("teamId")
+	if teamID == "" {
+		utils.SendErrorResponse(w, http.StatusBadRequest, "teamId is required")
+		return
+	}
+
+	var req client.CreateIntegrationRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		c.logger.LogError(err, "failed to decode cloud integration request", nil)
+		utils.SendErrorResponse(w, http.StatusBadRequest, "invalid request body")
+		return
+	}
+
+	if strings.TrimSpace(req.IntegratorType) == "" {
+		utils.SendErrorResponse(w, http.StatusBadRequest, "integratorType is required in request body")
+		return
+	}
+
+	msg, err := c.integratorService.UpdateCloudIntegration(r.Context(), teamID, &req)
+	if err != nil {
+		c.logger.LogError(err, "failed to update cloud integration", nil)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	utils.SendSuccessResponse(w, msg, "Cloud integration updated successfully")
+}
 
 // ListIntegrations lists all active integrations
 // @Summary List active integrations
@@ -227,21 +281,46 @@ func (c *IntegratorController) GetIntegrationsGithubDetails(w http.ResponseWrite
 // @Security ApiKeyAuth
 // @Router /api/v1/integrations [get]
 func (c *IntegratorController) ListIntegrations(w http.ResponseWriter, r *http.Request) {
-	teamIds := r.URL.Query().Get("teamIds")
-	// TODO: manage integrator via provider in future release
-	integratorType := "github"
-	integrators, err := c.integratorService.ListActiveIntegrations(r.Context(), integratorType, teamIds)
-	if err != nil {
-		c.logger.LogError(err, "Failed to get GitHub app install url", nil)
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	teamId := r.URL.Query().Get("teamIds")
+	if teamId == "" {
+		utils.SendErrorResponse(w, http.StatusBadRequest, "teamId is required")
 		return
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-		"data":    integrators,
-	})
+	integratorType := r.URL.Query().Get("integratorType")
+	integrators, err := c.integratorService.ListActiveIntegrations(r.Context(), integratorType, teamId)
+	if err != nil {
+		c.logger.LogError(err, "Failed to list integrations", nil)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	utils.SendSuccessResponse(w, integrators, "Integrations listed successfully")
+}
+
+// ListIntegrationsForTeam lists all integrations for a team
+// @Summary List integrations for a team
+// @Description Returns a list of all integrations for a team
+// @Tags Integrations
+// @Accept  json
+// @Produce  json
+// @Param   teamId query string true "Team ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/integrations/team [get]
+func (c *IntegratorController) ListIntegrationsForTeam(w http.ResponseWriter, r *http.Request) {
+	teamId := r.URL.Query().Get("teamId")
+	if teamId == "" {
+		utils.SendErrorResponse(w, http.StatusBadRequest, "teamId is required")
+		return
+	}
+	integrators, err := c.integratorService.ListIntegrationsForTeam(r.Context(), teamId)
+	if err != nil {
+		c.logger.LogError(err, "Failed to list integrations", nil)
+		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+	utils.SendSuccessResponse(w, integrators, "Integrations listed successfully")
 }
 
 func (c *IntegratorController) DeleteIntegration(w http.ResponseWriter, r *http.Request) {

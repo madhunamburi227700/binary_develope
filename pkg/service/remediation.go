@@ -6,6 +6,7 @@ import (
 
 	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/config"
+	"github.com/opsmx/ai-guardian-api/pkg/models"
 	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
@@ -217,37 +218,16 @@ type CSPMRemediationRequest struct {
 	UserEmail       string  `json:"user_email,omitempty"`
 	ArtifactSha     string  `json:"artifact_sha"`
 	CommitSHA       string  `json:"commit_sha"`
+
+	// CSPM
+	ItemID           string `json:"item_id"`
+	CloudProvider    string `json:"cloud_provider"`
+	CloudName        string `json:"cloud_name"`
+	AffectedResource string `json:"affected_resource"`
+	Details          string `json:"details"`
 }
 
-func (s *RemediationService) ValidateCSPMRequest(req *CSPMRemediationRequest) error {
-	if req.ID == "" {
-		return fmt.Errorf("id is required")
-	}
-	if req.VulnerabilityID == "" {
-		return fmt.Errorf("vulnerability_id is required")
-	}
-	if req.Platform == "" {
-		return fmt.Errorf("platform is required")
-	}
-	if req.Organization == "" {
-		return fmt.Errorf("organization is required")
-	}
-	if req.Repository == "" {
-		return fmt.Errorf("repository is required")
-	}
-	if req.Branch == "" {
-		return fmt.Errorf("branch is required")
-	}
-	if req.Rule == "" {
-		return fmt.Errorf("rule is required")
-	}
-	if req.RuleMessage == "" {
-		return fmt.Errorf("rule_message is required")
-	}
-	return nil
-}
-
-func (s *RemediationService) CSPM(ctx context.Context, req *CSPMRemediationRequest, projectId string, headers, queryParams map[string][]string, commitsha string) (*client.SSEResponse, error) {
+func (s *RemediationService) CSPM(ctx context.Context, req *CSPMRemediationRequest, projectId string, headers, queryParams map[string][]string, commitsha, queryContext string) (*client.SSEResponse, error) {
 	options := client.MakeRequestOptions(headers, queryParams)
 
 	token, err := s.SSDService.getIntegratorToken(ctx, projectId)
@@ -256,7 +236,9 @@ func (s *RemediationService) CSPM(ctx context.Context, req *CSPMRemediationReque
 	}
 	req.Token = token
 
-	req.ArtifactSha = s.SSDService.GetArtifactSha(ctx, req.Organization, req.Repository, commitsha)
-	req.CommitSHA = commitsha
+	if queryContext != models.RemediationContextCloud {
+		req.ArtifactSha = s.SSDService.GetArtifactSha(ctx, req.Organization, req.Repository, commitsha)
+		req.CommitSHA = commitsha
+	}
 	return s.SSEClient.SSERequest(ctx, "/cspm-remediation/v1/fix", "POST", req, options, false)
 }

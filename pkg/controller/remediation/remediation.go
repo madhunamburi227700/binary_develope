@@ -11,6 +11,7 @@ import (
 	"github.com/opsmx/ai-guardian-api/pkg/auth/session"
 	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/config"
+	"github.com/opsmx/ai-guardian-api/pkg/models"
 	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/service"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
@@ -247,20 +248,16 @@ func (c *RemediationController) CSPMRemediation(w http.ResponseWriter, r *http.R
 		return
 	}
 
+	queryContext := r.URL.Query().Get("context")
 	projectId := r.URL.Query().Get("projectId")
 	commitsha := r.URL.Query().Get("commitsha")
-	if strings.TrimSpace(commitsha) == "" || strings.TrimSpace(projectId) == "" {
+	if queryContext != models.RemediationContextCloud && (strings.TrimSpace(commitsha) == "" || strings.TrimSpace(projectId) == "") {
 		utils.SendErrorResponse(w, http.StatusBadRequest, "commitsha and projectId cannot be blank")
 		return
 	}
 
 	var payload service.CSPMRemediationRequest
 	if err := json.Unmarshal(body, &payload); err != nil {
-		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	if err := c.remediationService.ValidateCSPMRequest(&payload); err != nil {
 		utils.SendErrorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -273,7 +270,7 @@ func (c *RemediationController) CSPMRemediation(w http.ResponseWriter, r *http.R
 		payload.UserEmail = userEmail
 	}
 
-	resp, err := c.remediationService.CSPM(r.Context(), &payload, projectId, r.Header, r.URL.Query(), commitsha)
+	resp, err := c.remediationService.CSPM(r.Context(), &payload, projectId, r.Header, r.URL.Query(), commitsha, queryContext)
 	if err != nil {
 		c.logger.LogError(err, err.Error(), nil)
 		utils.SendErrorResponse(w, http.StatusInternalServerError, err.Error())

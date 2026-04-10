@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -171,6 +172,43 @@ func (c *SSDClient) GetIntegrations(ctx context.Context, integratorType, teamIDs
 	}
 
 	return result, nil
+}
+
+// CreateCloudIntegration creates or updates a cloud integration via POST /gate/ssdservice/v1/integration.
+func (c *SSDClient) CreateCloudIntegration(ctx context.Context, teamID string, req *CreateIntegrationRequest) (string, error) {
+	q := url.Values{}
+	q.Set("orgId", c.orgID)
+	q.Set("level", "global")
+	q.Set("teamId", teamID)
+	endpoint := "/gate/ssdservice/v1/integration?" + q.Encode()
+
+	resp, err := c.restClient.Post(ctx, endpoint, req, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to create cloud integration: %w", err)
+	}
+	if !resp.IsSuccess() {
+		return "", fmt.Errorf("failed to create cloud integration: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+	return resp.String(), nil
+}
+
+// UpdateCloudIntegration updates a cloud integration via PUT /gate/ssdservice/v1/integration/{id} (includes integratorType in query).
+func (c *SSDClient) UpdateCloudIntegration(ctx context.Context, teamIDs string, req *CreateIntegrationRequest) (string, error) {
+	q := url.Values{}
+	q.Set("integratorType", req.IntegratorType)
+	q.Set("orgId", c.orgID)
+	q.Set("level", "global")
+	q.Set("teamId", teamIDs)
+	endpoint := fmt.Sprintf("/gate/ssdservice/v1/integration/%s?%s", req.ID, q.Encode())
+
+	resp, err := c.restClient.Put(ctx, endpoint, req, nil)
+	if err != nil {
+		return "", fmt.Errorf("failed to update cloud integration: %w", err)
+	}
+	if !resp.IsSuccess() {
+		return "", fmt.Errorf("failed to update cloud integration: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+	return resp.String(), nil
 }
 
 func (c *SSDClient) ValidateIntegration(ctx context.Context, req *ValidateIntegrationRequest, teamIDs []string) (*ValidateIntegrationResponse, error) {
@@ -1218,20 +1256,6 @@ func (c *SSDClient) DeleteIntegration(ctx context.Context, req *DeleteIntegratio
 	return nil
 }
 
-func (c *SSDClient) DownloadSBOMJSON(ctx context.Context, fileName string) ([]byte, error) {
-	endpoint := fmt.Sprintf("/gate/tool-chain/api/v1/scanResult?fileName=%s", fileName)
-
-	resp, err := c.restClient.Get(ctx, endpoint, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to download SBOM JSON: %w", err)
-	}
-
-	if !resp.IsSuccess() {
-		return nil, fmt.Errorf("failed to download SBOM JSON: status %d, body: %s", resp.StatusCode, resp.String())
-	}
-	return resp.Body, nil
-}
-
 // Integration operations
 func (c *SSDClient) GetActiveIntegrationsByTeamID(ctx context.Context, integratorType, teamID string) ([]Integration, error) {
 	endpoint := fmt.Sprintf("/gate/ssdservice/v1/team/active/integration?integratorType=%s&teamId=%s",
@@ -1281,5 +1305,165 @@ func (c *SSDClient) GetArtifact(ctx context.Context, commitsha, githubUrl string
 		return nil, fmt.Errorf("failed to parse artifact response: %w", err)
 	}
 
+	return result, nil
+}
+
+// GetCSPMDashboard proxies GET /gate/ssdservice/v1/cspm/dashboard.
+func (c *SSDClient) GetCSPMDashboard(ctx context.Context, accountName, scanID, accountType string) ([]CSPMDashboardServiceRow, error) {
+
+	q := url.Values{}
+	q.Set("orgId", c.orgID)
+	q.Set("accountName", accountName)
+	q.Set("scanId", scanID)
+	q.Set("accountType", accountType)
+	endpoint := "/gate/ssdservice/v1/cspm/dashboard?" + q.Encode()
+
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get CSPM dashboard: %w", err)
+	}
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to get CSPM dashboard: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result []CSPMDashboardServiceRow
+	if err := resp.ParseJSON(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse CSPM dashboard response: %w", err)
+	}
+	return result, nil
+}
+
+// GetCSPMRulesStatusSummary proxies GET /gate/ssdservice/v1/cspm/rulesStatusSummary.
+func (c *SSDClient) GetCSPMRulesStatusSummary(ctx context.Context, accountName, scanID, accountType, service string) (*CSPMRulesStatusSummaryResponse, error) {
+
+	q := url.Values{}
+	q.Set("accountType", accountType)
+	q.Set("accountName", accountName)
+	q.Set("orgId", c.orgID)
+	q.Set("service", service)
+	q.Set("scanId", scanID)
+	endpoint := "/gate/ssdservice/v1/cspm/rulesStatusSummary?" + q.Encode()
+
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get CSPM rules status summary: %w", err)
+	}
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to get CSPM rules status summary: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result CSPMRulesStatusSummaryResponse
+	if err := resp.ParseJSON(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse CSPM rules status summary response: %w", err)
+	}
+	return &result, nil
+}
+
+// GetCSPMPolicy proxies GET /gate/ssdservice/v1/cspm/policy/{policyId}.
+func (c *SSDClient) GetCSPMPolicy(ctx context.Context, policyID, policyName, accountType, accountName, scanID, service string) ([]CSPMPolicyAffectedResource, error) {
+	q := url.Values{}
+	q.Set("accountType", accountType)
+	q.Set("accountName", accountName)
+	q.Set("orgId", c.orgID)
+	q.Set("scanId", scanID)
+	q.Set("service", service)
+	if policyName != "" {
+		q.Set("policyName", policyName)
+	}
+
+	endpoint := fmt.Sprintf("/gate/ssdservice/v1/cspm/policy/%s?%s", policyID, q.Encode())
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get CSPM policy: %w", err)
+	}
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to get CSPM policy: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result []CSPMPolicyAffectedResource
+	if err := resp.ParseJSON(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse CSPM policy response: %w", err)
+	}
+	return result, nil
+}
+
+// GetCSPMRegions proxies GET /gate/ssdservice/v1/cspm/regions.
+func (c *SSDClient) GetCSPMRegions(ctx context.Context, policyName, accountType, accountName, scanID, service string) (*CSPMRegionsResponse, error) {
+	q := url.Values{}
+	q.Set("policyName", policyName)
+	q.Set("accountType", accountType)
+	q.Set("accountName", accountName)
+	q.Set("orgId", c.orgID)
+	q.Set("scanId", scanID)
+	q.Set("service", service)
+
+	endpoint := "/gate/ssdservice/v1/cspm/regions?" + q.Encode()
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get CSPM regions: %w", err)
+	}
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to get CSPM regions: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result CSPMRegionsResponse
+	if err := resp.ParseJSON(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse CSPM regions response: %w", err)
+	}
+	return &result, nil
+}
+
+// GetCSPMScanResult proxies GET /gate/tool-chain/api/v1/scanResult (tool-chain).
+func (c *SSDClient) GetCSPMScanResult(ctx context.Context, fileName, cloudServiceProvider, cloudAccountName, scanOperation string) (map[string]interface{}, error) {
+	q := url.Values{}
+	q.Set("fileName", fileName)
+	q.Set("cloudServiceProvider", cloudServiceProvider)
+	q.Set("cloudAccountName", cloudAccountName)
+	q.Set("scanOperation", scanOperation)
+
+	endpoint := "/gate/tool-chain/api/v1/scanResult?" + q.Encode()
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get CSPM scanResult: %w", err)
+	}
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to get CSPM scanResult: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result map[string]interface{}
+	if err := resp.ParseJSON(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse CSPM scanResult response: %w", err)
+	}
+	return result, nil
+}
+
+// PostCSPMScan proxies POST /gate/ssd-opa/api/v1/cspmscan (OPA gate).
+func (c *SSDClient) PostCSPMScan(ctx context.Context, req *CSPMScanRequestBody) (*Response, error) {
+	const endpoint = "/gate/ssd-opa/api/v1/cspmscan"
+	resp, err := c.restClient.Post(ctx, endpoint, req, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to trigger CSPM scan: %w", err)
+	}
+	return resp, nil
+}
+
+// GetCloudSecurityIntegrations proxies GET /gate/ssdservice/v1/cloudSecurityIntegration.
+func (c *SSDClient) GetCloudSecurityIntegrations(ctx context.Context) ([]CSPMCloudSecurityIntegration, error) {
+	q := url.Values{}
+	q.Set("orgId", c.orgID)
+	endpoint := "/gate/ssdservice/v1/cloudSecurityIntegration?" + q.Encode()
+
+	resp, err := c.restClient.Get(ctx, endpoint, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get cloud security integrations: %w", err)
+	}
+	if !resp.IsSuccess() {
+		return nil, fmt.Errorf("failed to get cloud security integrations: status %d, body: %s", resp.StatusCode, resp.String())
+	}
+
+	var result []CSPMCloudSecurityIntegration
+	if err := resp.ParseJSON(&result); err != nil {
+		return nil, fmt.Errorf("failed to parse cloud security integrations response: %w", err)
+	}
 	return result, nil
 }

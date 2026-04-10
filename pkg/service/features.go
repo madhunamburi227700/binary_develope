@@ -44,5 +44,9 @@ func (f *featuresService) GetUserFeatures(username string) (map[string]string, e
 		userFeatures["cspm"] = "true"
 	}
 
+	if slices.Contains(config.GetContextGraphUsers(), user.Email.String) {
+		userFeatures["contextGraph"] = "true"
+	}
+
 	return userFeatures, nil
 }

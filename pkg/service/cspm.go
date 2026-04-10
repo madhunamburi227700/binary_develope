@@ -9,6 +9,7 @@ import (
 
 	"github.com/opsmx/ai-guardian-api/pkg/client"
 	"github.com/opsmx/ai-guardian-api/pkg/config"
+	"github.com/opsmx/ai-guardian-api/pkg/models"
 	"github.com/opsmx/ai-guardian-api/pkg/repository"
 	"github.com/opsmx/ai-guardian-api/pkg/utils"
 )
@@ -287,4 +288,98 @@ func (s *CSPMService) GetDeployments(ctx context.Context, commitsha, scanid stri
 	}
 
 	return deployments, nil
+}
+
+// GetCSPMDashboard returns per-service CSPM posture summary for a cloud account scan (proxied from SSD).
+func (s *CSPMService) GetCSPMDashboard(ctx context.Context, accountName, scanID, accountType string) ([]client.CSPMDashboardServiceRow, error) {
+	result, err := s.ssdClient.GetCSPMDashboard(ctx, accountName, scanID, accountType)
+	if err != nil {
+		s.logger.LogError(err, "failed to get CSPM dashboard", map[string]interface{}{
+			"accountName": accountName, "scanId": scanID, "accountType": accountType,
+		})
+		return nil, fmt.Errorf("failed to get CSPM dashboard: %w", err)
+	}
+	return result, nil
+}
+
+// GetCSPMRulesStatusSummary returns rule-level findings for one cloud service in a scan (proxied from SSD).
+func (s *CSPMService) GetCSPMRulesStatusSummary(ctx context.Context, accountName, scanID, accountType, service string) (*client.CSPMRulesStatusSummaryResponse, error) {
+	result, err := s.ssdClient.GetCSPMRulesStatusSummary(ctx, accountName, scanID, accountType, service)
+	if err != nil {
+		s.logger.LogError(err, "failed to get CSPM rules status summary", map[string]interface{}{
+			"accountName": accountName, "scanId": scanID, "accountType": accountType, "service": service,
+		})
+		return nil, fmt.Errorf("failed to get CSPM rules status summary: %w", err)
+	}
+	return result, nil
+}
+
+func (s *CSPMService) GetCSPMPolicy(ctx context.Context, policyID, accountType, accountName, scanID, service string) ([]client.CSPMPolicyAffectedResource, error) {
+	result, err := s.ssdClient.GetCSPMPolicy(ctx, policyID, "", accountType, accountName, scanID, service)
+	if err != nil {
+		s.logger.LogError(err, "failed to get CSPM policy", map[string]interface{}{
+			"policyId": policyID, "accountName": accountName, "scanId": scanID, "accountType": accountType, "service": service,
+		})
+		return nil, fmt.Errorf("failed to get CSPM policy: %w", err)
+	}
+	return result, nil
+}
+
+func (s *CSPMService) GetCSPMRegions(ctx context.Context, policyName, accountType, accountName, scanID, service string) (*client.CSPMRegionsResponse, error) {
+	result, err := s.ssdClient.GetCSPMRegions(ctx, policyName, accountType, accountName, scanID, service)
+	if err != nil {
+		s.logger.LogError(err, "failed to get CSPM regions", map[string]interface{}{
+			"policyName": policyName, "accountName": accountName, "scanId": scanID, "accountType": accountType, "service": service,
+		})
+		return nil, fmt.Errorf("failed to get CSPM regions: %w", err)
+	}
+	return result, nil
+}
+
+func (s *CSPMService) GetCSPMScanResult(ctx context.Context, fileName, cloudServiceProvider, cloudAccountName, scanOperation string) (map[string]interface{}, error) {
+	result, err := s.ssdClient.GetCSPMScanResult(ctx, fileName, cloudServiceProvider, cloudAccountName, scanOperation)
+	if err != nil {
+		s.logger.LogError(err, "failed to get CSPM scanResult", map[string]interface{}{
+			"fileName": fileName, "cloudServiceProvider": cloudServiceProvider, "cloudAccountName": cloudAccountName, "scanOperation": scanOperation,
+		})
+		return nil, fmt.Errorf("failed to get CSPM scanResult: %w", err)
+	}
+	return result, nil
+}
+
+// GetCloudSecurityIntegrationScan returns cloud integration rows from SSD filtered by account name and type (e.g. aws), including lastScanId.
+func (s *CSPMService) GetCloudSecurityIntegrationScan(ctx context.Context, name, accountType string) ([]client.CSPMCloudSecurityIntegration, error) {
+	all, err := s.ssdClient.GetCloudSecurityIntegrations(ctx)
+	if err != nil {
+		s.logger.LogError(err, "failed to get cloud security integrations", map[string]interface{}{
+			"name": name, "type": accountType,
+		})
+		return nil, fmt.Errorf("failed to get cloud security integrations: %w", err)
+	}
+	wantName := strings.TrimSpace(name)
+	wantType := strings.TrimSpace(accountType)
+	var filtered []client.CSPMCloudSecurityIntegration
+	for _, row := range all {
+		if strings.TrimSpace(row.Name) == wantName && strings.TrimSpace(row.Type) == wantType {
+			filtered = append(filtered, row)
+		}
+	}
+	return filtered, nil
+}
+
+func (s *CSPMService) TriggerCSPMScan(ctx context.Context, req *models.CSPMScanRequest) (*client.Response, error) {
+	// TO DO, handle organization name from the request in case of multiple organizations
+	newReq := &client.CSPMScanRequestBody{
+		OrganizationName:     "opsmx",
+		TeamName:             req.HubName,
+		CloudServiceProvider: req.CloudServiceProvider,
+		CloudAccountName:     req.CloudAccountName,
+	}
+
+	resp, err := s.ssdClient.PostCSPMScan(ctx, newReq)
+	if err != nil {
+		s.logger.LogError(err, "failed to trigger CSPM scan", nil)
+		return nil, fmt.Errorf("failed to trigger CSPM scan: %w", err)
+	}
+	return resp, nil
 }

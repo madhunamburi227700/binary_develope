@@ -6,6 +6,10 @@ import (
 	"github.com/google/uuid"
 )
 
+const (
+	RemediationContextCloud = "cloud"
+)
+
 type Remediation struct {
 	ID              uuid.UUID  `json:"id" db:"id"`
 	VulnerabilityID uuid.UUID  `json:"vulnerability_id" db:"vulnerability_id"`

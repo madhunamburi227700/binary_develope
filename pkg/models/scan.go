@@ -67,3 +67,10 @@ type ScanWithProject struct {
 	Repository   string
 	Organisation string
 }
+
+// CSPMScanTriggerRequest is the JSON body for POST /gate/ssd-opa/api/v1/cspmscan.
+type CSPMScanRequest struct {
+	HubName              string `json:"hubName"`
+	CloudServiceProvider string `json:"cloudServiceProvider"`
+	CloudAccountName     string `json:"cloudAccountName"`
+}

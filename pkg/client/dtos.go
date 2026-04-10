@@ -771,3 +771,68 @@ type BlastRadiusResource struct {
 	ResourceType        string `json:"resourceType"`
 	NetworkResourceType string `json:"networkResourceType"`
 }
+
+// CSPMSeveritySummary matches SSD gate /cspm/dashboard and rulesStatusSummary summary blocks.
+type CSPMSeveritySummary struct {
+	Rule     int `json:"rule"`
+	Good     int `json:"good"`
+	Critical int `json:"critical"`
+	High     int `json:"high"`
+	Medium   int `json:"medium"`
+	Low      int `json:"low"`
+}
+
+// CSPMDashboardServiceRow is one row from GET /gate/ssdservice/v1/cspm/dashboard.
+type CSPMDashboardServiceRow struct {
+	ServiceName   string              `json:"serviceName"`
+	ResourceCount int                 `json:"resourceCount"`
+	RuleCount     int                 `json:"ruleCount"`
+	Summary       CSPMSeveritySummary `json:"summary"`
+}
+
+// CSPMRuleStatusRow is one entry in rulesStatusSummary ruleData.
+type CSPMRuleStatusRow struct {
+	RuleID                 string `json:"ruleId"`
+	Rule                   string `json:"rule"`
+	RuleDescription        string `json:"ruleDescription"`
+	CheckedResourcesCount  int    `json:"checkedResourcesCount"`
+	AffectedResourcesCount int    `json:"affectedResourcesCount"`
+	Severity               string `json:"severity"`
+}
+
+// CSPMRulesStatusSummaryResponse is the body of GET /gate/ssdservice/v1/cspm/rulesStatusSummary.
+type CSPMRulesStatusSummaryResponse struct {
+	Summary  CSPMSeveritySummary `json:"summary"`
+	RuleData []CSPMRuleStatusRow `json:"ruleData"`
+}
+
+// CSPMPolicyAffectedResource is one row from GET /gate/ssdservice/v1/cspm/policy/{policyId}.
+type CSPMPolicyAffectedResource struct {
+	ID               string `json:"id"`
+	ResourceID       string `json:"resourceId"`
+	ResourceType     string `json:"resourceType"`
+	AffectedResource string `json:"affectedResource"`
+	Details          string `json:"details"`
+}
+
+// CSPMRegionsResponse is the body of GET /gate/ssdservice/v1/cspm/regions.
+type CSPMRegionsResponse struct {
+	Regions []string `json:"regions"`
+}
+
+type CSPMScanRequestBody struct {
+	OrganizationName     string `json:"organizationName"`
+	TeamName             string `json:"teamName"`
+	CloudServiceProvider string `json:"cloudServiceProvider"`
+	CloudAccountName     string `json:"cloudAccountName"`
+}
+
+// CSPMCloudSecurityIntegration is one row from GET /gate/ssdservice/v1/cloudSecurityIntegration.
+type CSPMCloudSecurityIntegration struct {
+	AccountDetails map[string]interface{} `json:"accountDetails"`
+	ID             string                 `json:"id"`
+	LastScan       *string                `json:"lastScan"`
+	LastScanID     string                 `json:"lastScanId"`
+	Name           string                 `json:"name"`
+	Type           string                 `json:"type"`
+}

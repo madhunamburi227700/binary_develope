@@ -55,33 +55,69 @@ type ValidateGitHubIntegrationRequest struct {
 	TeamIDs []string `json:"team_ids"`
 }
 
-type InstallGitHubAppRequest struct {
-	InstallationID int64    `json:"installation_id"`
-	TeamIDs        []string `json:"team_ids"`
-}
-
-// GetIntegrationsByType retrieves integrations by type
-func (s *IntegrationService) GetIntegrationsByType(ctx context.Context, integratorType, teamIDs string) ([]client.Integration, error) {
-	integrations, err := s.ssdClient.GetIntegrations(ctx, integratorType, teamIDs)
-	if err != nil {
-		s.logger.LogError(err, "Failed to get integrations", map[string]interface{}{
-			"integrator_type": integratorType,
-			"team_ids":        teamIDs,
-		})
-		return nil, fmt.Errorf("failed to get integrations: %w", err)
+// CreateCloudIntegration creates or updates a cloud integration on SSD (POST /integration).
+func (s *IntegrationService) CreateCloudIntegration(ctx context.Context, teamID string, req *client.CreateIntegrationRequest) (string, error) {
+	// If UI didn't provide the integrator type ID, resolve it dynamically from SSD supportedIntegrations.
+	// This keeps create payload compatible with SSD expectations.
+	if req != nil && req.ID == "" && strings.TrimSpace(req.IntegratorType) != "" {
+		list, err := s.ssdClient.GetSupportedIntegrators(ctx, "global", teamID)
+		if err != nil {
+			s.logger.LogError(err, "failed to fetch supported integrators for cloud integration", map[string]interface{}{
+				"integrator_type": req.IntegratorType,
+				"team_id":         teamID,
+			})
+			return "", fmt.Errorf("failed to fetch supported integrations: %w", err)
+		}
+		want := strings.TrimSpace(req.IntegratorType)
+		for _, it := range list {
+			if it != nil && strings.TrimSpace(it.IntegratorType) == want && strings.TrimSpace(it.IntegratorTypeId) != "" {
+				req.ID = strings.TrimSpace(it.IntegratorTypeId)
+				break
+			}
+		}
+		if req.ID == "" {
+			return "", fmt.Errorf("could not resolve integratorTypeId for integratorType=%s", want)
+		}
 	}
 
-	s.logger.LogInfo("Integrations retrieved successfully", map[string]interface{}{
-		"integration_count": len(integrations),
-		"integrator_type":   integratorType,
-	})
-
-	return integrations, nil
+	msg, err := s.ssdClient.CreateCloudIntegration(ctx, teamID, req)
+	if err != nil {
+		s.logger.LogError(err, "failed to create cloud integration", nil)
+		return "", fmt.Errorf("failed to create cloud integration: %w", err)
+	}
+	return msg, nil
 }
 
-// GetGitHubIntegrations retrieves all GitHub integrations
-func (s *IntegrationService) GetGitHubIntegrations(ctx context.Context, teamIDs string) ([]client.Integration, error) {
-	return s.GetIntegrationsByType(ctx, "github", teamIDs)
+// UpdateCloudIntegration updates an existing cloud integration on SSD (PUT /integration/{id}).
+func (s *IntegrationService) UpdateCloudIntegration(ctx context.Context, teamID string, req *client.CreateIntegrationRequest) (string, error) {
+	// If UI didn't provide the integrator type ID, resolve it dynamically from SSD supportedIntegrations.
+	// This keeps create payload compatible with SSD expectations.
+	if req.ID == "" {
+		list, err := s.ssdClient.GetSupportedIntegrators(ctx, "global", teamID)
+		if err != nil {
+			s.logger.LogError(err, "failed to fetch supported integrators for cloud integration", map[string]interface{}{
+				"integrator_type": req.IntegratorType,
+				"team_id":         teamID,
+			})
+			return "", fmt.Errorf("failed to fetch supported integrations: %w", err)
+		}
+		want := strings.TrimSpace(req.IntegratorType)
+		for _, it := range list {
+			if it != nil && strings.TrimSpace(it.IntegratorType) == want {
+				req.ID = strings.TrimSpace(it.IntegratorTypeId)
+				break
+			}
+		}
+		if req.ID == "" {
+			return "", fmt.Errorf("could not resolve integratorTypeId for integratorType=%s", want)
+		}
+	}
+	msg, err := s.ssdClient.UpdateCloudIntegration(ctx, teamID, req)
+	if err != nil {
+		s.logger.LogError(err, "failed to update cloud integration", nil)
+		return "", fmt.Errorf("failed to update cloud integration: %w", err)
+	}
+	return msg, nil
 }
 
 // ValidateGitHubIntegration validates a GitHub integration
@@ -188,40 +224,12 @@ func (s *IntegrationService) CreateIntegration(ctx context.Context, req *client.
 	return result, nil
 }
 
-// GetIntegrationStatus retrieves the status of integrations
-func (s *IntegrationService) GetIntegrationStatus(ctx context.Context, integratorType, teamIDs string) (map[string]int, error) {
-	integrations, err := s.GetIntegrationsByType(ctx, integratorType, teamIDs)
-	if err != nil {
-		return nil, err
-	}
-
-	statusCount := map[string]int{
-		"active":   0,
-		"inactive": 0,
-		"pending":  0,
-		"error":    0,
-	}
-
-	for _, integration := range integrations {
-		status := strings.ToLower(integration.Status)
-		if count, exists := statusCount[status]; exists {
-			statusCount[status] = count + 1
-		} else {
-			statusCount["error"]++
-		}
-	}
-
-	s.logger.LogInfo("Integration status retrieved", map[string]interface{}{
-		"integrator_type": integratorType,
-		"status_count":    statusCount,
-	})
-
-	return statusCount, nil
-}
-
 // ListActiveIntegrations retrieves only active integrations
-func (s *IntegrationService) ListActiveIntegrations(ctx context.Context, integratorType, teamIDs string) ([]client.Integration, error) {
-	integrations, err := s.GetIntegrationsByType(ctx, integratorType, teamIDs)
+func (s *IntegrationService) ListActiveIntegrations(ctx context.Context, integratorType, teamID string) ([]client.Integration, error) {
+	if integratorType == "" {
+		integratorType = "github"
+	}
+	integrations, err := s.ssdClient.GetIntegrations(ctx, integratorType, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -235,13 +243,29 @@ func (s *IntegrationService) ListActiveIntegrations(ctx context.Context, integra
 			activeIntegrations = append(activeIntegrations, integration)
 		}
 	}
-
-	s.logger.LogInfo("Active integrations retrieved", map[string]interface{}{
-		"integrator_type": integratorType,
-		"active_count":    len(activeIntegrations),
-	})
-
 	return activeIntegrations, nil
+}
+
+// fetch both aws and github integrations for a team merge and return the list
+func (s *IntegrationService) ListIntegrationsForTeam(ctx context.Context, teamId string) ([]client.Integration, error) {
+	var integrations []client.Integration
+	integrations, err := s.ssdClient.GetIntegrations(ctx, "aws", teamId)
+	if err != nil {
+		return nil, err
+	}
+	githubIntegrations, err := s.ssdClient.GetIntegrations(ctx, "github", teamId)
+	if err != nil {
+		return nil, err
+	}
+	integrations = append(integrations, githubIntegrations...)
+	// filter non team
+	filteredIntegrations := []client.Integration{}
+	for _, integration := range integrations {
+		if len(integration.Team) > 0 {
+			filteredIntegrations = append(filteredIntegrations, integration)
+		}
+	}
+	return filteredIntegrations, nil
 }
 
 // GetResourceCounts retrieves resource counts from SSD
