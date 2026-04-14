@@ -163,7 +163,7 @@ type Project struct {
 	ID                string           `json:"id"`
 	Name              string           `json:"name"`
 	Platform          string           `json:"platform"`
-	IntegratorConfigs IntegratorConfig `json:"integratorConfigs"`
+	IntegratorConfigs []IntegratorConfig `json:"integratorConfigs"`
 }
 
 type IntegratorConfig struct {
