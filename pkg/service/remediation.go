@@ -230,14 +230,13 @@ type CSPMRemediationRequest struct {
 func (s *RemediationService) CSPM(ctx context.Context, req *CSPMRemediationRequest, projectId string, headers, queryParams map[string][]string, commitsha, queryContext string) (*client.SSEResponse, error) {
 	options := client.MakeRequestOptions(headers, queryParams)
 
-	token, err := s.SSDService.getIntegratorToken(ctx, projectId)
-	if err != nil {
-		return nil, err
-	}
-	req.Token = token
-
 	if queryContext != models.RemediationContextCloud {
 		req.ArtifactSha = s.SSDService.GetArtifactSha(ctx, req.Organization, req.Repository, commitsha)
+		token, err := s.SSDService.getIntegratorToken(ctx, projectId)
+		if err != nil {
+			return nil, err
+		}
+		req.Token = token
 		req.CommitSHA = commitsha
 	}
 	return s.SSEClient.SSERequest(ctx, "/cspm-remediation/v1/fix", "POST", req, options, false)
