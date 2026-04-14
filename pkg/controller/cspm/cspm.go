@@ -26,7 +26,20 @@ func NewCSPMController() *CSPMController {
 	}
 }
 
-// GET /api/v1/cspm/networkmap?name=...&tag=... or ?sha=...
+// GetNetworkMap returns an application/network map for an artifact.
+// @Summary Get CSPM network map
+// @Description Fetches the CSPM network map for a given artifact. Either `sha` or `name` must be provided.
+// @Tags CSPM
+// @Accept json
+// @Produce json
+// @Param sha query string false "Artifact SHA (alternative to name)"
+// @Param name query string false "Artifact name (required if sha not provided)"
+// @Param tag query string false "Artifact tag (optional when using name)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Missing required parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/cspm/networkmap [get]
 func (c *CSPMController) GetNetworkMap(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
@@ -52,7 +65,25 @@ func (c *CSPMController) GetNetworkMap(w http.ResponseWriter, r *http.Request) {
 	utils.SendSuccessResponse(w, result, "Network map fetched successfully")
 }
 
-// GET /api/v1/cspm/resources?id=...&cloudProvider=...&...
+// GetResources returns CSPM resources (paginated).
+// @Summary List CSPM resources
+// @Description Lists CSPM resources with optional filters and pagination.
+// @Tags CSPM
+// @Accept json
+// @Produce json
+// @Param id query string false "Resource ID"
+// @Param cloudProvider query string false "Cloud provider (e.g. aws, azure, gcp)"
+// @Param cloudAccountName query string false "Cloud account name"
+// @Param resourceType query string false "Resource type"
+// @Param name query string false "Resource name"
+// @Param nameRegex query string false "Resource name regex"
+// @Param hasFindings query bool false "Filter resources that have findings"
+// @Param page query int false "Page number (default 1)"
+// @Param perPage query int false "Results per page (default 100)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/cspm/resources [get]
 func (c *CSPMController) GetResources(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
@@ -93,7 +124,23 @@ func (c *CSPMController) GetResources(w http.ResponseWriter, r *http.Request) {
 	utils.SendSuccessResponse(w, result, "CSPM resources fetched successfully")
 }
 
-// GET /api/v1/cspm/resources/all?id=...&cloudProvider=...&...
+// GetAllResources returns CSPM resources without pagination (cached).
+// @Summary List all CSPM resources (cached)
+// @Description Lists all CSPM resources matching filters. Uses a cached backend call.
+// @Tags CSPM
+// @Accept json
+// @Produce json
+// @Param id query string false "Resource ID"
+// @Param cloudProvider query string false "Cloud provider (e.g. aws, azure, gcp)"
+// @Param cloudAccountName query string false "Cloud account name"
+// @Param resourceType query string false "Resource type"
+// @Param name query string false "Resource name"
+// @Param nameRegex query string false "Resource name regex"
+// @Param hasFindings query bool false "Filter resources that have findings"
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/cspm/resources/all [get]
 func (c *CSPMController) GetAllResources(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
@@ -123,7 +170,19 @@ func (c *CSPMController) GetAllResources(w http.ResponseWriter, r *http.Request)
 	utils.SendSuccessResponse(w, result, "All CSPM resources fetched successfully")
 }
 
-// GET /api/v1/cspm/resources/summary?cloudProvider=...&cloudAccountName=...&hasFindings=...
+// GetResourcesSummary returns a summary for CSPM resources.
+// @Summary Get CSPM resources summary
+// @Description Returns an aggregated summary of resources for the given filters.
+// @Tags CSPM
+// @Accept json
+// @Produce json
+// @Param cloudProvider query string false "Cloud provider (e.g. aws, azure, gcp)"
+// @Param cloudAccountName query string false "Cloud account name"
+// @Param hasFindings query bool false "Filter resources that have findings"
+// @Success 200 {object} map[string]interface{}
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/cspm/resources/summary [get]
 func (c *CSPMController) GetResourcesSummary(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
@@ -149,7 +208,21 @@ func (c *CSPMController) GetResourcesSummary(w http.ResponseWriter, r *http.Requ
 	utils.SendSuccessResponse(w, result, "CSPM resources summary fetched successfully")
 }
 
-// GET /api/v1/cspm/resources/blast-radius?id=...&maxDepth=...&cloudProvider=...&cloudAccountName=...
+// GetBlastRadius returns blast radius for a CSPM resource.
+// @Summary Get CSPM resource blast radius
+// @Description Returns blast radius (dependency graph) for a given resource ID.
+// @Tags CSPM
+// @Accept json
+// @Produce json
+// @Param id query string true "Resource ID"
+// @Param maxDepth query int false "Maximum traversal depth (default 0)"
+// @Param cloudProvider query string false "Cloud provider (e.g. aws, azure, gcp)"
+// @Param cloudAccountName query string false "Cloud account name"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Missing required parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/cspm/resources/blast-radius [get]
 func (c *CSPMController) GetBlastRadius(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
@@ -182,7 +255,19 @@ func (c *CSPMController) GetBlastRadius(w http.ResponseWriter, r *http.Request) 
 	utils.SendSuccessResponse(w, result, "CSPM blast radius fetched successfully")
 }
 
-// GET /api/v1/cspm/deployments?commitsha=...&scanid=...
+// GetDeployments returns deployments for a given scan + commit.
+// @Summary Get CSPM deployments
+// @Description Returns deployments associated with the given `commitsha` and `scanid`.
+// @Tags CSPM
+// @Accept json
+// @Produce json
+// @Param commitsha query string true "Commit SHA"
+// @Param scanid query string true "Scan ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Missing required parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/cspm/deployments [get]
 func (c *CSPMController) GetDeployments(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 
@@ -204,7 +289,20 @@ func (c *CSPMController) GetDeployments(w http.ResponseWriter, r *http.Request) 
 	utils.SendSuccessResponse(w, result, "CSPM deployments fetched successfully")
 }
 
-// GET /api/v1/cspm/dashboard?accountName=...&scanId=...&accountType=...
+// GetCSPMDashboard returns a CSPM dashboard summary for a scan.
+// @Summary Get CSPM dashboard
+// @Description Returns CSPM dashboard data for the given account and scan.
+// @Tags CSPM
+// @Accept json
+// @Produce json
+// @Param accountName query string true "Cloud account name"
+// @Param scanId query string true "Scan ID"
+// @Param accountType query string true "Account type (e.g. aws, azure, gcp)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Missing required parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/cspm/scan/dashboard [get]
 func (c *CSPMController) GetCSPMDashboard(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	accountName := q.Get("accountName")
@@ -225,7 +323,21 @@ func (c *CSPMController) GetCSPMDashboard(w http.ResponseWriter, r *http.Request
 	utils.SendSuccessResponse(w, result, "CSPM dashboard fetched successfully")
 }
 
-// GET /api/v1/cspm/rulesStatusSummary?accountName=...&scanId=...&accountType=...&service=...
+// GetCSPMRulesStatusSummary returns rules status summary for a CSPM scan.
+// @Summary Get CSPM rules status summary
+// @Description Returns CSPM rules status summary for the provided account, scan, and service.
+// @Tags CSPM
+// @Accept json
+// @Produce json
+// @Param accountName query string true "Cloud account name"
+// @Param scanId query string true "Scan ID"
+// @Param accountType query string true "Account type (e.g. aws, azure, gcp)"
+// @Param service query string true "Cloud service name"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Missing required parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/cspm/scan/rulesStatusSummary [get]
 func (c *CSPMController) GetCSPMRulesStatusSummary(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	accountName := q.Get("accountName")
@@ -247,7 +359,22 @@ func (c *CSPMController) GetCSPMRulesStatusSummary(w http.ResponseWriter, r *htt
 	utils.SendSuccessResponse(w, result, "CSPM rules status summary fetched successfully")
 }
 
-// GET /api/v1/cspm/policy/{policyId}?accountType=...&accountName=...&orgId=...&scanId=...&service=...
+// GetCSPMPolicy returns a specific CSPM policy details.
+// @Summary Get CSPM policy
+// @Description Returns CSPM policy details for the given policy ID and scan context.
+// @Tags CSPM
+// @Accept json
+// @Produce json
+// @Param policyId path string true "Policy ID"
+// @Param accountType query string true "Account type (e.g. aws, azure, gcp)"
+// @Param accountName query string true "Cloud account name"
+// @Param scanId query string true "Scan ID"
+// @Param service query string true "Cloud service name"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Missing required parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/cspm/scan/policy/{policyId} [get]
 func (c *CSPMController) GetCSPMPolicy(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	vars := mux.Vars(r)
@@ -272,7 +399,22 @@ func (c *CSPMController) GetCSPMPolicy(w http.ResponseWriter, r *http.Request) {
 	utils.SendSuccessResponse(w, result, "CSPM policy fetched successfully")
 }
 
-// GET /api/v1/cspm/regions?policyName=...&accountType=...&accountName=...&orgId=...&scanId=...&service=...
+// GetCSPMRegions returns regions for a CSPM policy.
+// @Summary Get CSPM policy regions
+// @Description Returns a list of regions for the given policy name and scan context.
+// @Tags CSPM
+// @Accept json
+// @Produce json
+// @Param policyName query string true "Policy name"
+// @Param accountType query string true "Account type (e.g. aws, azure, gcp)"
+// @Param accountName query string true "Cloud account name"
+// @Param scanId query string true "Scan ID"
+// @Param service query string true "Cloud service name"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Missing required parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/cspm/scan/regions [get]
 func (c *CSPMController) GetCSPMRegions(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	policyName := q.Get("policyName")
@@ -296,7 +438,21 @@ func (c *CSPMController) GetCSPMRegions(w http.ResponseWriter, r *http.Request) 
 	utils.SendSuccessResponse(w, result, "CSPM regions fetched successfully")
 }
 
-// GET /api/v1/cspm/scanResult?fileName=...&cloudServiceProvider=...&cloudAccountName=...&scanOperation=cspmscan
+// GetCSPMScanResult returns scan result for a CSPM scan input.
+// @Summary Get CSPM scan result
+// @Description Returns CSPM scan result for the provided file and cloud integration context.
+// @Tags CSPM
+// @Accept json
+// @Produce json
+// @Param fileName query string true "File name"
+// @Param cloudServiceProvider query string true "Cloud service provider"
+// @Param cloudAccountName query string true "Cloud account name"
+// @Param scanOperation query string true "Scan operation (e.g. cspmscan)"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Missing required parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/cspm/scan/scanResult [get]
 func (c *CSPMController) GetCSPMScanResult(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	fileName := q.Get("fileName")
@@ -319,8 +475,18 @@ func (c *CSPMController) GetCSPMScanResult(w http.ResponseWriter, r *http.Reques
 	utils.SendSuccessResponse(w, result, "CSPM scanResult fetched successfully")
 }
 
-// GET /api/v1/cspm/scan/cloudIntegration?name=...&type=aws&orgId=optional
-// Fetches SSD cloudSecurityIntegration list and returns only rows matching name and type (includes lastScanId).
+// GetCloudSecurityIntegrationScan returns cloud security integration scan info.
+// @Summary Get cloud integration scan info
+// @Description Returns cloud security integration scan info (includes last scan ID) for the given team.
+// @Tags CSPM
+// @Accept json
+// @Produce json
+// @Param teamId query string true "Team ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Missing required parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/cspm/scan/cloudIntegration [get]
 func (c *CSPMController) GetCloudSecurityIntegrationScan(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	teamId := q.Get("teamId")
@@ -339,7 +505,18 @@ func (c *CSPMController) GetCloudSecurityIntegrationScan(w http.ResponseWriter, 
 	utils.SendSuccessResponse(w, result, "Cloud security integration scan info fetched successfully")
 }
 
-// POST /api/v1/cspm/scan/trigger — proxies POST /gate/ssd-opa/api/v1/cspmscan; forwards SSD status code and JSON body (e.g. 201 success, 400 validation).
+// PostCSPMScan triggers a CSPM scan.
+// @Summary Trigger a CSPM scan
+// @Description Triggers a CSPM scan for the given hub and cloud account.
+// @Tags CSPM
+// @Accept json
+// @Produce json
+// @Param request body models.CSPMScanRequest true "CSPM scan request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Invalid request body or missing required fields"
+// @Failure 502 {object} map[string]interface{} "Upstream error"
+// @Security ApiKeyAuth
+// @Router /api/v1/cspm/scan/trigger [post]
 func (c *CSPMController) PostCSPMScan(w http.ResponseWriter, r *http.Request) {
 	var req models.CSPMScanRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {

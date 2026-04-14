@@ -115,7 +115,7 @@ func (ctrl *OAuthController) Logout(w http.ResponseWriter, r *http.Request) {
 // @Security ApiKeyAuth
 // @Success 200 {object} map[string]interface{}
 // @Failure 401 {object} map[string]string "Unauthorized"
-// @Router /auth/profile [get]
+// @Router /api/v1/profile [get]
 func (ctrl *OAuthController) GetProfile(w http.ResponseWriter, r *http.Request) {
 	username, err := session.GetSession(r)
 	if err != nil {
@@ -160,7 +160,7 @@ func generateState() (string, error) {
 // @Produce  json
 // @Success 200 {object} map[string]interface{}
 // @Failure 500 {object} map[string]string "Internal server error"
-// @Router /auth/github/oauth [get]
+// @Router /auth/github/install [get]
 func (ctrl *OAuthController) GithubUserAuth(w http.ResponseWriter, r *http.Request) {
 	// Initialize bridge client
 	bridgeClient, err := oauthBridge.NewClient("ai-guardian")

@@ -33,7 +33,7 @@ func NewIntegratorController() *IntegratorController {
 // @Failure 400 {object} map[string]string "Invalid request body"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security ApiKeyAuth
-// @Router /api/v1/integrations/github [post]
+// @Router /api/v1/integrations/github/create [post]
 func (c *IntegratorController) CreateGitHubIntegration(w http.ResponseWriter, r *http.Request) {
 	var req service.CreateGitHubIntegrationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -122,16 +122,14 @@ func (c *IntegratorController) ValidateGitHubIntegration(w http.ResponseWriter, 
 
 // InstallGitHubAppIntegration installs the GitHub App integration
 // @Summary Install GitHub App
-// @Description Installs the GitHub App integration with the provided installation ID
+// @Description Returns the GitHub App installation URL.
 // @Tags Integrations
-// @Accept  json
+// @Accept */*
 // @Produce  json
-// @Param   request body service.InstallGitHubAppRequest true "GitHub App installation details"
-// @Success 201 {object} map[string]interface{}
-// @Failure 400 {object} map[string]string "Invalid request body"
+// @Success 200 {object} map[string]interface{}
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security ApiKeyAuth
-// @Router /api/v1/integrations/github/app/install [post]
+// @Router /api/v1/integrations/github/install [get]
 func (c *IntegratorController) InstallGitHubAppIntegration(w http.ResponseWriter, r *http.Request) {
 
 	installationUrl, err := c.integratorService.GetGithubAppInstallationURL(r.Context())
@@ -213,7 +211,19 @@ func (c *IntegratorController) GetIntegrationsGithubDetails(w http.ResponseWrite
 	})
 }
 
-// POST /api/v1/integrations/cloud?teamId=uuid1,uuid2&orgId=optional
+// CreateCloudIntegration creates a new cloud integration for a team.
+// @Summary Create cloud integration
+// @Description Creates a new cloud integration for the given `teamId`.
+// @Tags Integrations
+// @Accept json
+// @Produce json
+// @Param teamId query string true "Team ID"
+// @Param request body client.CreateIntegrationRequest true "Cloud integration request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Invalid request body or missing required parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/integrations/cloud [post]
 func (c *IntegratorController) CreateCloudIntegration(w http.ResponseWriter, r *http.Request) {
 	teamID := r.URL.Query().Get("teamId")
 	if teamID == "" {
@@ -238,7 +248,19 @@ func (c *IntegratorController) CreateCloudIntegration(w http.ResponseWriter, r *
 	utils.SendSuccessResponse(w, msg, "Cloud integration saved successfully")
 }
 
-// PUT /api/v1/integrations/cloud?teamId=uuid&orgId=optional
+// UpdateCloudIntegration updates an existing cloud integration for a team.
+// @Summary Update cloud integration
+// @Description Updates a cloud integration for the given `teamId`. `integratorType` must be present in the request body.
+// @Tags Integrations
+// @Accept json
+// @Produce json
+// @Param teamId query string true "Team ID"
+// @Param request body client.CreateIntegrationRequest true "Cloud integration request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Invalid request body or missing required parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/integrations/cloud [put]
 func (c *IntegratorController) UpdateCloudIntegration(w http.ResponseWriter, r *http.Request) {
 	teamID := r.URL.Query().Get("teamId")
 	if teamID == "" {
@@ -323,6 +345,20 @@ func (c *IntegratorController) ListIntegrationsForTeam(w http.ResponseWriter, r 
 	utils.SendSuccessResponse(w, integrators, "Integrations listed successfully")
 }
 
+// DeleteIntegration deletes an integration.
+// @Summary Delete integration
+// @Description Deletes an integration by `integrationId` and `integrationName` within the provided `hubID`.
+// @Tags Integrations
+// @Accept json
+// @Produce json
+// @Param integrationId query string true "Integration ID"
+// @Param integrationName query string true "Integration name"
+// @Param hubID query string true "Hub ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Missing required parameters"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/integrations/github/delete [delete]
 func (c *IntegratorController) DeleteIntegration(w http.ResponseWriter, r *http.Request) {
 	integrationId := r.URL.Query().Get("integrationId")
 	if integrationId == "" {

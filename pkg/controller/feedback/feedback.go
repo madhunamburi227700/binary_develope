@@ -55,7 +55,7 @@ func NewFeedbackController() *FeedbackController {
 // @Failure 413 {object} map[string]string "File too large"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security ApiKeyAuth
-// @Router /api/feedback/send [post]
+// @Router /api/v1/feedback/send [post]
 func (c *FeedbackController) SendFeedback(w http.ResponseWriter, r *http.Request) {
 	// Get user from session
 	sessionUser := session.GetSessionExists(r)

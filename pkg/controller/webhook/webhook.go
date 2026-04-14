@@ -24,6 +24,18 @@ func NewWebhookController() *WebhookController {
 	}
 }
 
+// SetupWorkflow creates GitHub Actions workflow in a repo.
+// @Summary Setup GitHub workflow
+// @Description Sets up GitHub Actions workflow for AI Guardian PR scanning.
+// @Tags Integrations
+// @Accept json
+// @Produce json
+// @Param request body service.SetupWorkflowRequest true "Workflow setup request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/integrations/github/setup/workflow [post]
 func (c *WebhookController) SetupWorkflow(w http.ResponseWriter, r *http.Request) {
 	var req service.SetupWorkflowRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -51,6 +63,18 @@ func (c *WebhookController) SetupWorkflow(w http.ResponseWriter, r *http.Request
 	utils.SendSuccessResponse(w, result, "Workflow setup successfully")
 }
 
+// CheckWorkflowStatus checks workflow status in a repo.
+// @Summary Check GitHub workflow status
+// @Description Checks whether the GitHub Actions workflow is set up and returns status.
+// @Tags Integrations
+// @Accept json
+// @Produce json
+// @Param request body service.SetupWorkflowRequest true "Workflow status request"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Failure 500 {object} map[string]interface{} "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/integrations/github/check/workflow [post]
 func (c *WebhookController) CheckWorkflowStatus(w http.ResponseWriter, r *http.Request) {
 	var req service.SetupWorkflowRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -95,6 +119,17 @@ func validateWorkflowSetupRequest(req service.SetupWorkflowRequest) error {
 	return nil
 }
 
+// HandleWebhook receives GitHub Actions webhooks.
+// @Summary GitHub Actions webhook
+// @Description Receives GitHub Actions webhook and starts PR scanning workflow.
+// @Tags Webhooks
+// @Accept json
+// @Produce json
+// @Param request body models.WebhookRequest true "Webhook payload"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]interface{} "Invalid request"
+// @Security ApiKeyAuth
+// @Router /webhooks/github/actions [post]
 func (c *WebhookController) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	var payload models.WebhookRequest
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {

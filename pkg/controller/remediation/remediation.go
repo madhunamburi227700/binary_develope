@@ -33,16 +33,17 @@ func NewRemediationsController() *RemediationController {
 
 // SASTRemediation handles SAST (Static Application Security Testing) remediation
 // @Summary Process SAST remediation
-// @Description Processes SAST findings and provides remediation suggestions
+// @Description Processes SAST findings and streams remediation suggestions as Server-Sent Events (SSE)
 // @Tags Remediation
 // @Accept  json
-// @Produce  json
+// @Produce text/event-stream
+// @Param projectId query string true "Project ID"
 // @Param   request body service.SASTRemediationRequest true "SAST findings data"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {string} string "SSE stream"
 // @Failure 400 {object} map[string]string "Invalid request body"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security ApiKeyAuth
-// @Router /api/v1/remediation/sast [post]
+// @Router /api/v1/remediations/sast [post]
 func (c *RemediationController) SASTRemediation(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
@@ -93,16 +94,17 @@ func (c *RemediationController) SASTRemediation(w http.ResponseWriter, r *http.R
 
 // CVERemediation handles CVE (Common Vulnerabilities and Exposures) remediation
 // @Summary Process CVE remediation
-// @Description Processes CVE findings and provides remediation suggestions
+// @Description Processes CVE findings and streams remediation suggestions as Server-Sent Events (SSE)
 // @Tags Remediation
 // @Accept  json
-// @Produce  json
+// @Produce text/event-stream
+// @Param projectId query string true "Project ID"
 // @Param   request body service.CVERemediationRequest true "CVE findings data"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {string} string "SSE stream"
 // @Failure 400 {object} map[string]string "Invalid request body"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security ApiKeyAuth
-// @Router /api/v1/remediation/cve [post]
+// @Router /api/v1/remediations/cve [post]
 func (c *RemediationController) CVERemediation(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
@@ -174,6 +176,18 @@ func fetchUserEmail(r *http.Request, userRepo *repository.UserRepository, logger
 	return userEmail, nil
 }
 
+// Conversation returns a remediation conversation by ID.
+// @Summary Get remediation conversation
+// @Description Returns remediation conversation details for the given remediation ID.
+// @Tags Remediation
+// @Accept */*
+// @Produce json
+// @Param id path string true "Remediation ID"
+// @Success 200 {object} map[string]interface{}
+// @Failure 400 {object} map[string]string "Missing required parameters"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/remediations/conversation/{id} [get]
 func (c *RemediationController) Conversation(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	remId, ok := vars["id"]
@@ -198,6 +212,18 @@ func (c *RemediationController) Conversation(w http.ResponseWriter, r *http.Requ
 
 }
 
+// NLI streams responses from the NLI service.
+// @Summary NLI stream
+// @Description Forwards the request body to the NLI stream endpoint and streams responses as Server-Sent Events (SSE).
+// @Tags Remediation
+// @Accept json
+// @Produce text/event-stream
+// @Param request body map[string]interface{} true "NLI request payload"
+// @Success 200 {string} string "SSE stream"
+// @Failure 400 {object} map[string]string "Invalid request"
+// @Failure 500 {object} map[string]string "Internal server error"
+// @Security ApiKeyAuth
+// @Router /api/v1/nli/stream [post]
 func (c *RemediationController) NLI(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
@@ -229,16 +255,19 @@ func (c *RemediationController) NLI(w http.ResponseWriter, r *http.Request) {
 
 // CSPMRemediation handles CSPM (Cloud Security Posture Management) remediation
 // @Summary Process CSPM remediation
-// @Description Processes CSPM findings and provides remediation suggestions
+// @Description Processes CSPM findings and streams remediation suggestions as Server-Sent Events (SSE)
 // @Tags Remediation
 // @Accept  json
-// @Produce  json
+// @Produce text/event-stream
+// @Param context query string false "Remediation context (e.g. cloud)"
+// @Param projectId query string false "Project ID (required when context != cloud)"
+// @Param commitsha query string false "Commit SHA (required when context != cloud)"
 // @Param   request body service.CSPMRemediationRequest true "CSPM remediation request"
-// @Success 200 {object} map[string]interface{}
+// @Success 200 {string} string "SSE stream"
 // @Failure 400 {object} map[string]string "Invalid request body"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security ApiKeyAuth
-// @Router /api/v1/remediation/cspm [post]
+// @Router /api/v1/remediations/cspm [post]
 func (c *RemediationController) CSPMRemediation(w http.ResponseWriter, r *http.Request) {
 
 	body, err := io.ReadAll(r.Body)
