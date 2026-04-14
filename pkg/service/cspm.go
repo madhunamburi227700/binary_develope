@@ -348,23 +348,15 @@ func (s *CSPMService) GetCSPMScanResult(ctx context.Context, fileName, cloudServ
 }
 
 // GetCloudSecurityIntegrationScan returns cloud integration rows from SSD filtered by account name and type (e.g. aws), including lastScanId.
-func (s *CSPMService) GetCloudSecurityIntegrationScan(ctx context.Context, name, accountType string) ([]client.CSPMCloudSecurityIntegration, error) {
-	all, err := s.ssdClient.GetCloudSecurityIntegrations(ctx)
+func (s *CSPMService) GetCloudSecurityIntegrationScan(ctx context.Context, teamId string) ([]client.CSPMCloudSecurityIntegration, error) {
+	integrations, err := s.ssdClient.GetCloudSecurityIntegrations(ctx, teamId)
 	if err != nil {
 		s.logger.LogError(err, "failed to get cloud security integrations", map[string]interface{}{
-			"name": name, "type": accountType,
+			"teamId": teamId,
 		})
 		return nil, fmt.Errorf("failed to get cloud security integrations: %w", err)
 	}
-	wantName := strings.TrimSpace(name)
-	wantType := strings.TrimSpace(accountType)
-	var filtered []client.CSPMCloudSecurityIntegration
-	for _, row := range all {
-		if strings.TrimSpace(row.Name) == wantName && strings.TrimSpace(row.Type) == wantType {
-			filtered = append(filtered, row)
-		}
-	}
-	return filtered, nil
+	return integrations, nil
 }
 
 func (s *CSPMService) TriggerCSPMScan(ctx context.Context, req *models.CSPMScanRequest) (*client.Response, error) {

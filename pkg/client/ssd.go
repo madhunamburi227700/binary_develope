@@ -1448,9 +1448,10 @@ func (c *SSDClient) PostCSPMScan(ctx context.Context, req *CSPMScanRequestBody) 
 }
 
 // GetCloudSecurityIntegrations proxies GET /gate/ssdservice/v1/cloudSecurityIntegration.
-func (c *SSDClient) GetCloudSecurityIntegrations(ctx context.Context) ([]CSPMCloudSecurityIntegration, error) {
+func (c *SSDClient) GetCloudSecurityIntegrations(ctx context.Context, teamId string) ([]CSPMCloudSecurityIntegration, error) {
 	q := url.Values{}
 	q.Set("orgId", c.orgID)
+	q.Set("teamId", teamId)
 	endpoint := "/gate/ssdservice/v1/cloudSecurityIntegration?" + q.Encode()
 
 	resp, err := c.restClient.Get(ctx, endpoint, nil)

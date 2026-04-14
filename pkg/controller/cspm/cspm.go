@@ -323,14 +323,13 @@ func (c *CSPMController) GetCSPMScanResult(w http.ResponseWriter, r *http.Reques
 // Fetches SSD cloudSecurityIntegration list and returns only rows matching name and type (includes lastScanId).
 func (c *CSPMController) GetCloudSecurityIntegrationScan(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
-	name := q.Get("name")
-	accountType := q.Get("type")
-	if name == "" || accountType == "" {
-		utils.SendErrorResponse(w, http.StatusBadRequest, "name and type are required")
+	teamId := q.Get("teamId")
+	if teamId == "" {
+		utils.SendErrorResponse(w, http.StatusBadRequest, "teamId is required")
 		return
 	}
 
-	result, err := c.cspmService.GetCloudSecurityIntegrationScan(r.Context(), name, accountType)
+	result, err := c.cspmService.GetCloudSecurityIntegrationScan(r.Context(), teamId)
 	if err != nil {
 		c.logger.LogError(err, "failed to get cloud security integration scan", nil)
 		utils.SendErrorResponse(w, http.StatusInternalServerError, "failed to get cloud security integration scan")
