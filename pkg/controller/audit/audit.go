@@ -30,6 +30,7 @@ func NewAuditController() AuditsController {
 // @Tags Audit
 // @Accept  json
 // @Produce  json
+// @Param from query string false "From timestamp/date filter"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]string "Invalid request"
 // @Failure 404 {object} map[string]string "No report found"

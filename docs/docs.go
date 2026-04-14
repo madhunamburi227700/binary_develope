@@ -24,6 +24,1104 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
+        "/api/v1/audit/report": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns the users audit report",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Audit"
+                ],
+                "summary": "Get users audit report",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "From timestamp/date filter",
+                        "name": "from",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No report found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cspm/deployments": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns deployments associated with the given ` + "`" + `commitsha` + "`" + ` and ` + "`" + `scanid` + "`" + `.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CSPM"
+                ],
+                "summary": "Get CSPM deployments",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Commit SHA",
+                        "name": "commitsha",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Scan ID",
+                        "name": "scanid",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cspm/networkmap": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Fetches the CSPM network map for a given artifact. Either ` + "`" + `sha` + "`" + ` or ` + "`" + `name` + "`" + ` must be provided.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CSPM"
+                ],
+                "summary": "Get CSPM network map",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Artifact SHA (alternative to name)",
+                        "name": "sha",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Artifact name (required if sha not provided)",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Artifact tag (optional when using name)",
+                        "name": "tag",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cspm/resources": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Lists CSPM resources with optional filters and pagination.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CSPM"
+                ],
+                "summary": "List CSPM resources",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Resource ID",
+                        "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cloud provider (e.g. aws, azure, gcp)",
+                        "name": "cloudProvider",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cloud account name",
+                        "name": "cloudAccountName",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource type",
+                        "name": "resourceType",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource name",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource name regex",
+                        "name": "nameRegex",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter resources that have findings",
+                        "name": "hasFindings",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default 1)",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Results per page (default 100)",
+                        "name": "perPage",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cspm/resources/all": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Lists all CSPM resources matching filters. Uses a cached backend call.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CSPM"
+                ],
+                "summary": "List all CSPM resources (cached)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Resource ID",
+                        "name": "id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cloud provider (e.g. aws, azure, gcp)",
+                        "name": "cloudProvider",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cloud account name",
+                        "name": "cloudAccountName",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource type",
+                        "name": "resourceType",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource name",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource name regex",
+                        "name": "nameRegex",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter resources that have findings",
+                        "name": "hasFindings",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cspm/resources/blast-radius": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns blast radius (dependency graph) for a given resource ID.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CSPM"
+                ],
+                "summary": "Get CSPM resource blast radius",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Resource ID",
+                        "name": "id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Maximum traversal depth (default 0)",
+                        "name": "maxDepth",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cloud provider (e.g. aws, azure, gcp)",
+                        "name": "cloudProvider",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cloud account name",
+                        "name": "cloudAccountName",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cspm/resources/summary": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns an aggregated summary of resources for the given filters.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CSPM"
+                ],
+                "summary": "Get CSPM resources summary",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cloud provider (e.g. aws, azure, gcp)",
+                        "name": "cloudProvider",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cloud account name",
+                        "name": "cloudAccountName",
+                        "in": "query"
+                    },
+                    {
+                        "type": "boolean",
+                        "description": "Filter resources that have findings",
+                        "name": "hasFindings",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cspm/scan/cloudIntegration": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns cloud security integration scan info (includes last scan ID) for the given team.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CSPM"
+                ],
+                "summary": "Get cloud integration scan info",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cspm/scan/dashboard": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns CSPM dashboard data for the given account and scan.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CSPM"
+                ],
+                "summary": "Get CSPM dashboard",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cloud account name",
+                        "name": "accountName",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Scan ID",
+                        "name": "scanId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Account type (e.g. aws, azure, gcp)",
+                        "name": "accountType",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cspm/scan/policy/{policyId}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns CSPM policy details for the given policy ID and scan context.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CSPM"
+                ],
+                "summary": "Get CSPM policy",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Policy ID",
+                        "name": "policyId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Account type (e.g. aws, azure, gcp)",
+                        "name": "accountType",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cloud account name",
+                        "name": "accountName",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Scan ID",
+                        "name": "scanId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cloud service name",
+                        "name": "service",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cspm/scan/regions": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns a list of regions for the given policy name and scan context.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CSPM"
+                ],
+                "summary": "Get CSPM policy regions",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Policy name",
+                        "name": "policyName",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Account type (e.g. aws, azure, gcp)",
+                        "name": "accountType",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cloud account name",
+                        "name": "accountName",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Scan ID",
+                        "name": "scanId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cloud service name",
+                        "name": "service",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cspm/scan/rulesStatusSummary": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns CSPM rules status summary for the provided account, scan, and service.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CSPM"
+                ],
+                "summary": "Get CSPM rules status summary",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Cloud account name",
+                        "name": "accountName",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Scan ID",
+                        "name": "scanId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Account type (e.g. aws, azure, gcp)",
+                        "name": "accountType",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cloud service name",
+                        "name": "service",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cspm/scan/scanResult": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns CSPM scan result for the provided file and cloud integration context.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CSPM"
+                ],
+                "summary": "Get CSPM scan result",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "File name",
+                        "name": "fileName",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cloud service provider",
+                        "name": "cloudServiceProvider",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cloud account name",
+                        "name": "cloudAccountName",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Scan operation (e.g. cspmscan)",
+                        "name": "scanOperation",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/cspm/scan/trigger": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Triggers a CSPM scan for the given hub and cloud account.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "CSPM"
+                ],
+                "summary": "Trigger a CSPM scan",
+                "parameters": [
+                    {
+                        "description": "CSPM scan request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_models.CSPMScanRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or missing required fields",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "502": {
+                        "description": "Upstream error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/features": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns the features for the user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Features"
+                ],
+                "summary": "Get Features by user auth",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No features found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/feedback/send": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Accepts user feedback with optional file attachments and sends to admin emails",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Feedback"
+                ],
+                "summary": "Send user feedback",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Feedback message",
+                        "name": "message",
+                        "in": "formData",
+                        "required": true
+                    },
+                    {
+                        "type": "file",
+                        "description": "File attachments (max 15MB total, 8MB per file)",
+                        "name": "attachments",
+                        "in": "formData"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Feedback sent successfully",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "413": {
+                        "description": "File too large",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/hubs": {
             "post": {
                 "security": [
@@ -49,7 +1147,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.CreateHubRequest"
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.CreateHubRequest"
                         }
                     }
                 ],
@@ -259,6 +1357,71 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/hubs/{id}/stats": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns the hub stats with the specified ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Hubs"
+                ],
+                "summary": "Get hub stats by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Hub ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid hub ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Hub not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/integrations": {
             "get": {
                 "security": [
@@ -282,6 +1445,12 @@ const docTemplate = `{
                         "type": "string",
                         "description": "Comma-separated list of team IDs to filter by",
                         "name": "teamIds",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Integrator type filter",
+                        "name": "integratorType",
                         "in": "query"
                     }
                 ],
@@ -314,7 +1483,181 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/integrations/github": {
+        "/api/v1/integrations/cloud": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Updates a cloud integration for the given ` + "`" + `teamId` + "`" + `. ` + "`" + `integratorType` + "`" + ` must be present in the request body.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Update cloud integration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "Cloud integration request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_client.CreateIntegrationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or missing required parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Creates a new cloud integration for the given ` + "`" + `teamId` + "`" + `.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Create cloud integration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "Cloud integration request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_client.CreateIntegrationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body or missing required parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/integrations/github/check/workflow": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Checks whether the GitHub Actions workflow is set up and returns status.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Check GitHub workflow status",
+                "parameters": [
+                    {
+                        "description": "Workflow status request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.SetupWorkflowRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/integrations/github/create": {
             "post": {
                 "security": [
                     {
@@ -339,7 +1682,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.CreateGitHubIntegrationRequest"
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.CreateGitHubIntegrationRequest"
                         }
                     }
                 ],
@@ -372,14 +1715,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/integrations/github/app/install": {
-            "post": {
+        "/api/v1/integrations/github/delete": {
+            "delete": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Installs the GitHub App integration with the provided installation ID",
+                "description": "Deletes an integration by ` + "`" + `integrationId` + "`" + ` and ` + "`" + `integrationName` + "`" + ` within the provided ` + "`" + `hubID` + "`" + `.",
                 "consumes": [
                     "application/json"
                 ],
@@ -389,42 +1732,50 @@ const docTemplate = `{
                 "tags": [
                     "Integrations"
                 ],
-                "summary": "Install GitHub App",
+                "summary": "Delete integration",
                 "parameters": [
                     {
-                        "description": "GitHub App installation details",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/service.InstallGitHubAppRequest"
-                        }
+                        "type": "string",
+                        "description": "Integration ID",
+                        "name": "integrationId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Integration name",
+                        "name": "integrationName",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Hub ID",
+                        "name": "hubID",
+                        "in": "query",
+                        "required": true
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Created",
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
                         }
                     },
                     "400": {
-                        "description": "Invalid request body",
+                        "description": "Missing required parameters",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -451,20 +1802,6 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Platform name (e.g., github)",
-                        "name": "platform",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Type of integration (e.g., organisation, user)",
-                        "name": "type",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
                         "description": "Account ID (e.g., 0x3b32)",
                         "name": "accountId",
                         "in": "query",
@@ -472,10 +1809,23 @@ const docTemplate = `{
                     },
                     {
                         "type": "string",
-                        "description": "Scan level (e.g., repository, organization)",
-                        "name": "scanLevel",
+                        "description": "Integration name",
+                        "name": "integrationName",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Hub ID",
+                        "name": "hubId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Repository name (optional)",
+                        "name": "repository",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -497,6 +1847,156 @@ const docTemplate = `{
                     },
                     "401": {
                         "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/integrations/github/install": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns the GitHub App installation URL.",
+                "consumes": [
+                    "*/*"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Install GitHub App",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/integrations/github/setup/workflow": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Sets up GitHub Actions workflow for AI Guardian PR scanning.",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Setup GitHub workflow",
+                "parameters": [
+                    {
+                        "description": "Workflow setup request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.SetupWorkflowRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/integrations/github/update": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Updates a GitHub integration with the provided details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "Update GitHub integration",
+                "parameters": [
+                    {
+                        "description": "GitHub integration details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.UpdateGitHubIntegrationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -541,7 +2041,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.ValidateGitHubIntegrationRequest"
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.ValidateGitHubIntegrationRequest"
                         }
                     }
                 ],
@@ -583,7 +2083,215 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/integrations/team": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns a list of all integrations for a team",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Integrations"
+                ],
+                "summary": "List integrations for a team",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Team ID",
+                        "name": "teamId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/nli/stream": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Forwards the request body to the NLI stream endpoint and streams responses as Server-Sent Events (SSE).",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Remediation"
+                ],
+                "summary": "NLI stream",
+                "parameters": [
+                    {
+                        "description": "NLI request payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/profile": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns the profile of the currently authenticated user",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Get user profile",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/projects": {
+            "put": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Updates a existing project with the provided details",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Update a existing project",
+                "parameters": [
+                    {
+                        "description": "Project update details",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.UpdateProjectRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Created",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            },
             "post": {
                 "security": [
                     {
@@ -608,7 +2316,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.CreateProjectRequest"
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.CreateProjectRequest"
                         }
                     }
                 ],
@@ -622,6 +2330,67 @@ const docTemplate = `{
                     },
                     "400": {
                         "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/list/all": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns all projects with repo/branch taken from each project's latest scan (scans.created_at DESC)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "List all projects with latest repo/branch",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Hub ID",
+                        "name": "hubId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Optional project name search (ILIKE)",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.ProjectsListAllResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Missing/invalid hubId",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -781,6 +2550,83 @@ const docTemplate = `{
                         "name": "id",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Comma-separated team IDs (optional)",
+                        "name": "teamIds",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid project ID",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Project not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/projects/{id}/stats": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns the project stats with the specified ID",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Projects"
+                ],
+                "summary": "Get project stats by ID",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Database selector (optional)",
+                        "name": "db",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -917,7 +2763,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.CreateFeedbackRequest"
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.CreateFeedbackRequest"
                         }
                     }
                 ],
@@ -1213,7 +3059,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.UpdateFeedbackRequest"
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.UpdateFeedbackRequest"
                         }
                     }
                 ],
@@ -1318,16 +3164,16 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/remediation/cve": {
-            "post": {
+        "/api/v1/remediations/conversation/{id}": {
+            "get": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Processes CVE findings and provides remediation suggestions",
+                "description": "Returns remediation conversation details for the given remediation ID.",
                 "consumes": [
-                    "application/json"
+                    "*/*"
                 ],
                 "produces": [
                     "application/json"
@@ -1335,16 +3181,14 @@ const docTemplate = `{
                 "tags": [
                     "Remediation"
                 ],
-                "summary": "Process CVE remediation",
+                "summary": "Get remediation conversation",
                 "parameters": [
                     {
-                        "description": "CVE findings data",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/service.CVERemediationRequest"
-                        }
+                        "type": "string",
+                        "description": "Remediation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
                     }
                 ],
                 "responses": {
@@ -1353,6 +3197,81 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameters",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/remediations/cspm": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Processes CSPM findings and streams remediation suggestions as Server-Sent Events (SSE)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Remediation"
+                ],
+                "summary": "Process CSPM remediation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Remediation context (e.g. cloud)",
+                        "name": "context",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Project ID (required when context != cloud)",
+                        "name": "projectId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Commit SHA (required when context != cloud)",
+                        "name": "commitsha",
+                        "in": "query"
+                    },
+                    {
+                        "description": "CSPM remediation request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.CSPMRemediationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE stream",
+                        "schema": {
+                            "type": "string"
                         }
                     },
                     "400": {
@@ -1376,19 +3295,83 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/remediation/sast": {
+        "/api/v1/remediations/cve": {
             "post": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Processes SAST findings and provides remediation suggestions",
+                "description": "Processes CVE findings and streams remediation suggestions as Server-Sent Events (SSE)",
                 "consumes": [
                     "application/json"
                 ],
                 "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "Remediation"
+                ],
+                "summary": "Process CVE remediation",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "description": "CVE findings data",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.CVERemediationRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE stream",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/remediations/sast": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Processes SAST findings and streams remediation suggestions as Server-Sent Events (SSE)",
+                "consumes": [
                     "application/json"
+                ],
+                "produces": [
+                    "text/event-stream"
                 ],
                 "tags": [
                     "Remediation"
@@ -1396,25 +3379,95 @@ const docTemplate = `{
                 "summary": "Process SAST remediation",
                 "parameters": [
                     {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
                         "description": "SAST findings data",
                         "name": "request",
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.SASTRemediationRequest"
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.SASTRemediationRequest"
                         }
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "OK",
+                        "description": "SSE stream",
                         "schema": {
-                            "type": "object",
-                            "additionalProperties": true
+                            "type": "string"
                         }
                     },
                     "400": {
                         "description": "Invalid request body",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/scans/file": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Accepts a file via multipart form and scans it using semgrep CLI, returning JSON results in the format: { \"data\": { \"results\": [...], \"version\": \"...\" }, \"message\": \"...\", \"success\": true }",
+                "consumes": [
+                    "multipart/form-data"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Scans"
+                ],
+                "summary": "Scan a file with semgrep",
+                "parameters": [
+                    {
+                        "type": "file",
+                        "description": "File to scan (max 10MB, must have allowed extension)",
+                        "name": "file",
+                        "in": "formData",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Scan results with findings in data.results array",
+                        "schema": {
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.ScanFileResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "413": {
+                        "description": "File too large",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1459,7 +3512,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/service.RescanRequest"
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.RescanRequest"
                         }
                     }
                 ],
@@ -1492,6 +3545,107 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/vuln/list/sast": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Returns a paginated list of SAST vulnerabilities for the specified repository, branch, and project",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vulnerabilities"
+                ],
+                "summary": "Get SAST vulnerabilities",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Project ID",
+                        "name": "projectId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Hub ID",
+                        "name": "hubId",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Repository name",
+                        "name": "repository",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Branch name",
+                        "name": "branch",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Scan ID",
+                        "name": "scanId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 0)",
+                        "name": "pageNo",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of items per page (default: 10, max: 100)",
+                        "name": "pageLimit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "400": {
+                        "description": "Missing required parameters or invalid input",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/api/v1/vuln/list/sca": {
             "get": {
                 "security": [
@@ -1499,7 +3653,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Returns a list of SCA vulnerabilities for the specified repository, branch, and project",
+                "description": "Returns a paginated list of SCA vulnerabilities for the specified repository, branch, and project",
                 "consumes": [
                     "application/json"
                 ],
@@ -1538,6 +3692,30 @@ const docTemplate = `{
                         "name": "branch",
                         "in": "query",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Scan ID",
+                        "name": "scanId",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search term",
+                        "name": "search",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Page number (default: 0)",
+                        "name": "pageNo",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "Number of items per page (default: 10, max: 100)",
+                        "name": "pageLimit",
+                        "in": "query"
                     }
                 ],
                 "responses": {
@@ -1549,7 +3727,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Missing required parameters or invalid Hub ID format",
+                        "description": "Missing required parameters or invalid input",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1590,13 +3768,6 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Organization ID",
-                        "name": "orgId",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
                         "description": "Comma-separated list of team IDs",
                         "name": "teamId",
                         "in": "query"
@@ -1618,7 +3789,8 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/client.VulnerabilityOptimization"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "400": {
@@ -1663,13 +3835,6 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Organization ID",
-                        "name": "orgId",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
                         "description": "Comma-separated list of team IDs",
                         "name": "teamId",
                         "in": "query"
@@ -1691,7 +3856,8 @@ const docTemplate = `{
                     "200": {
                         "description": "OK",
                         "schema": {
-                            "$ref": "#/definitions/client.VulnerabilityPriority"
+                            "type": "object",
+                            "additionalProperties": true
                         }
                     },
                     "400": {
@@ -1715,16 +3881,16 @@ const docTemplate = `{
                 }
             }
         },
-        "/api/v1/vulnerabilities/sast": {
+        "/api/v1/vuln/sast/report": {
             "get": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Returns a list of SAST vulnerabilities for the specified repository, branch, and project",
+                "description": "Downloads the SAST report JSON for the given scan ID.",
                 "consumes": [
-                    "application/json"
+                    "*/*"
                 ],
                 "produces": [
                     "application/json"
@@ -1732,37 +3898,130 @@ const docTemplate = `{
                 "tags": [
                     "Vulnerabilities"
                 ],
-                "summary": "Get SAST vulnerabilities",
+                "summary": "Download SAST report",
                 "parameters": [
                     {
                         "type": "string",
-                        "description": "Project ID",
-                        "name": "projectId",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Hub ID",
-                        "name": "hubId",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Repository name",
-                        "name": "repository",
-                        "in": "query",
-                        "required": true
-                    },
-                    {
-                        "type": "string",
-                        "description": "Branch name",
-                        "name": "branch",
+                        "description": "Scan ID (UUID)",
+                        "name": "scanId",
                         "in": "query",
                         "required": true
                     }
                 ],
+                "responses": {
+                    "200": {
+                        "description": "JSON report",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/v1/vuln/sca/report": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Downloads the SCA report JSON for the given scan ID.",
+                "consumes": [
+                    "*/*"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Vulnerabilities"
+                ],
+                "summary": "Download SCA report",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Scan ID (UUID)",
+                        "name": "scanId",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "JSON report",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not found",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/github/install": {
+            "get": {
+                "description": "Returns OAuth URL for user authentication with email and profile scopes only",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "GitHub User Auth",
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1771,8 +4030,34 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
-                    "400": {
-                        "description": "Missing required parameters",
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/auth/github/login": {
+            "post": {
+                "description": "Starts the OAuth 2.0 flow for Github authentication",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Verifies github OAuth login",
+                "responses": {
+                    "200": {
+                        "description": "OK",
                         "schema": {
                             "type": "object",
                             "additionalProperties": {
@@ -1920,14 +4205,14 @@ const docTemplate = `{
                 }
             }
         },
-        "/auth/profile": {
-            "get": {
+        "/webhooks/github/actions": {
+            "post": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Returns the profile of the currently authenticated user",
+                "description": "Receives GitHub Actions webhook and starts PR scanning workflow.",
                 "consumes": [
                     "application/json"
                 ],
@@ -1935,9 +4220,20 @@ const docTemplate = `{
                     "application/json"
                 ],
                 "tags": [
-                    "Users"
+                    "Webhooks"
                 ],
-                "summary": "Get user profile",
+                "summary": "GitHub Actions webhook",
+                "parameters": [
+                    {
+                        "description": "Webhook payload",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_models.WebhookRequest"
+                        }
+                    }
+                ],
                 "responses": {
                     "200": {
                         "description": "OK",
@@ -1946,13 +4242,11 @@ const docTemplate = `{
                             "additionalProperties": true
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized",
+                    "400": {
+                        "description": "Invalid request",
                         "schema": {
                             "type": "object",
-                            "additionalProperties": {
-                                "type": "string"
-                            }
+                            "additionalProperties": true
                         }
                     }
                 }
@@ -1960,64 +4254,187 @@ const docTemplate = `{
         }
     },
     "definitions": {
-        "client.VulnerabilityOptimization": {
+        "github_com_opsmx_ai-guardian-api_pkg_client.CreateIntegrationRequest": {
             "type": "object",
             "properties": {
-                "allVulnerabilities": {
-                    "type": "integer"
+                "category": {
+                    "type": "string"
                 },
-                "topPriority": {
-                    "type": "integer"
-                },
-                "uniqueVulnerabilities": {
-                    "type": "integer"
-                }
-            }
-        },
-        "client.VulnerabilityPriority": {
-            "type": "object",
-            "properties": {
-                "priority": {
+                "featureConfigs": {
                     "type": "object",
-                    "additionalProperties": {
-                        "type": "integer"
-                    }
+                    "additionalProperties": true
                 },
-                "vulnerabilities": {
-                    "type": "integer"
+                "id": {
+                    "type": "string"
                 },
-                "vulnerabilityPrioritisationData": {
+                "integratorConfigs": {
+                    "type": "object",
+                    "additionalProperties": true
+                },
+                "integratorType": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "team": {
                     "type": "array",
                     "items": {
-                        "type": "object",
-                        "properties": {
-                            "cvss": {
-                                "type": "number"
-                            },
-                            "epss": {
-                                "type": "number"
-                            },
-                            "name": {
-                                "type": "string"
-                            },
-                            "prirorityInt": {
-                                "type": "integer"
-                            },
-                            "severity": {
-                                "type": "string"
-                            }
-                        }
+                        "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_client.TeamAssignment"
                     }
                 }
             }
         },
-        "service.CVERemediationRequest": {
+        "github_com_opsmx_ai-guardian-api_pkg_client.TeamAssignment": {
+            "type": "object",
+            "properties": {
+                "teamId": {
+                    "type": "string"
+                },
+                "teamName": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_opsmx_ai-guardian-api_pkg_models.CSPMScanRequest": {
+            "type": "object",
+            "properties": {
+                "cloudAccountName": {
+                    "type": "string"
+                },
+                "cloudServiceProvider": {
+                    "type": "string"
+                },
+                "hubName": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_opsmx_ai-guardian-api_pkg_models.WebhookRequest": {
+            "type": "object",
+            "required": [
+                "BASE_BRANCH",
+                "HEAD_BRANCH",
+                "PR_NUMBER",
+                "REPO_URL"
+            ],
+            "properties": {
+                "BASE_BRANCH": {
+                    "type": "string"
+                },
+                "HEAD_BRANCH": {
+                    "type": "string"
+                },
+                "PR_NUMBER": {
+                    "type": "string"
+                },
+                "REPO_URL": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_opsmx_ai-guardian-api_pkg_repository.ProjectWithLatestScan": {
+            "type": "object",
+            "properties": {
+                "branch": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "repo": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_opsmx_ai-guardian-api_pkg_service.CSPMRemediationRequest": {
+            "type": "object",
+            "properties": {
+                "affected_resource": {
+                    "type": "string"
+                },
+                "artifact_sha": {
+                    "type": "string"
+                },
+                "branch": {
+                    "type": "string"
+                },
+                "cloud_name": {
+                    "type": "string"
+                },
+                "cloud_provider": {
+                    "type": "string"
+                },
+                "commit_sha": {
+                    "type": "string"
+                },
+                "details": {
+                    "type": "string"
+                },
+                "file_path": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "item_id": {
+                    "description": "CSPM",
+                    "type": "string"
+                },
+                "line_no": {
+                    "type": "integer"
+                },
+                "message_type": {
+                    "type": "string"
+                },
+                "organization": {
+                    "type": "string"
+                },
+                "platform": {
+                    "type": "string"
+                },
+                "repository": {
+                    "type": "string"
+                },
+                "rule": {
+                    "type": "string"
+                },
+                "rule_message": {
+                    "type": "string"
+                },
+                "session_id": {
+                    "type": "string"
+                },
+                "token": {
+                    "type": "string"
+                },
+                "user_email": {
+                    "type": "string"
+                },
+                "user_message": {
+                    "type": "string"
+                },
+                "vulnerability_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_opsmx_ai-guardian-api_pkg_service.CVERemediationRequest": {
             "type": "object",
             "properties": {
                 "branch": {
                     "type": "string"
                 },
                 "cve_id": {
+                    "type": "string"
+                },
+                "hub_id": {
+                    "type": "string"
+                },
+                "id": {
                     "type": "string"
                 },
                 "message_type": {
@@ -2035,21 +4452,24 @@ const docTemplate = `{
                 "repository": {
                     "type": "string"
                 },
-                "scan_result_id": {
-                    "type": "string"
-                },
                 "session_id": {
                     "type": "string"
                 },
                 "token": {
                     "type": "string"
                 },
+                "user_email": {
+                    "type": "string"
+                },
                 "user_message": {
+                    "type": "string"
+                },
+                "vulnerability_id": {
                     "type": "string"
                 }
             }
         },
-        "service.CreateFeedbackRequest": {
+        "github_com_opsmx_ai-guardian-api_pkg_service.CreateFeedbackRequest": {
             "type": "object",
             "required": [
                 "remediation_id",
@@ -2072,7 +4492,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.CreateGitHubIntegrationRequest": {
+        "github_com_opsmx_ai-guardian-api_pkg_service.CreateGitHubIntegrationRequest": {
             "type": "object",
             "properties": {
                 "installationId": {
@@ -2096,7 +4516,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.CreateHubRequest": {
+        "github_com_opsmx_ai-guardian-api_pkg_service.CreateHubRequest": {
             "type": "object",
             "required": [
                 "email",
@@ -2116,16 +4536,12 @@ const docTemplate = `{
                 }
             }
         },
-        "service.CreateProjectRequest": {
+        "github_com_opsmx_ai-guardian-api_pkg_service.CreateProjectRequest": {
             "type": "object",
-            "required": [
-                "hub_id",
-                "name",
-                "organisation",
-                "repoName",
-                "type"
-            ],
             "properties": {
+                "branch": {
+                    "type": "string"
+                },
                 "hub_id": {
                     "type": "string"
                 },
@@ -2133,43 +4549,34 @@ const docTemplate = `{
                     "type": "string"
                 },
                 "name": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 1
-                },
-                "organisation": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 1
+                    "type": "string"
                 },
                 "repoName": {
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 1
+                    "type": "string"
                 },
-                "type": {
-                    "description": "user/organisation",
-                    "type": "string",
-                    "maxLength": 255,
-                    "minLength": 1
-                }
-            }
-        },
-        "service.InstallGitHubAppRequest": {
-            "type": "object",
-            "properties": {
-                "installation_id": {
+                "schedule_time": {
                     "type": "integer"
                 },
-                "team_ids": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                "scheduled_scan": {
+                    "type": "boolean"
                 }
             }
         },
-        "service.RescanRequest": {
+        "github_com_opsmx_ai-guardian-api_pkg_service.ProjectsListAllResponse": {
+            "type": "object",
+            "properties": {
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_repository.ProjectWithLatestScan"
+                    }
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "github_com_opsmx_ai-guardian-api_pkg_service.RescanRequest": {
             "type": "object",
             "properties": {
                 "branch": {
@@ -2186,7 +4593,7 @@ const docTemplate = `{
                 }
             }
         },
-        "service.SASTRemediationRequest": {
+        "github_com_opsmx_ai-guardian-api_pkg_service.SASTRemediationRequest": {
             "type": "object",
             "properties": {
                 "branch": {
@@ -2195,8 +4602,17 @@ const docTemplate = `{
                 "file_path": {
                     "type": "string"
                 },
+                "hub_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
                 "line_no": {
                     "type": "integer"
+                },
+                "message_type": {
+                    "type": "string"
                 },
                 "organization": {
                     "type": "string"
@@ -2213,15 +4629,73 @@ const docTemplate = `{
                 "rule_message": {
                     "type": "string"
                 },
-                "scan_result_id": {
+                "session_id": {
                     "type": "string"
                 },
                 "token": {
                     "type": "string"
+                },
+                "user_email": {
+                    "type": "string"
+                },
+                "user_message": {
+                    "type": "string"
+                },
+                "vulnerability_id": {
+                    "type": "string"
                 }
             }
         },
-        "service.UpdateFeedbackRequest": {
+        "github_com_opsmx_ai-guardian-api_pkg_service.ScanFileResponse": {
+            "type": "object",
+            "properties": {
+                "data": {
+                    "$ref": "#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.SemgrepData"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "success": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_opsmx_ai-guardian-api_pkg_service.SemgrepData": {
+            "type": "object",
+            "properties": {
+                "results": {
+                    "type": "array",
+                    "items": {}
+                },
+                "version": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_opsmx_ai-guardian-api_pkg_service.SetupWorkflowRequest": {
+            "type": "object",
+            "required": [
+                "branch",
+                "hub_id",
+                "integration_id",
+                "repository"
+            ],
+            "properties": {
+                "branch": {
+                    "type": "string"
+                },
+                "hub_id": {
+                    "type": "string"
+                },
+                "integration_id": {
+                    "type": "string"
+                },
+                "repository": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_opsmx_ai-guardian-api_pkg_service.UpdateFeedbackRequest": {
             "type": "object",
             "properties": {
                 "comments": {
@@ -2234,7 +4708,63 @@ const docTemplate = `{
                 }
             }
         },
-        "service.ValidateGitHubIntegrationRequest": {
+        "github_com_opsmx_ai-guardian-api_pkg_service.UpdateGitHubIntegrationRequest": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "installationId": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "team_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "timestamp": {
+                    "description": "for app based access token decryption",
+                    "type": "integer"
+                },
+                "token": {
+                    "type": "string"
+                }
+            }
+        },
+        "github_com_opsmx_ai-guardian-api_pkg_service.UpdateProjectRequest": {
+            "type": "object",
+            "properties": {
+                "branch": {
+                    "type": "string"
+                },
+                "hub_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "integration_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "repoName": {
+                    "type": "string"
+                },
+                "schedule_time": {
+                    "type": "integer"
+                },
+                "scheduled_scan": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "github_com_opsmx_ai-guardian-api_pkg_service.ValidateGitHubIntegrationRequest": {
             "type": "object",
             "properties": {
                 "name": {

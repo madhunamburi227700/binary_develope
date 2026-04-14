@@ -1,5 +1,5 @@
 # AI Guardian API - Development Makefile
-.PHONY: help build up down logs clean restart status test fmt deps migrate db redis
+.PHONY: help build up down logs clean restart status test fmt deps migrate db redis swagger
 
 # Docker Commands
 build: ## Build all Docker images
@@ -19,3 +19,6 @@ logs: ## View logs
 
 test:
 	go clean -testcache && go test ./... -cover
+
+swagger: ## Regenerate swagger docs (docs/swagger.json, docs/swagger.yaml)
+	swag init -g cmd/main.go -o docs --parseDependency --parseInternal

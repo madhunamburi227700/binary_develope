@@ -158,6 +158,9 @@ func (c *IntegratorController) InstallGitHubAppIntegration(w http.ResponseWriter
 // @Accept */*
 // @Produce  json
 // @Param accountId query string true "Account ID (e.g., 0x3b32)"
+// @Param integrationName query string true "Integration name"
+// @Param hubId query string true "Hub ID"
+// @Param repository query string false "Repository name (optional)"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]string "Invalid request"
 // @Failure 401 {object} map[string]string "Unauthorized"
@@ -297,6 +300,7 @@ func (c *IntegratorController) UpdateCloudIntegration(w http.ResponseWriter, r *
 // @Accept  json
 // @Produce  json
 // @Param   teamIds query string false "Comma-separated list of team IDs to filter by"
+// @Param   integratorType query string false "Integrator type filter"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]string "Invalid request"
 // @Failure 500 {object} map[string]string "Internal server error"

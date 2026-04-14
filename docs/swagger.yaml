@@ -1,43 +1,126 @@
 basePath: /
 definitions:
-  client.VulnerabilityOptimization:
+  github_com_opsmx_ai-guardian-api_pkg_client.CreateIntegrationRequest:
     properties:
-      allVulnerabilities:
-        type: integer
-      topPriority:
-        type: integer
-      uniqueVulnerabilities:
-        type: integer
-    type: object
-  client.VulnerabilityPriority:
-    properties:
-      priority:
-        additionalProperties:
-          type: integer
+      category:
+        type: string
+      featureConfigs:
+        additionalProperties: true
         type: object
-      vulnerabilities:
-        type: integer
-      vulnerabilityPrioritisationData:
+      id:
+        type: string
+      integratorConfigs:
+        additionalProperties: true
+        type: object
+      integratorType:
+        type: string
+      name:
+        type: string
+      team:
         items:
-          properties:
-            cvss:
-              type: number
-            epss:
-              type: number
-            name:
-              type: string
-            prirorityInt:
-              type: integer
-            severity:
-              type: string
-          type: object
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_client.TeamAssignment'
         type: array
     type: object
-  service.CVERemediationRequest:
+  github_com_opsmx_ai-guardian-api_pkg_client.TeamAssignment:
+    properties:
+      teamId:
+        type: string
+      teamName:
+        type: string
+    type: object
+  github_com_opsmx_ai-guardian-api_pkg_models.CSPMScanRequest:
+    properties:
+      cloudAccountName:
+        type: string
+      cloudServiceProvider:
+        type: string
+      hubName:
+        type: string
+    type: object
+  github_com_opsmx_ai-guardian-api_pkg_models.WebhookRequest:
+    properties:
+      BASE_BRANCH:
+        type: string
+      HEAD_BRANCH:
+        type: string
+      PR_NUMBER:
+        type: string
+      REPO_URL:
+        type: string
+    required:
+    - BASE_BRANCH
+    - HEAD_BRANCH
+    - PR_NUMBER
+    - REPO_URL
+    type: object
+  github_com_opsmx_ai-guardian-api_pkg_repository.ProjectWithLatestScan:
+    properties:
+      branch:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      repo:
+        type: string
+    type: object
+  github_com_opsmx_ai-guardian-api_pkg_service.CSPMRemediationRequest:
+    properties:
+      affected_resource:
+        type: string
+      artifact_sha:
+        type: string
+      branch:
+        type: string
+      cloud_name:
+        type: string
+      cloud_provider:
+        type: string
+      commit_sha:
+        type: string
+      details:
+        type: string
+      file_path:
+        type: string
+      id:
+        type: string
+      item_id:
+        description: CSPM
+        type: string
+      line_no:
+        type: integer
+      message_type:
+        type: string
+      organization:
+        type: string
+      platform:
+        type: string
+      repository:
+        type: string
+      rule:
+        type: string
+      rule_message:
+        type: string
+      session_id:
+        type: string
+      token:
+        type: string
+      user_email:
+        type: string
+      user_message:
+        type: string
+      vulnerability_id:
+        type: string
+    type: object
+  github_com_opsmx_ai-guardian-api_pkg_service.CVERemediationRequest:
     properties:
       branch:
         type: string
       cve_id:
+        type: string
+      hub_id:
+        type: string
+      id:
         type: string
       message_type:
         type: string
@@ -49,16 +132,18 @@ definitions:
         type: string
       repository:
         type: string
-      scan_result_id:
-        type: string
       session_id:
         type: string
       token:
         type: string
+      user_email:
+        type: string
       user_message:
         type: string
+      vulnerability_id:
+        type: string
     type: object
-  service.CreateFeedbackRequest:
+  github_com_opsmx_ai-guardian-api_pkg_service.CreateFeedbackRequest:
     properties:
       comments:
         type: string
@@ -74,7 +159,7 @@ definitions:
     - remediation_id
     - vulnerability_id
     type: object
-  service.CreateGitHubIntegrationRequest:
+  github_com_opsmx_ai-guardian-api_pkg_service.CreateGitHubIntegrationRequest:
     properties:
       installationId:
         type: string
@@ -90,7 +175,7 @@ definitions:
       token:
         type: string
     type: object
-  service.CreateHubRequest:
+  github_com_opsmx_ai-guardian-api_pkg_service.CreateHubRequest:
     properties:
       email:
         type: string
@@ -104,46 +189,33 @@ definitions:
     - email
     - name
     type: object
-  service.CreateProjectRequest:
+  github_com_opsmx_ai-guardian-api_pkg_service.CreateProjectRequest:
     properties:
+      branch:
+        type: string
       hub_id:
         type: string
       integration_id:
         type: string
       name:
-        maxLength: 255
-        minLength: 1
-        type: string
-      organisation:
-        maxLength: 255
-        minLength: 1
         type: string
       repoName:
-        maxLength: 255
-        minLength: 1
         type: string
-      type:
-        description: user/organisation
-        maxLength: 255
-        minLength: 1
-        type: string
-    required:
-    - hub_id
-    - name
-    - organisation
-    - repoName
-    - type
-    type: object
-  service.InstallGitHubAppRequest:
-    properties:
-      installation_id:
+      schedule_time:
         type: integer
-      team_ids:
-        items:
-          type: string
-        type: array
+      scheduled_scan:
+        type: boolean
     type: object
-  service.RescanRequest:
+  github_com_opsmx_ai-guardian-api_pkg_service.ProjectsListAllResponse:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_repository.ProjectWithLatestScan'
+        type: array
+      total:
+        type: integer
+    type: object
+  github_com_opsmx_ai-guardian-api_pkg_service.RescanRequest:
     properties:
       branch:
         type: string
@@ -154,14 +226,20 @@ definitions:
       repository:
         type: string
     type: object
-  service.SASTRemediationRequest:
+  github_com_opsmx_ai-guardian-api_pkg_service.SASTRemediationRequest:
     properties:
       branch:
         type: string
       file_path:
         type: string
+      hub_id:
+        type: string
+      id:
+        type: string
       line_no:
         type: integer
+      message_type:
+        type: string
       organization:
         type: string
       platform:
@@ -172,12 +250,51 @@ definitions:
         type: string
       rule_message:
         type: string
-      scan_result_id:
+      session_id:
         type: string
       token:
         type: string
+      user_email:
+        type: string
+      user_message:
+        type: string
+      vulnerability_id:
+        type: string
     type: object
-  service.UpdateFeedbackRequest:
+  github_com_opsmx_ai-guardian-api_pkg_service.ScanFileResponse:
+    properties:
+      data:
+        $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.SemgrepData'
+      message:
+        type: string
+      success:
+        type: boolean
+    type: object
+  github_com_opsmx_ai-guardian-api_pkg_service.SemgrepData:
+    properties:
+      results:
+        items: {}
+        type: array
+      version:
+        type: string
+    type: object
+  github_com_opsmx_ai-guardian-api_pkg_service.SetupWorkflowRequest:
+    properties:
+      branch:
+        type: string
+      hub_id:
+        type: string
+      integration_id:
+        type: string
+      repository:
+        type: string
+    required:
+    - branch
+    - hub_id
+    - integration_id
+    - repository
+    type: object
+  github_com_opsmx_ai-guardian-api_pkg_service.UpdateFeedbackRequest:
     properties:
       comments:
         type: string
@@ -186,7 +303,44 @@ definitions:
         minimum: 0
         type: number
     type: object
-  service.ValidateGitHubIntegrationRequest:
+  github_com_opsmx_ai-guardian-api_pkg_service.UpdateGitHubIntegrationRequest:
+    properties:
+      id:
+        type: string
+      installationId:
+        type: string
+      name:
+        type: string
+      team_ids:
+        items:
+          type: string
+        type: array
+      timestamp:
+        description: for app based access token decryption
+        type: integer
+      token:
+        type: string
+    type: object
+  github_com_opsmx_ai-guardian-api_pkg_service.UpdateProjectRequest:
+    properties:
+      branch:
+        type: string
+      hub_id:
+        type: string
+      id:
+        type: string
+      integration_id:
+        type: string
+      name:
+        type: string
+      repoName:
+        type: string
+      schedule_time:
+        type: integer
+      scheduled_scan:
+        type: boolean
+    type: object
+  github_com_opsmx_ai-guardian-api_pkg_service.ValidateGitHubIntegrationRequest:
     properties:
       name:
         type: string
@@ -211,6 +365,734 @@ info:
   title: AI Guardian API
   version: "1.0"
 paths:
+  /api/v1/audit/report:
+    get:
+      consumes:
+      - application/json
+      description: Returns the users audit report
+      parameters:
+      - description: From timestamp/date filter
+        in: query
+        name: from
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: No report found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get users audit report
+      tags:
+      - Audit
+  /api/v1/cspm/deployments:
+    get:
+      consumes:
+      - application/json
+      description: Returns deployments associated with the given `commitsha` and `scanid`.
+      parameters:
+      - description: Commit SHA
+        in: query
+        name: commitsha
+        required: true
+        type: string
+      - description: Scan ID
+        in: query
+        name: scanid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing required parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get CSPM deployments
+      tags:
+      - CSPM
+  /api/v1/cspm/networkmap:
+    get:
+      consumes:
+      - application/json
+      description: Fetches the CSPM network map for a given artifact. Either `sha`
+        or `name` must be provided.
+      parameters:
+      - description: Artifact SHA (alternative to name)
+        in: query
+        name: sha
+        type: string
+      - description: Artifact name (required if sha not provided)
+        in: query
+        name: name
+        type: string
+      - description: Artifact tag (optional when using name)
+        in: query
+        name: tag
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing required parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get CSPM network map
+      tags:
+      - CSPM
+  /api/v1/cspm/resources:
+    get:
+      consumes:
+      - application/json
+      description: Lists CSPM resources with optional filters and pagination.
+      parameters:
+      - description: Resource ID
+        in: query
+        name: id
+        type: string
+      - description: Cloud provider (e.g. aws, azure, gcp)
+        in: query
+        name: cloudProvider
+        type: string
+      - description: Cloud account name
+        in: query
+        name: cloudAccountName
+        type: string
+      - description: Resource type
+        in: query
+        name: resourceType
+        type: string
+      - description: Resource name
+        in: query
+        name: name
+        type: string
+      - description: Resource name regex
+        in: query
+        name: nameRegex
+        type: string
+      - description: Filter resources that have findings
+        in: query
+        name: hasFindings
+        type: boolean
+      - description: Page number (default 1)
+        in: query
+        name: page
+        type: integer
+      - description: Results per page (default 100)
+        in: query
+        name: perPage
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: List CSPM resources
+      tags:
+      - CSPM
+  /api/v1/cspm/resources/all:
+    get:
+      consumes:
+      - application/json
+      description: Lists all CSPM resources matching filters. Uses a cached backend
+        call.
+      parameters:
+      - description: Resource ID
+        in: query
+        name: id
+        type: string
+      - description: Cloud provider (e.g. aws, azure, gcp)
+        in: query
+        name: cloudProvider
+        type: string
+      - description: Cloud account name
+        in: query
+        name: cloudAccountName
+        type: string
+      - description: Resource type
+        in: query
+        name: resourceType
+        type: string
+      - description: Resource name
+        in: query
+        name: name
+        type: string
+      - description: Resource name regex
+        in: query
+        name: nameRegex
+        type: string
+      - description: Filter resources that have findings
+        in: query
+        name: hasFindings
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: List all CSPM resources (cached)
+      tags:
+      - CSPM
+  /api/v1/cspm/resources/blast-radius:
+    get:
+      consumes:
+      - application/json
+      description: Returns blast radius (dependency graph) for a given resource ID.
+      parameters:
+      - description: Resource ID
+        in: query
+        name: id
+        required: true
+        type: string
+      - description: Maximum traversal depth (default 0)
+        in: query
+        name: maxDepth
+        type: integer
+      - description: Cloud provider (e.g. aws, azure, gcp)
+        in: query
+        name: cloudProvider
+        type: string
+      - description: Cloud account name
+        in: query
+        name: cloudAccountName
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing required parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get CSPM resource blast radius
+      tags:
+      - CSPM
+  /api/v1/cspm/resources/summary:
+    get:
+      consumes:
+      - application/json
+      description: Returns an aggregated summary of resources for the given filters.
+      parameters:
+      - description: Cloud provider (e.g. aws, azure, gcp)
+        in: query
+        name: cloudProvider
+        type: string
+      - description: Cloud account name
+        in: query
+        name: cloudAccountName
+        type: string
+      - description: Filter resources that have findings
+        in: query
+        name: hasFindings
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get CSPM resources summary
+      tags:
+      - CSPM
+  /api/v1/cspm/scan/cloudIntegration:
+    get:
+      consumes:
+      - application/json
+      description: Returns cloud security integration scan info (includes last scan
+        ID) for the given team.
+      parameters:
+      - description: Team ID
+        in: query
+        name: teamId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing required parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get cloud integration scan info
+      tags:
+      - CSPM
+  /api/v1/cspm/scan/dashboard:
+    get:
+      consumes:
+      - application/json
+      description: Returns CSPM dashboard data for the given account and scan.
+      parameters:
+      - description: Cloud account name
+        in: query
+        name: accountName
+        required: true
+        type: string
+      - description: Scan ID
+        in: query
+        name: scanId
+        required: true
+        type: string
+      - description: Account type (e.g. aws, azure, gcp)
+        in: query
+        name: accountType
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing required parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get CSPM dashboard
+      tags:
+      - CSPM
+  /api/v1/cspm/scan/policy/{policyId}:
+    get:
+      consumes:
+      - application/json
+      description: Returns CSPM policy details for the given policy ID and scan context.
+      parameters:
+      - description: Policy ID
+        in: path
+        name: policyId
+        required: true
+        type: string
+      - description: Account type (e.g. aws, azure, gcp)
+        in: query
+        name: accountType
+        required: true
+        type: string
+      - description: Cloud account name
+        in: query
+        name: accountName
+        required: true
+        type: string
+      - description: Scan ID
+        in: query
+        name: scanId
+        required: true
+        type: string
+      - description: Cloud service name
+        in: query
+        name: service
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing required parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get CSPM policy
+      tags:
+      - CSPM
+  /api/v1/cspm/scan/regions:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of regions for the given policy name and scan context.
+      parameters:
+      - description: Policy name
+        in: query
+        name: policyName
+        required: true
+        type: string
+      - description: Account type (e.g. aws, azure, gcp)
+        in: query
+        name: accountType
+        required: true
+        type: string
+      - description: Cloud account name
+        in: query
+        name: accountName
+        required: true
+        type: string
+      - description: Scan ID
+        in: query
+        name: scanId
+        required: true
+        type: string
+      - description: Cloud service name
+        in: query
+        name: service
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing required parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get CSPM policy regions
+      tags:
+      - CSPM
+  /api/v1/cspm/scan/rulesStatusSummary:
+    get:
+      consumes:
+      - application/json
+      description: Returns CSPM rules status summary for the provided account, scan,
+        and service.
+      parameters:
+      - description: Cloud account name
+        in: query
+        name: accountName
+        required: true
+        type: string
+      - description: Scan ID
+        in: query
+        name: scanId
+        required: true
+        type: string
+      - description: Account type (e.g. aws, azure, gcp)
+        in: query
+        name: accountType
+        required: true
+        type: string
+      - description: Cloud service name
+        in: query
+        name: service
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing required parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get CSPM rules status summary
+      tags:
+      - CSPM
+  /api/v1/cspm/scan/scanResult:
+    get:
+      consumes:
+      - application/json
+      description: Returns CSPM scan result for the provided file and cloud integration
+        context.
+      parameters:
+      - description: File name
+        in: query
+        name: fileName
+        required: true
+        type: string
+      - description: Cloud service provider
+        in: query
+        name: cloudServiceProvider
+        required: true
+        type: string
+      - description: Cloud account name
+        in: query
+        name: cloudAccountName
+        required: true
+        type: string
+      - description: Scan operation (e.g. cspmscan)
+        in: query
+        name: scanOperation
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing required parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get CSPM scan result
+      tags:
+      - CSPM
+  /api/v1/cspm/scan/trigger:
+    post:
+      consumes:
+      - application/json
+      description: Triggers a CSPM scan for the given hub and cloud account.
+      parameters:
+      - description: CSPM scan request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_models.CSPMScanRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body or missing required fields
+          schema:
+            additionalProperties: true
+            type: object
+        "502":
+          description: Upstream error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Trigger a CSPM scan
+      tags:
+      - CSPM
+  /api/v1/features:
+    get:
+      consumes:
+      - application/json
+      description: Returns the features for the user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: No features found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get Features by user auth
+      tags:
+      - Features
+  /api/v1/feedback/send:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Accepts user feedback with optional file attachments and sends
+        to admin emails
+      parameters:
+      - description: Feedback message
+        in: formData
+        name: message
+        required: true
+        type: string
+      - description: File attachments (max 15MB total, 8MB per file)
+        in: formData
+        name: attachments
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Feedback sent successfully
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "413":
+          description: File too large
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Send user feedback
+      tags:
+      - Feedback
   /api/v1/hubs:
     post:
       consumes:
@@ -222,7 +1104,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.CreateHubRequest'
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.CreateHubRequest'
       produces:
       - application/json
       responses:
@@ -326,6 +1208,48 @@ paths:
       summary: Get hub by ID
       tags:
       - Hubs
+  /api/v1/hubs/{id}/stats:
+    get:
+      consumes:
+      - application/json
+      description: Returns the hub stats with the specified ID
+      parameters:
+      - description: Hub ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid hub ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Hub not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get hub stats by ID
+      tags:
+      - Hubs
   /api/v1/hubs/user/list:
     get:
       consumes:
@@ -372,6 +1296,10 @@ paths:
         in: query
         name: teamIds
         type: string
+      - description: Integrator type filter
+        in: query
+        name: integratorType
+        type: string
       produces:
       - application/json
       responses:
@@ -397,7 +1325,123 @@ paths:
       summary: List active integrations
       tags:
       - Integrations
-  /api/v1/integrations/github:
+  /api/v1/integrations/cloud:
+    post:
+      consumes:
+      - application/json
+      description: Creates a new cloud integration for the given `teamId`.
+      parameters:
+      - description: Team ID
+        in: query
+        name: teamId
+        required: true
+        type: string
+      - description: Cloud integration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_client.CreateIntegrationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body or missing required parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Create cloud integration
+      tags:
+      - Integrations
+    put:
+      consumes:
+      - application/json
+      description: Updates a cloud integration for the given `teamId`. `integratorType`
+        must be present in the request body.
+      parameters:
+      - description: Team ID
+        in: query
+        name: teamId
+        required: true
+        type: string
+      - description: Cloud integration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_client.CreateIntegrationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body or missing required parameters
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Update cloud integration
+      tags:
+      - Integrations
+  /api/v1/integrations/github/check/workflow:
+    post:
+      consumes:
+      - application/json
+      description: Checks whether the GitHub Actions workflow is set up and returns
+        status.
+      parameters:
+      - description: Workflow status request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.SetupWorkflowRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Check GitHub workflow status
+      tags:
+      - Integrations
+  /api/v1/integrations/github/create:
     post:
       consumes:
       - application/json
@@ -408,7 +1452,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.CreateGitHubIntegrationRequest'
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.CreateGitHubIntegrationRequest'
       produces:
       - application/json
       responses:
@@ -434,42 +1478,49 @@ paths:
       summary: Create GitHub integration
       tags:
       - Integrations
-  /api/v1/integrations/github/app/install:
-    post:
+  /api/v1/integrations/github/delete:
+    delete:
       consumes:
       - application/json
-      description: Installs the GitHub App integration with the provided installation
-        ID
+      description: Deletes an integration by `integrationId` and `integrationName`
+        within the provided `hubID`.
       parameters:
-      - description: GitHub App installation details
-        in: body
-        name: request
+      - description: Integration ID
+        in: query
+        name: integrationId
         required: true
-        schema:
-          $ref: '#/definitions/service.InstallGitHubAppRequest'
+        type: string
+      - description: Integration name
+        in: query
+        name: integrationName
+        required: true
+        type: string
+      - description: Hub ID
+        in: query
+        name: hubID
+        required: true
+        type: string
       produces:
       - application/json
       responses:
-        "201":
-          description: Created
+        "200":
+          description: OK
           schema:
             additionalProperties: true
             type: object
         "400":
-          description: Invalid request body
+          description: Missing required parameters
           schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
         "500":
           description: Internal server error
           schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Install GitHub App
+      summary: Delete integration
       tags:
       - Integrations
   /api/v1/integrations/github/details:
@@ -478,25 +1529,24 @@ paths:
       - '*/*'
       description: Github Integrations details via Github APIs
       parameters:
-      - description: Platform name (e.g., github)
-        in: query
-        name: platform
-        required: true
-        type: string
-      - description: Type of integration (e.g., organisation, user)
-        in: query
-        name: type
-        required: true
-        type: string
       - description: Account ID (e.g., 0x3b32)
         in: query
         name: accountId
         required: true
         type: string
-      - description: Scan level (e.g., repository, organization)
+      - description: Integration name
         in: query
-        name: scanLevel
+        name: integrationName
         required: true
+        type: string
+      - description: Hub ID
+        in: query
+        name: hubId
+        required: true
+        type: string
+      - description: Repository name (optional)
+        in: query
+        name: repository
         type: string
       produces:
       - application/json
@@ -529,6 +1579,102 @@ paths:
       summary: Github Integrations details via Github APIs
       tags:
       - Integrations
+  /api/v1/integrations/github/install:
+    get:
+      consumes:
+      - '*/*'
+      description: Returns the GitHub App installation URL.
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Install GitHub App
+      tags:
+      - Integrations
+  /api/v1/integrations/github/setup/workflow:
+    post:
+      consumes:
+      - application/json
+      description: Sets up GitHub Actions workflow for AI Guardian PR scanning.
+      parameters:
+      - description: Workflow setup request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.SetupWorkflowRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties: true
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Setup GitHub workflow
+      tags:
+      - Integrations
+  /api/v1/integrations/github/update:
+    put:
+      consumes:
+      - application/json
+      description: Updates a GitHub integration with the provided details
+      parameters:
+      - description: GitHub integration details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.UpdateGitHubIntegrationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Update GitHub integration
+      tags:
+      - Integrations
   /api/v1/integrations/github/validate:
     post:
       consumes:
@@ -540,7 +1686,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.ValidateGitHubIntegrationRequest'
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.ValidateGitHubIntegrationRequest'
       produces:
       - application/json
       responses:
@@ -572,6 +1718,104 @@ paths:
       summary: Validate GitHub integration
       tags:
       - Integrations
+  /api/v1/integrations/team:
+    get:
+      consumes:
+      - application/json
+      description: Returns a list of all integrations for a team
+      parameters:
+      - description: Team ID
+        in: query
+        name: teamId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: List integrations for a team
+      tags:
+      - Integrations
+  /api/v1/nli/stream:
+    post:
+      consumes:
+      - application/json
+      description: Forwards the request body to the NLI stream endpoint and streams
+        responses as Server-Sent Events (SSE).
+      parameters:
+      - description: NLI request payload
+        in: body
+        name: request
+        required: true
+        schema:
+          additionalProperties: true
+          type: object
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE stream
+          schema:
+            type: string
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: NLI stream
+      tags:
+      - Remediation
+  /api/v1/profile:
+    get:
+      consumes:
+      - application/json
+      description: Returns the profile of the currently authenticated user
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get user profile
+      tags:
+      - Users
   /api/v1/projects:
     post:
       consumes:
@@ -583,7 +1827,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.CreateProjectRequest'
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.CreateProjectRequest'
       produces:
       - application/json
       responses:
@@ -609,6 +1853,42 @@ paths:
       summary: Create a new project
       tags:
       - Projects
+    put:
+      consumes:
+      - application/json
+      description: Updates a existing project with the provided details
+      parameters:
+      - description: Project update details
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.UpdateProjectRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Update a existing project
+      tags:
+      - Projects
   /api/v1/projects/{id}:
     delete:
       consumes:
@@ -619,6 +1899,10 @@ paths:
         in: path
         name: id
         required: true
+        type: string
+      - description: Comma-separated team IDs (optional)
+        in: query
+        name: teamIds
         type: string
       produces:
       - application/json
@@ -690,6 +1974,92 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Get project by ID
+      tags:
+      - Projects
+  /api/v1/projects/{id}/stats:
+    get:
+      consumes:
+      - application/json
+      description: Returns the project stats with the specified ID
+      parameters:
+      - description: Project ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Database selector (optional)
+        in: query
+        name: db
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Invalid project ID
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Project not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get project stats by ID
+      tags:
+      - Projects
+  /api/v1/projects/list/all:
+    get:
+      consumes:
+      - application/json
+      description: Returns all projects with repo/branch taken from each project's
+        latest scan (scans.created_at DESC)
+      parameters:
+      - description: Hub ID
+        in: query
+        name: hubId
+        required: true
+        type: string
+      - description: Optional project name search (ILIKE)
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.ProjectsListAllResponse'
+        "400":
+          description: Missing/invalid hubId
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: List all projects with latest repo/branch
       tags:
       - Projects
   /api/v1/projects/summaries/count:
@@ -784,7 +2154,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.CreateFeedbackRequest'
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.CreateFeedbackRequest'
       produces:
       - application/json
       responses:
@@ -910,7 +2280,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.UpdateFeedbackRequest'
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.UpdateFeedbackRequest'
       produces:
       - application/json
       responses:
@@ -1053,18 +2423,18 @@ paths:
       summary: Get feedbacks by vulnerability ID (Internal)
       tags:
       - RemediationFeedback-Internal
-  /api/v1/remediation/cve:
-    post:
+  /api/v1/remediations/conversation/{id}:
+    get:
       consumes:
-      - application/json
-      description: Processes CVE findings and provides remediation suggestions
+      - '*/*'
+      description: Returns remediation conversation details for the given remediation
+        ID.
       parameters:
-      - description: CVE findings data
-        in: body
-        name: request
+      - description: Remediation ID
+        in: path
+        name: id
         required: true
-        schema:
-          $ref: '#/definitions/service.CVERemediationRequest'
+        type: string
       produces:
       - application/json
       responses:
@@ -1073,6 +2443,97 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "400":
+          description: Missing required parameters
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get remediation conversation
+      tags:
+      - Remediation
+  /api/v1/remediations/cspm:
+    post:
+      consumes:
+      - application/json
+      description: Processes CSPM findings and streams remediation suggestions as
+        Server-Sent Events (SSE)
+      parameters:
+      - description: Remediation context (e.g. cloud)
+        in: query
+        name: context
+        type: string
+      - description: Project ID (required when context != cloud)
+        in: query
+        name: projectId
+        type: string
+      - description: Commit SHA (required when context != cloud)
+        in: query
+        name: commitsha
+        type: string
+      - description: CSPM remediation request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.CSPMRemediationRequest'
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE stream
+          schema:
+            type: string
+        "400":
+          description: Invalid request body
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Process CSPM remediation
+      tags:
+      - Remediation
+  /api/v1/remediations/cve:
+    post:
+      consumes:
+      - application/json
+      description: Processes CVE findings and streams remediation suggestions as Server-Sent
+        Events (SSE)
+      parameters:
+      - description: Project ID
+        in: query
+        name: projectId
+        required: true
+        type: string
+      - description: CVE findings data
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.CVERemediationRequest'
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE stream
+          schema:
+            type: string
         "400":
           description: Invalid request body
           schema:
@@ -1090,26 +2551,31 @@ paths:
       summary: Process CVE remediation
       tags:
       - Remediation
-  /api/v1/remediation/sast:
+  /api/v1/remediations/sast:
     post:
       consumes:
       - application/json
-      description: Processes SAST findings and provides remediation suggestions
+      description: Processes SAST findings and streams remediation suggestions as
+        Server-Sent Events (SSE)
       parameters:
+      - description: Project ID
+        in: query
+        name: projectId
+        required: true
+        type: string
       - description: SAST findings data
         in: body
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.SASTRemediationRequest'
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.SASTRemediationRequest'
       produces:
-      - application/json
+      - text/event-stream
       responses:
         "200":
-          description: OK
+          description: SSE stream
           schema:
-            additionalProperties: true
-            type: object
+            type: string
         "400":
           description: Invalid request body
           schema:
@@ -1127,6 +2593,49 @@ paths:
       summary: Process SAST remediation
       tags:
       - Remediation
+  /api/v1/scans/file:
+    post:
+      consumes:
+      - multipart/form-data
+      description: 'Accepts a file via multipart form and scans it using semgrep CLI,
+        returning JSON results in the format: { "data": { "results": [...], "version":
+        "..." }, "message": "...", "success": true }'
+      parameters:
+      - description: File to scan (max 10MB, must have allowed extension)
+        in: formData
+        name: file
+        required: true
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Scan results with findings in data.results array
+          schema:
+            $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.ScanFileResponse'
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "413":
+          description: File too large
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Scan a file with semgrep
+      tags:
+      - Scans
   /api/v1/scans/rescan:
     post:
       consumes:
@@ -1138,7 +2647,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/service.RescanRequest'
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_service.RescanRequest'
       produces:
       - application/json
       responses:
@@ -1164,12 +2673,80 @@ paths:
       summary: Trigger a rescan
       tags:
       - Scans
+  /api/v1/vuln/list/sast:
+    get:
+      consumes:
+      - application/json
+      description: Returns a paginated list of SAST vulnerabilities for the specified
+        repository, branch, and project
+      parameters:
+      - description: Project ID
+        in: query
+        name: projectId
+        required: true
+        type: string
+      - description: Hub ID
+        in: query
+        name: hubId
+        required: true
+        type: string
+      - description: Repository name
+        in: query
+        name: repository
+        required: true
+        type: string
+      - description: Branch name
+        in: query
+        name: branch
+        required: true
+        type: string
+      - description: Scan ID
+        in: query
+        name: scanId
+        type: string
+      - description: Search term
+        in: query
+        name: search
+        type: string
+      - description: 'Page number (default: 0)'
+        in: query
+        name: pageNo
+        type: integer
+      - description: 'Number of items per page (default: 10, max: 100)'
+        in: query
+        name: pageLimit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "400":
+          description: Missing required parameters or invalid input
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get SAST vulnerabilities
+      tags:
+      - Vulnerabilities
   /api/v1/vuln/list/sca:
     get:
       consumes:
       - application/json
-      description: Returns a list of SCA vulnerabilities for the specified repository,
-        branch, and project
+      description: Returns a paginated list of SCA vulnerabilities for the specified
+        repository, branch, and project
       parameters:
       - description: Project ID
         in: query
@@ -1191,6 +2768,22 @@ paths:
         name: branch
         required: true
         type: string
+      - description: Scan ID
+        in: query
+        name: scanId
+        type: string
+      - description: Search term
+        in: query
+        name: search
+        type: string
+      - description: 'Page number (default: 0)'
+        in: query
+        name: pageNo
+        type: integer
+      - description: 'Number of items per page (default: 10, max: 100)'
+        in: query
+        name: pageLimit
+        type: integer
       produces:
       - application/json
       responses:
@@ -1200,7 +2793,7 @@ paths:
             additionalProperties: true
             type: object
         "400":
-          description: Missing required parameters or invalid Hub ID format
+          description: Missing required parameters or invalid input
           schema:
             additionalProperties:
               type: string
@@ -1222,11 +2815,6 @@ paths:
       - application/json
       description: Returns vulnerability optimization metrics
       parameters:
-      - description: Organization ID
-        in: query
-        name: orgId
-        required: true
-        type: string
       - description: Comma-separated list of team IDs
         in: query
         name: teamId
@@ -1245,7 +2833,8 @@ paths:
         "200":
           description: OK
           schema:
-            $ref: '#/definitions/client.VulnerabilityOptimization'
+            additionalProperties: true
+            type: object
         "400":
           description: Missing required parameters
           schema:
@@ -1269,11 +2858,6 @@ paths:
       - application/json
       description: Returns vulnerability prioritization metrics
       parameters:
-      - description: Organization ID
-        in: query
-        name: orgId
-        required: true
-        type: string
       - description: Comma-separated list of team IDs
         in: query
         name: teamId
@@ -1286,57 +2870,6 @@ paths:
         in: query
         name: current
         type: boolean
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/client.VulnerabilityPriority'
-        "400":
-          description: Missing required parameters
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Get vulnerability prioritization data
-      tags:
-      - Vulnerabilities
-  /api/v1/vulnerabilities/sast:
-    get:
-      consumes:
-      - application/json
-      description: Returns a list of SAST vulnerabilities for the specified repository,
-        branch, and project
-      parameters:
-      - description: Project ID
-        in: query
-        name: projectId
-        required: true
-        type: string
-      - description: Hub ID
-        in: query
-        name: hubId
-        required: true
-        type: string
-      - description: Repository name
-        in: query
-        name: repository
-        required: true
-        type: string
-      - description: Branch name
-        in: query
-        name: branch
-        required: true
-        type: string
       produces:
       - application/json
       responses:
@@ -1359,9 +2892,137 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Get SAST vulnerabilities
+      summary: Get vulnerability prioritization data
       tags:
       - Vulnerabilities
+  /api/v1/vuln/sast/report:
+    get:
+      consumes:
+      - '*/*'
+      description: Downloads the SAST report JSON for the given scan ID.
+      parameters:
+      - description: Scan ID (UUID)
+        in: query
+        name: scanId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JSON report
+          schema:
+            type: file
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Download SAST report
+      tags:
+      - Vulnerabilities
+  /api/v1/vuln/sca/report:
+    get:
+      consumes:
+      - '*/*'
+      description: Downloads the SCA report JSON for the given scan ID.
+      parameters:
+      - description: Scan ID (UUID)
+        in: query
+        name: scanId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: JSON report
+          schema:
+            type: file
+        "400":
+          description: Invalid request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Download SCA report
+      tags:
+      - Vulnerabilities
+  /auth/github/install:
+    get:
+      consumes:
+      - application/json
+      description: Returns OAuth URL for user authentication with email and profile
+        scopes only
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: GitHub User Auth
+      tags:
+      - Authentication
+  /auth/github/login:
+    post:
+      consumes:
+      - application/json
+      description: Starts the OAuth 2.0 flow for Github authentication
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Verifies github OAuth login
+      tags:
+      - Authentication
   /auth/google/callback:
     get:
       consumes:
@@ -1447,11 +3108,18 @@ paths:
       summary: Logout user
       tags:
       - Authentication
-  /auth/profile:
-    get:
+  /webhooks/github/actions:
+    post:
       consumes:
       - application/json
-      description: Returns the profile of the currently authenticated user
+      description: Receives GitHub Actions webhook and starts PR scanning workflow.
+      parameters:
+      - description: Webhook payload
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/github_com_opsmx_ai-guardian-api_pkg_models.WebhookRequest'
       produces:
       - application/json
       responses:
@@ -1460,17 +3128,16 @@ paths:
           schema:
             additionalProperties: true
             type: object
-        "401":
-          description: Unauthorized
+        "400":
+          description: Invalid request
           schema:
-            additionalProperties:
-              type: string
+            additionalProperties: true
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Get user profile
+      summary: GitHub Actions webhook
       tags:
-      - Users
+      - Webhooks
 securityDefinitions:
   ApiKeyAuth:
     in: header

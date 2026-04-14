@@ -216,7 +216,7 @@ func (c *HubController) GetHub(w http.ResponseWriter, r *http.Request) {
 // @Failure 404 {object} map[string]string "Hub not found"
 // @Failure 500 {object} map[string]string "Internal server error"
 // @Security ApiKeyAuth
-// @Router /api/v1/projects/{id}/stats [get]
+// @Router /api/v1/hubs/{id}/stats [get]
 func (c *HubController) GetHubStats(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	hubId, ok := vars["id"]

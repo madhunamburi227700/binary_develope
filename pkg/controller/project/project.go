@@ -162,6 +162,7 @@ func (c *ProjectController) GetProject(w http.ResponseWriter, r *http.Request) {
 // @Accept  json
 // @Produce  json
 // @Param   id path string true "Project ID"
+// @Param   db query string false "Database selector (optional)"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]string "Invalid project ID"
 // @Failure 404 {object} map[string]string "Project not found"
@@ -200,6 +201,7 @@ func (c *ProjectController) GetProjectStats(w http.ResponseWriter, r *http.Reque
 // @Accept  json
 // @Produce  json
 // @Param   id path string true "Project ID"
+// @Param   teamIds query string false "Comma-separated team IDs (optional)"
 // @Success 200 {object} map[string]interface{}
 // @Failure 400 {object} map[string]string "Invalid project ID"
 // @Failure 404 {object} map[string]string "Project not found"
@@ -215,7 +217,6 @@ func (c *ProjectController) DeleteProject(w http.ResponseWriter, r *http.Request
 	}
 
 	teamIds := r.URL.Query().Get("teamIds")
-
 
 	err := c.projectService.DeleteProject(r.Context(), teamIds, projectId)
 	if err != nil {
