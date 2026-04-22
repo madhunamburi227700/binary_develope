@@ -68,20 +68,18 @@ func normalizeLines(lines []string) []Line {
 	return result
 }
 
-// ---------------- STAGE DETECTION ----------------
+// ---------------- LAST FROM DETECTION ----------------
 
-func getLastStage(lines []Line) string {
-	last := ""
+func getLastFromIndex(lines []Line) int {
+	lastIndex := -1
 
-	for _, l := range lines {
-		if m := fromRegex.FindStringSubmatch(l.Content); len(m) > 2 {
-			if m[2] != "" {
-				last = m[2]
-			}
+	for i, l := range lines {
+		if fromRegex.MatchString(l.Content) {
+			lastIndex = i
 		}
 	}
 
-	return last
+	return lastIndex
 }
 
 // ---------------- PACKAGE EXTRACTION ----------------
@@ -109,7 +107,7 @@ func extractAptPackages(cmd string) []string {
 }
 
 func extractAllURLs(cmd string) []string {
-	re := regexp.MustCompile(`https?://[^\s"'\\]+`)
+	re := regexp.MustCompile(`https?://[^\s"'\\)]+`) // ✅ fixed
 	return re.FindAllString(cmd, -1)
 }
 
@@ -133,7 +131,7 @@ func classify(cmd string, lineNum int) []Component {
 	var result []Component
 
 	// ---------- OS ----------
-	if strings.Contains(l, "apt-get install") {
+	if strings.Contains(l, "apt-get install") || strings.Contains(l, "apt install") {
 		for _, p := range extractAptPackages(cmd) {
 			result = append(result, Component{
 				Source:        "os",
@@ -153,15 +151,16 @@ func classify(cmd string, lineNum int) []Component {
 		fields := strings.Fields(cmd)
 
 		skipWords := map[string]bool{
-			"pip":        true,
-			"pip3":       true,
-			"pipx":       true,
-			"npm":        true,
-			"install":    true,
-			"-r":         true,
-			"--upgrade":  true,
-			"--no-cache-dir": true,
-			"-g":         true,
+			"pip":              true,
+			"pip3":             true,
+			"pipx":             true,
+			"npm":              true,
+			"install":          true,
+			"-r":               true,
+			"--upgrade":        true,
+			"--no-cache-dir":   true,
+			"-g":               true,
+			"--break-system-packages": true,
 		}
 
 		for _, p := range fields {
@@ -254,44 +253,29 @@ func classify(cmd string, lineNum int) []Component {
 
 func parseDockerfile(lines []Line) []Component {
 
-	lastStage := getLastStage(lines)
-	hasMultiStage := lastStage != ""
-
-	active := !hasMultiStage
+	lastFromIndex := getLastFromIndex(lines)
 
 	var output []Component
 
-	for _, line := range lines {
+	for i, line := range lines {
+
+		// ✅ Only process last stage
+		if i < lastFromIndex {
+			continue
+		}
 
 		if m := fromRegex.FindStringSubmatch(line.Content); len(m) > 0 {
 
 			image := m[1]
-			stage := ""
 
-			if len(m) > 2 {
-				stage = m[2]
-			}
+			output = append(output, Component{
+				Source:        "os",
+				Type:          "base-image",
+				LineNumber:    line.Number,
+				ComponentName: image,
+				Raw:           line.Content,
+			})
 
-			if !hasMultiStage || stage == lastStage {
-
-				active = true
-
-				output = append(output, Component{
-					Source:        "os",
-					Type:          "base-image",
-					LineNumber:    line.Number,
-					ComponentName: image,
-					Raw:           line.Content,
-				})
-
-			} else {
-				active = false
-			}
-
-			continue
-		}
-
-		if !active {
 			continue
 		}
 
@@ -367,7 +351,6 @@ func main() {
 
 	grouped := groupComponents(components)
 
-	// FIXES \u003e escaping
 	var buf bytes.Buffer
 
 	enc := json.NewEncoder(&buf)

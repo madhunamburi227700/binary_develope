@@ -47,6 +47,7 @@ type CategorizedComponent struct {
 type Output struct {
 	OSComponents      []CategorizedComponent `json:"os_components"`
 	LibraryComponents []CategorizedComponent `json:"library_components"`
+	BinaryComponents  []CategorizedComponent `json:"binary_components"` // ✅ added
 }
 
 func normalize(s string) string {
@@ -211,6 +212,10 @@ func buildOutput(
 
 	var out Output
 
+	//////////////////////////////////////////////////
+	// OS COMPONENTS (NO CHANGE)
+	//////////////////////////////////////////////////
+
 	for _, c := range sbom.OSComponents {
 
 		entry := CategorizedComponent{
@@ -221,25 +226,24 @@ func buildOutput(
 			InDockerfile: "no",
 		}
 
-		ok, line, raw :=
-			matchOS(c, docker.OS)
+		ok, line, raw := matchOS(c, docker.OS)
 
 		if ok {
 			entry.InDockerfile = "yes"
 			entry.LineNumber = line
 			entry.DockerInstruction = raw
 
-			// override category if this is actually a binary download
 			if strings.Contains(raw, "releases/download") {
 				entry.Category = "Binary"
 			}
 		}
 
-		out.OSComponents = append(
-			out.OSComponents,
-			entry,
-		)
+		out.OSComponents = append(out.OSComponents, entry)
 	}
+
+	//////////////////////////////////////////////////
+	// LIBRARY COMPONENTS (ONLY THIS PART UPDATED)
+	//////////////////////////////////////////////////
 
 	for _, c := range sbom.LibraryComponents {
 
@@ -261,9 +265,17 @@ func buildOutput(
 			entry.InDockerfile = "yes"
 			entry.LineNumber = line
 			entry.DockerInstruction = raw
-			// override category if library is actually used as binary download
+
+			// ✅ ONLY CHANGE: move to binary section
 			if strings.Contains(raw, "releases/download") {
 				entry.Category = "Binary"
+
+				out.BinaryComponents = append(
+					out.BinaryComponents,
+					entry,
+				)
+
+				continue // ❗ skip adding to library
 			}
 		}
 

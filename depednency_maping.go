@@ -17,7 +17,6 @@ type CategorizedComponent struct {
 	LineNumber        int      `json:"line_number,omitempty"`
 	DockerInstruction string   `json:"docker_instruction,omitempty"`
 
-	// removed omitempty so these always show
 	DependsOn    []string `json:"depends_on"`
 	TransitiveOf []string `json:"transitive_of"`
 }
@@ -25,6 +24,7 @@ type CategorizedComponent struct {
 type ComparisonOutput struct {
 	OSComponents      []CategorizedComponent `json:"os_components"`
 	LibraryComponents []CategorizedComponent `json:"library_components"`
+	BinaryComponents  []CategorizedComponent `json:"binary_components"` // ✅ ADDED
 }
 
 type Dependency struct {
@@ -36,23 +36,18 @@ type SBOM struct {
 	Dependencies []Dependency `json:"dependencies"`
 }
 
-/* ---------------- NORMALIZATION ---------------- */
+//////////////////////////////////////////////////////
+// NORMALIZATION
+//////////////////////////////////////////////////////
 
 func stripPackageID(p string) string {
 
-	if idx := strings.Index(
-		p,
-		"&package-id=",
-	); idx != -1 {
+	if idx := strings.Index(p, "&package-id="); idx != -1 {
 
-		end := strings.Index(
-			p[idx+1:],
-			"&",
-		)
+		end := strings.Index(p[idx+1:], "&")
 
 		if end != -1 {
-			return p[:idx] +
-				p[idx+1+end:]
+			return p[:idx] + p[idx+1+end:]
 		}
 
 		return p[:idx]
@@ -65,35 +60,33 @@ func normalize(p string) string {
 
 	p = strings.ToLower(strings.TrimSpace(p))
 
-	// remove package-id completely
 	if idx := strings.Index(p, "?package-id="); idx != -1 {
 		p = p[:idx]
 	}
 
-	// remove other query params
 	if idx := strings.Index(p, "?"); idx != -1 {
 		p = p[:idx]
 	}
 
-	// remove pkg: prefix
 	p = strings.TrimPrefix(p, "pkg:")
 
-	// remove version comparison noise after @
 	if at := strings.Index(p, "@"); at != -1 {
 		p = p[:at+1] + cleanVersion(p[at+1:])
 	}
 
 	return p
 }
+
 func cleanVersion(v string) string {
-	// remove +build metadata like +deb12u13 etc
 	if idx := strings.Index(v, "+"); idx != -1 {
 		return v[:idx]
 	}
 	return v
 }
 
-/* ---------------- FILE LOADERS ---------------- */
+//////////////////////////////////////////////////////
+// LOAD
+//////////////////////////////////////////////////////
 
 func loadComparisonFile(path string) ComparisonOutput {
 
@@ -129,11 +122,11 @@ func loadSBOMFile(path string) SBOM {
 	return s
 }
 
-/* ---------------- DEP MAPS ---------------- */
+//////////////////////////////////////////////////////
+// MAP BUILDING
+//////////////////////////////////////////////////////
 
-func buildDirectDependencyMap(
-	deps []Dependency,
-) map[string][]string {
+func buildDirectDependencyMap(deps []Dependency) map[string][]string {
 
 	direct := make(map[string][]string)
 
@@ -144,10 +137,7 @@ func buildDirectDependencyMap(
 		var children []string
 
 		for _, dep := range d.DependsOn {
-			children = append(
-				children,
-				stripPackageID(dep),
-			)
+			children = append(children, stripPackageID(dep))
 		}
 
 		direct[ref] = children
@@ -156,9 +146,7 @@ func buildDirectDependencyMap(
 	return direct
 }
 
-func buildReverseDependencyMap(
-	deps []Dependency,
-) map[string][]string {
+func buildReverseDependencyMap(deps []Dependency) map[string][]string {
 
 	reverse := make(map[string][]string)
 
@@ -170,22 +158,18 @@ func buildReverseDependencyMap(
 
 			child := normalize(dep)
 
-			reverse[child] = append(
-				reverse[child],
-				parent,
-			)
+			reverse[child] = append(reverse[child], parent)
 		}
 	}
 
 	return reverse
 }
 
-/* ---------------- ENRICHMENT ---------------- */
+//////////////////////////////////////////////////////
+// ENRICHMENT
+//////////////////////////////////////////////////////
 
-func addDependencies(
-	item *CategorizedComponent,
-	direct map[string][]string,
-) {
+func addDependencies(item *CategorizedComponent, direct map[string][]string) {
 
 	p := normalize(item.Purl)
 
@@ -196,10 +180,7 @@ func addDependencies(
 	}
 }
 
-func addTransitiveParents(
-	item *CategorizedComponent,
-	reverse map[string][]string,
-) {
+func addTransitiveParents(item *CategorizedComponent, reverse map[string][]string) {
 
 	p := normalize(item.Purl)
 
@@ -218,26 +199,18 @@ func enrichComponents(
 
 	for i := range items {
 
-		addDependencies(
-			&items[i],
-			direct,
-		)
-
-		addTransitiveParents(
-			&items[i],
-			reverse,
-		)
+		addDependencies(&items[i], direct)
+		addTransitiveParents(&items[i], reverse)
 	}
 
 	return items
 }
 
-/* ---------------- SAVE OUTPUT ---------------- */
+//////////////////////////////////////////////////////
+// SAVE
+//////////////////////////////////////////////////////
 
-func writeOutput(
-	path string,
-	out ComparisonOutput,
-) {
+func writeOutput(path string, out ComparisonOutput) {
 
 	var buf bytes.Buffer
 
@@ -250,61 +223,45 @@ func writeOutput(
 		panic(err)
 	}
 
-	err = os.WriteFile(
-		path,
-		buf.Bytes(),
-		0644,
-	)
-
+	err = os.WriteFile(path, buf.Bytes(), 0644)
 	if err != nil {
 		panic(err)
 	}
 }
 
-/* ---------------- MAIN ---------------- */
+//////////////////////////////////////////////////////
+// MAIN
+//////////////////////////////////////////////////////
 
 func main() {
 
-	comparison :=
-		loadComparisonFile(
-			"comparisation_output.json",
-		)
+	comparison := loadComparisonFile("comparisation_output.json")
+	sbom := loadSBOMFile("sbom.json")
 
-	sbom :=
-		loadSBOMFile(
-			"sbom.json",
-		)
+	directMap := buildDirectDependencyMap(sbom.Dependencies)
+	reverseMap := buildReverseDependencyMap(sbom.Dependencies)
 
-	directMap :=
-		buildDirectDependencyMap(
-			sbom.Dependencies,
-		)
-
-	reverseMap :=
-		buildReverseDependencyMap(
-			sbom.Dependencies,
-		)
-
-	comparison.OSComponents =
-		enrichComponents(
-			comparison.OSComponents,
-			directMap,
-			reverseMap,
-		)
-
-	comparison.LibraryComponents =
-		enrichComponents(
-			comparison.LibraryComponents,
-			directMap,
-			reverseMap,
-		)
-
-	writeOutput(
-		"comparison_with_dependencies.json",
-		comparison,
+	// existing (unchanged)
+	comparison.OSComponents = enrichComponents(
+		comparison.OSComponents,
+		directMap,
+		reverseMap,
 	)
 
-	fmt.Println(
-		"✅ comparison_with_dependencies.json generated",
+	comparison.LibraryComponents = enrichComponents(
+		comparison.LibraryComponents,
+		directMap,
+		reverseMap,
 	)
+
+	// ✅ NEW: binary support (same logic reused)
+	comparison.BinaryComponents = enrichComponents(
+		comparison.BinaryComponents,
+		directMap,
+		reverseMap,
+	)
+
+	writeOutput("comparison_with_dependencies.json", comparison)
+
+	fmt.Println("✅ comparison_with_dependencies.json generated")
 }
