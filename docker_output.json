@@ -1,0 +1,269 @@
+{
+  "os": [
+    {
+      "source": "os",
+      "type": "base-image",
+      "line_number": 63,
+      "component_name": "debian:bookworm-slim",
+      "raw": "FROM debian:bookworm-slim AS final"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 66,
+      "component_name": "ca-certificates",
+      "raw": "apt-get install -y --no-install-recommends  ca-certificates  curl  gnupg  lsb-release  apt-transport-https  python3  python3-venv  python3-dev  gcc  unzip  git"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 66,
+      "component_name": "curl",
+      "raw": "apt-get install -y --no-install-recommends  ca-certificates  curl  gnupg  lsb-release  apt-transport-https  python3  python3-venv  python3-dev  gcc  unzip  git"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 66,
+      "component_name": "gnupg",
+      "raw": "apt-get install -y --no-install-recommends  ca-certificates  curl  gnupg  lsb-release  apt-transport-https  python3  python3-venv  python3-dev  gcc  unzip  git"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 66,
+      "component_name": "lsb-release",
+      "raw": "apt-get install -y --no-install-recommends  ca-certificates  curl  gnupg  lsb-release  apt-transport-https  python3  python3-venv  python3-dev  gcc  unzip  git"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 66,
+      "component_name": "apt-transport-https",
+      "raw": "apt-get install -y --no-install-recommends  ca-certificates  curl  gnupg  lsb-release  apt-transport-https  python3  python3-venv  python3-dev  gcc  unzip  git"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 66,
+      "component_name": "python3",
+      "raw": "apt-get install -y --no-install-recommends  ca-certificates  curl  gnupg  lsb-release  apt-transport-https  python3  python3-venv  python3-dev  gcc  unzip  git"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 66,
+      "component_name": "python3-venv",
+      "raw": "apt-get install -y --no-install-recommends  ca-certificates  curl  gnupg  lsb-release  apt-transport-https  python3  python3-venv  python3-dev  gcc  unzip  git"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 66,
+      "component_name": "python3-dev",
+      "raw": "apt-get install -y --no-install-recommends  ca-certificates  curl  gnupg  lsb-release  apt-transport-https  python3  python3-venv  python3-dev  gcc  unzip  git"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 66,
+      "component_name": "gcc",
+      "raw": "apt-get install -y --no-install-recommends  ca-certificates  curl  gnupg  lsb-release  apt-transport-https  python3  python3-venv  python3-dev  gcc  unzip  git"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 66,
+      "component_name": "unzip",
+      "raw": "apt-get install -y --no-install-recommends  ca-certificates  curl  gnupg  lsb-release  apt-transport-https  python3  python3-venv  python3-dev  gcc  unzip  git"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 66,
+      "component_name": "git",
+      "raw": "apt-get install -y --no-install-recommends  ca-certificates  curl  gnupg  lsb-release  apt-transport-https  python3  python3-venv  python3-dev  gcc  unzip  git"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 83,
+      "component_name": "docker-ce-cli",
+      "raw": "apt-get install -y --no-install-recommends docker-ce-cli 'containerd.io=1.7.29-1~debian.12~bookworm'"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 83,
+      "component_name": "containerd.io=1.7.29-1~debian.12~bookworm",
+      "raw": "apt-get install -y --no-install-recommends docker-ce-cli 'containerd.io=1.7.29-1~debian.12~bookworm'"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 110,
+      "component_name": "nodejs",
+      "raw": "apt-get install -y --no-install-recommends nodejs"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 124,
+      "component_name": "maven",
+      "raw": "apt-get install -y --no-install-recommends maven gradle"
+    },
+    {
+      "source": "os",
+      "type": "install",
+      "line_number": 124,
+      "component_name": "gradle",
+      "raw": "apt-get install -y --no-install-recommends maven gradle"
+    }
+  ],
+  "binary": [
+    {
+      "source": "binary",
+      "type": "download",
+      "line_number": 83,
+      "component_name": "https://download.docker.com/linux/debian/gpg",
+      "raw": "curl -fsSL https://download.docker.com/linux/debian/gpg  | gpg --dearmor -o /etc/apt/keyrings/docker.gpg"
+    },
+    {
+      "source": "binary",
+      "type": "download",
+      "line_number": 118,
+      "component_name": "https://download.oracle.com/java/21/latest/jdk-21_linux-x64_bin.tar.gz",
+      "raw": "curl -fsSL https://download.oracle.com/java/21/latest/jdk-21_linux-x64_bin.tar.gz -o /tmp/jdk.tar.gz"
+    },
+    {
+      "source": "binary",
+      "type": "download",
+      "line_number": 133,
+      "component_name": "https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3",
+      "raw": "curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3  -o /tmp/get_helm.sh"
+    },
+    {
+      "source": "binary",
+      "type": "download",
+      "line_number": 140,
+      "component_name": "https://raw.githubusercontent.com/kubescape/kubescape/v3.0.20/install.sh",
+      "raw": "curl -s -L -o install.sh https://raw.githubusercontent.com/kubescape/kubescape/v3.0.20/install.sh"
+    },
+    {
+      "source": "binary",
+      "type": "download",
+      "line_number": 144,
+      "component_name": "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip",
+      "raw": "curl -fsSL \"https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip\"  -o /tmp/awscliv2.zip"
+    },
+    {
+      "source": "binary",
+      "type": "download",
+      "line_number": 151,
+      "component_name": "https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_Linux-64bit.tar.gz",
+      "raw": "for tool in  \"https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_Linux-64bit.tar.gz\"  \"https://github.com/anchore/grype/releases/download/v0.102.0/grype_0.102.0_linux_amd64.tar.gz\""
+    },
+    {
+      "source": "binary",
+      "type": "download",
+      "line_number": 151,
+      "component_name": "https://github.com/anchore/grype/releases/download/v0.102.0/grype_0.102.0_linux_amd64.tar.gz",
+      "raw": "for tool in  \"https://github.com/aquasecurity/trivy/releases/download/v0.69.3/trivy_0.69.3_Linux-64bit.tar.gz\"  \"https://github.com/anchore/grype/releases/download/v0.102.0/grype_0.102.0_linux_amd64.tar.gz\""
+    },
+    {
+      "source": "binary",
+      "type": "install",
+      "line_number": 151,
+      "component_name": "https://github.com/ossf/scorecard/releases/download/v5.3.0/scorecard_5.3.0_linux_amd64.tar.gz",
+      "raw": "curl -sfL https://github.com/ossf/scorecard/releases/download/v5.3.0/scorecard_5.3.0_linux_amd64.tar.gz | tar -xz scorecard"
+    },
+    {
+      "source": "binary",
+      "type": "download",
+      "line_number": 151,
+      "component_name": "https://github.com/snyk/cli/releases/download/v1.1300.2/snyk-linux",
+      "raw": "curl -fsSL -o /usr/local/bin/snyk  https://github.com/snyk/cli/releases/download/v1.1300.2/snyk-linux"
+    },
+    {
+      "source": "binary",
+      "type": "download",
+      "line_number": 151,
+      "component_name": "https://github.com/aquasecurity/tfsec/releases/download/v1.28.14/tfsec-linux-amd64",
+      "raw": "curl -fsSL -o /usr/local/bin/tfsec  https://github.com/aquasecurity/tfsec/releases/download/v1.28.14/tfsec-linux-amd64"
+    },
+    {
+      "source": "binary",
+      "type": "download",
+      "line_number": 151,
+      "component_name": "https://github.com/opengrep/opengrep/releases/download/v1.0.0-alpha.15/opengrep_manylinux_x86",
+      "raw": "curl -fsSL -o /usr/local/bin/opengrep  https://github.com/opengrep/opengrep/releases/download/v1.0.0-alpha.15/opengrep_manylinux_x86"
+    },
+    {
+      "source": "binary",
+      "type": "download",
+      "line_number": 151,
+      "component_name": "https://github.com/codacy/codacy-analysis-cli/archive/master.tar.gz",
+      "raw": "curl -fsSL -o /tmp/codacy.tar.gz https://github.com/codacy/codacy-analysis-cli/archive/master.tar.gz"
+    },
+    {
+      "source": "binary",
+      "type": "download",
+      "line_number": 189,
+      "component_name": "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz",
+      "raw": "curl -fsSL https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz -o /tmp/go.tar.gz"
+    }
+  ],
+  "library": [
+    {
+      "source": "library",
+      "type": "install",
+      "line_number": 104,
+      "component_name": "/venv/bin/pipx",
+      "raw": "/venv/bin/pipx install \"scoutsuite>=5.12.0\""
+    },
+    {
+      "source": "library",
+      "type": "install",
+      "line_number": 104,
+      "component_name": "scoutsuite>=5.12.0",
+      "raw": "/venv/bin/pipx install \"scoutsuite>=5.12.0\""
+    },
+    {
+      "source": "library",
+      "type": "install",
+      "line_number": 110,
+      "component_name": "https://deb.nodesource.com/setup_20.x",
+      "raw": "curl -fsSL https://deb.nodesource.com/setup_20.x | bash -"
+    },
+    {
+      "source": "library",
+      "type": "install",
+      "line_number": 110,
+      "component_name": "@cyclonedx/cdxgen",
+      "raw": "npm install -g @cyclonedx/cdxgen --unsafe-perm=false"
+    },
+    {
+      "source": "library",
+      "type": "install",
+      "line_number": 151,
+      "component_name": "https://raw.githubusercontent.com/anchore/syft/v1.36.0/install.sh",
+      "raw": "curl -fsSL \"https://raw.githubusercontent.com/anchore/syft/v1.36.0/install.sh\"  | sh -s -- -b /usr/local/bin v1.36.0"
+    }
+  ],
+  "application": [
+    {
+      "source": "application",
+      "type": "copy",
+      "line_number": 208,
+      "component_name": "docker/run.sh -> /tools/run.sh",
+      "raw": "COPY docker/run.sh /tools/run.sh"
+    },
+    {
+      "source": "application",
+      "type": "copy",
+      "line_number": 209,
+      "component_name": "/toolchain-service -> /tools/toolchain-service",
+      "raw": "COPY --from=build-binaries /toolchain-service /tools/toolchain-service"
+    }
+  ]
+}
