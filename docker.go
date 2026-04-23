@@ -34,6 +34,31 @@ type Line struct {
 
 var fromRegex = regexp.MustCompile(`^FROM\s+([^\s]+)(?:\s+AS\s+([a-zA-Z0-9_-]+))?`)
 
+// Known binary tools that are installed via shell scripts
+var binaryToolPatterns = map[string]bool{
+	"syft":      true,
+	"trivy":     true,
+	"grype":     true,
+	"scorecard": true,
+	"snyk":      true,
+	"tfsec":     true,
+	"opengrep":  true,
+	"codacy":    true,
+	"helm":      true,
+	"kubescape": true,
+	"aws":       true,
+}
+
+// Known pip/npm packages
+var libraryPackagePatterns = map[string]bool{
+	"ruamel.yaml":      true,
+	"azure-identity":   true,
+	"semgrep":          true,
+	"pipx":             true,
+	"cdxgen":           true,
+	"scoutsuite":       true,
+}
+
 // ---------------- NORMALIZE ----------------
 
 func normalizeLines(lines []string) []Line {
@@ -106,9 +131,93 @@ func extractAptPackages(cmd string) []string {
 	return pkgs
 }
 
+// Extract pip/pipx packages properly
+func extractPipPackages(cmd string) []string {
+	var pkgs []string
+	
+	l := strings.ToLower(cmd)
+	var installIdx int
+	
+	if strings.Contains(l, "pip install") {
+		installIdx = strings.Index(l, "install") + len("install")
+	} else if strings.Contains(l, "pipx install") {
+		installIdx = strings.Index(l, "install") + len("install")
+	} else if strings.Contains(l, "pip3 install") {
+		installIdx = strings.Index(l, "install") + len("install")
+	} else {
+		return pkgs
+	}
+
+	parts := strings.Fields(cmd[installIdx:])
+
+	skipWords := map[string]bool{
+		"pip":                      true,
+		"pip3":                     true,
+		"pipx":                     true,
+		"-r":                       true,
+		"--upgrade":                true,
+		"--no-cache-dir":           true,
+		"-g":                       true,
+		"--break-system-packages":  true,
+		"--unsafe-perm=false":      true,
+		"-b":                       true,
+		"-s":                       true,
+		"--":                       true,
+		"-q":                       true,
+		"--quiet":                  true,
+	}
+
+	for _, p := range parts {
+		p = strings.Trim(p, "'\"")
+		p = strings.TrimSpace(p)
+		
+		// Skip flags, empty strings, and paths
+		if p == "" || skipWords[p] || strings.HasPrefix(p, "-") || strings.Contains(p, "/") {
+			continue
+		}
+
+		pkgs = append(pkgs, p)
+	}
+
+	return pkgs
+}
+
 func extractAllURLs(cmd string) []string {
-	re := regexp.MustCompile(`https?://[^\s"'\\)]+`) // ✅ fixed
+	re := regexp.MustCompile(`https?://[^\s"'\\)]+`)
 	return re.FindAllString(cmd, -1)
+}
+
+// Identify if URL/tool is a known binary tool
+func isBinaryTool(url string, cmd string) bool {
+	l := strings.ToLower(url)
+	
+	for tool := range binaryToolPatterns {
+		if strings.Contains(l, tool) {
+			return true
+		}
+	}
+	
+	return false
+}
+
+// Identify if it's a library installation script
+func isLibraryInstall(url string, cmd string) bool {
+	l := strings.ToLower(url)
+	
+	// Known library installation scripts
+	libraryInstallPatterns := []string{
+		"anchore/syft",
+		"nodejs",
+		"nodesource",
+	}
+	
+	for _, pattern := range libraryInstallPatterns {
+		if strings.Contains(l, pattern) {
+			return true
+		}
+	}
+	
+	return false
 }
 
 // ---------------- CLASSIFY ----------------
@@ -117,9 +226,11 @@ func classify(cmd string, lineNum int) []Component {
 
 	l := strings.ToLower(strings.TrimSpace(cmd))
 
-	if strings.Contains(l, "apt-get update") ||
-		strings.Contains(l, "upgrade") ||
-		strings.Contains(l, "purge") ||
+	// ✅ FIXED: Be more specific with filters - don't filter commands that contain packages
+	// Only filter apt-get cleanup commands and basic system commands
+	if strings.HasPrefix(l, "apt-get update") ||
+		strings.HasPrefix(l, "apt-get upgrade") ||
+		strings.HasPrefix(l, "apt-get purge") ||
 		strings.HasPrefix(l, "rm ") ||
 		strings.HasPrefix(l, "mkdir ") ||
 		strings.HasPrefix(l, "chmod ") ||
@@ -143,28 +254,34 @@ func classify(cmd string, lineNum int) []Component {
 		}
 	}
 
-	// ---------- LIBRARIES ----------
+	// ---------- LIBRARIES (pip/pipx) ----------
 	if strings.Contains(l, "pip install") ||
-		strings.Contains(l, "pipx install") ||
-		strings.Contains(l, "npm install") {
+		strings.Contains(l, "pip3 install") ||
+		strings.Contains(l, "pipx install") {
 
+		for _, p := range extractPipPackages(cmd) {
+			result = append(result, Component{
+				Source:        "library",
+				Type:          "install",
+				LineNumber:    lineNum,
+				ComponentName: p,
+				Raw:           cmd,
+			})
+		}
+	}
+
+	// ---------- NPM PACKAGES ----------
+	if strings.Contains(l, "npm install") {
 		fields := strings.Fields(cmd)
 
 		skipWords := map[string]bool{
-			"pip":              true,
-			"pip3":             true,
-			"pipx":             true,
-			"npm":              true,
-			"install":          true,
-			"-r":               true,
-			"--upgrade":        true,
-			"--no-cache-dir":   true,
-			"-g":               true,
-			"--break-system-packages": true,
+			"npm":                 true,
+			"install":             true,
+			"-g":                  true,
+			"--unsafe-perm=false": true,
 		}
 
 		for _, p := range fields {
-
 			p = strings.Trim(p, "'\"")
 
 			if skipWords[p] || strings.HasPrefix(p, "-") {
@@ -185,17 +302,31 @@ func classify(cmd string, lineNum int) []Component {
 	urls := extractAllURLs(cmd)
 
 	for _, u := range urls {
-
 		source := "binary"
 		ctype := "download"
 
-		if strings.Contains(l, "| tar") {
-			ctype = "install"
-		}
-
-		if strings.Contains(l, "| sh") || strings.Contains(l, "| bash") {
+		// Better classification based on URL and context
+		if isBinaryTool(u, cmd) {
+			// This is a known binary tool
+			source = "binary"
+			ctype = "download"
+			
+			if strings.Contains(l, "| tar") {
+				ctype = "install"
+			}
+		} else if isLibraryInstall(u, cmd) {
+			// This is a library installation script
 			source = "library"
 			ctype = "install"
+		} else {
+			// Default classification for unknown URLs
+			if strings.Contains(l, "| tar") {
+				ctype = "install"
+			} else if strings.Contains(l, "| sh") || strings.Contains(l, "| bash") {
+				// Could be binary or library - check if it's a known pattern
+				source = "binary"
+				ctype = "install"
+			}
 		}
 
 		result = append(result, Component{

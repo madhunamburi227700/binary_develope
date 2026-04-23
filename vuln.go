@@ -12,6 +12,11 @@ import (
 // STRUCTS
 //////////////////////////////////////////////////////
 
+type VulnInfo struct {
+	ID   string `json:"id"`
+	Purl string `json:"purl"`
+}
+
 type CategorizedComponent struct {
 	Component         string   `json:"component"`
 	Version           string   `json:"version"`
@@ -21,15 +26,15 @@ type CategorizedComponent struct {
 	LineNumber        int      `json:"line_number,omitempty"`
 	DockerInstruction string   `json:"docker_instruction,omitempty"`
 
-	DependsOn       []string `json:"depends_on"`
-	TransitiveOf    []string `json:"transitive_of"`
-	Vulnerabilities []string `json:"vulnerabilities,omitempty"`
+	DependsOn       []string   `json:"depends_on"`
+	TransitiveOf    []string   `json:"transitive_of"`
+	Vulnerabilities []VulnInfo `json:"vulnerabilities,omitempty"`
 }
 
 type ComparisonOutput struct {
 	OSComponents      []CategorizedComponent `json:"os_components"`
 	LibraryComponents []CategorizedComponent `json:"library_components"`
-	BinaryComponents  []CategorizedComponent `json:"binary_components"` // ✅ ADDED
+	BinaryComponents  []CategorizedComponent `json:"binary_components"`
 }
 
 type Comparison struct {
@@ -52,7 +57,7 @@ type Version struct {
 }
 
 //////////////////////////////////////////////////////
-// MATCHING LOGIC (UNCHANGED)
+// MATCHING LOGIC (UPDATED)
 //////////////////////////////////////////////////////
 
 func matchComponents(
@@ -70,17 +75,41 @@ func matchComponents(
 
 				vulnPurl := normalizePurl(affect.Ref)
 
-				// ✅ STRICT MATCH ONLY
-				if componentPurl != vulnPurl {
-					continue
+				// ---------- DIRECT ----------
+				if componentPurl == vulnPurl {
+
+					if isVersionAffected(
+						components[i].Version,
+						affect.Versions,
+					) {
+						addVuln(&components[i], vuln.ID, components[i].Purl)
+					}
 				}
 
-				// ✅ VERSION MATCH
-				if isVersionAffected(
-					components[i].Version,
-					affect.Versions,
-				) {
-					addVuln(&components[i], vuln.ID)
+				// ---------- DEPENDS ----------
+				for _, dep := range components[i].DependsOn {
+
+					if normalizePurl(dep) == vulnPurl {
+
+						depVersion := extractVersionFromPurl(dep)
+
+						if isVersionAffected(depVersion, affect.Versions) {
+							addVuln(&components[i], vuln.ID, dep)
+						}
+					}
+				}
+
+				// ---------- TRANSITIVE ----------
+				for _, trans := range components[i].TransitiveOf {
+
+					if normalizePurl(trans) == vulnPurl {
+
+						transVersion := extractVersionFromPurl(trans)
+
+						if isVersionAffected(transVersion, affect.Versions) {
+							addVuln(&components[i], vuln.ID, trans)
+						}
+					}
 				}
 			}
 		}
@@ -90,22 +119,25 @@ func matchComponents(
 }
 
 //////////////////////////////////////////////////////
-// ADD VULNERABILITY
+// ADD VULNERABILITY (UPDATED)
 //////////////////////////////////////////////////////
 
-func addVuln(c *CategorizedComponent, vulnID string) {
+func addVuln(c *CategorizedComponent, vulnID, purl string) {
 
 	for _, v := range c.Vulnerabilities {
-		if v == vulnID {
+		if v.ID == vulnID && v.Purl == purl {
 			return
 		}
 	}
 
-	c.Vulnerabilities = append(c.Vulnerabilities, vulnID)
+	c.Vulnerabilities = append(c.Vulnerabilities, VulnInfo{
+		ID:   vulnID,
+		Purl: purl,
+	})
 }
 
 //////////////////////////////////////////////////////
-// HELPERS (UNCHANGED)
+// HELPERS
 //////////////////////////////////////////////////////
 
 func normalizePurl(purl string) string {
@@ -121,6 +153,17 @@ func normalizePurl(purl string) string {
 	}
 
 	return p
+}
+
+func extractVersionFromPurl(purl string) string {
+	if idx := strings.Index(purl, "@"); idx != -1 {
+		v := purl[idx+1:]
+		if q := strings.Index(v, "?"); q != -1 {
+			v = v[:q]
+		}
+		return v
+	}
+	return ""
 }
 
 func isVersionAffected(
@@ -209,7 +252,6 @@ func main() {
 
 	vulns := loadVulnerabilities("sbom.json")
 
-	// unchanged
 	sbom.OSComponents = matchComponents(
 		sbom.OSComponents,
 		vulns,
@@ -220,7 +262,6 @@ func main() {
 		vulns,
 	)
 
-	// ✅ NEW (binary support)
 	sbom.BinaryComponents = matchComponents(
 		sbom.BinaryComponents,
 		vulns,
