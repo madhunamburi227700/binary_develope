@@ -157,3 +157,14 @@ CREATE TABLE user_sessions (
 	CONSTRAINT user_sessions_pkey PRIMARY KEY (id)
 );
 
+CREATE TABLE nli (
+	id UUID NOT NULL,
+	hub_id UUID NULL,
+	status VARCHAR(100),
+	conversation TEXT[],
+	agents _text TEXT[],
+	created_at TIMESTAMPTZ DEFAULT NOW(),
+	updated_at TIMESTAMPTZ DEFAULT NOW(),
+	CONSTRAINT nli_pkey PRIMARY KEY (id)
+);
+CREATE INDEX idx_nli_hub_id ON nli USING btree (hub_id);

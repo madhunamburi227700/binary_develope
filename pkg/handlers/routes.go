@@ -12,6 +12,7 @@ import (
 	"github.com/opsmx/ai-guardian-api/pkg/controller/feedback"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/hub"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/integrator"
+	"github.com/opsmx/ai-guardian-api/pkg/controller/nli"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/project"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/remediation"
 	"github.com/opsmx/ai-guardian-api/pkg/controller/remediation_feedback"
@@ -39,6 +40,7 @@ func SetupRoutes() *mux.Router {
 	auditController := audit.NewAuditController()
 	webhookController := webhook.NewWebhookController()
 	cspmController := cspm.NewCSPMController()
+	nliController := nli.NewNLIController()
 
 	// Public auth routes (no authentication required)
 	authRouter := r.PathPrefix("/auth").Subrouter()
@@ -213,6 +215,8 @@ func SetupRoutes() *mux.Router {
 		nliRouter := apiRouter.PathPrefix("/nli").Subrouter()
 		{
 			nliRouter.HandleFunc("/stream", remediationController.NLI).Methods(http.MethodPost)
+			nliRouter.HandleFunc("/chats/hub/{hub_id}", nliController.ListChatsByHubID).Methods(http.MethodGet)
+			nliRouter.HandleFunc("/chats/{id}", nliController.GetChatByID).Methods(http.MethodGet)
 		}
 
 		// CSPM routes
