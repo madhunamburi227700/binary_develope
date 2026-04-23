@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -175,6 +176,7 @@ func (ps *PollingService) pollPendingScans(ctx context.Context) {
 		}
 
 		scan.Branch = projectStatus.Scans[0].Branch
+		repoOwner := projectStatus.Scans[0].Organization
 
 		// Extract lastScannedTime from SSD
 		var lastScannedTime *time.Time
@@ -182,7 +184,7 @@ func (ps *PollingService) pollPendingScans(ctx context.Context) {
 			lastScannedTime = projectStatus.Scans[0].LastScannedTime
 		}
 
-		if err := ps.processScan(ctx, scan, string(projectStatus.RiskStatus), projectStatus.Team.ID, projectStatus.Team.Email, lastScannedTime, scan.LastScannedTime); err != nil {
+		if err := ps.processScan(ctx, scan, string(projectStatus.RiskStatus), repoOwner, projectStatus.Team.ID, projectStatus.Team.Email, lastScannedTime, scan.LastScannedTime); err != nil {
 			ps.logger.LogError(err, fmt.Sprintf("Failed to process scan %s", scan.ID), map[string]interface{}{
 				"scan_id": scan.ID,
 			})
@@ -191,7 +193,7 @@ func (ps *PollingService) pollPendingScans(ctx context.Context) {
 }
 
 // processScan processes a single scan by querying SSD API and updating the database
-func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanRecord, projectStatus, teamID, email string, lastScannedTime *time.Time, dbLastScannedTime *time.Time) error {
+func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanRecord, projectStatus, repoOwner, teamID, email string, lastScannedTime *time.Time, dbLastScannedTime *time.Time) error {
 	// Handle scan status based on completion state
 	switch projectStatus {
 	case string(client.RiskStatusCompleted):
@@ -293,12 +295,12 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 				dbUser, err := ps.userRepository.GetByProviderUserID(ctx, email)
 				if err == nil {
 					email = dbUser.Email.String
-					project, commitSHA := scan.ProjectID, ""
+					project := scan.ProjectID
 					if scanData != nil {
 						project = scanData.ProjectName
-						commitSHA = scanData.HeadCommit
 					}
-					if err := ps.notificationService.NotifyScanCompletion(ctx, email, project, scan.Repository, scan.Branch, commitSHA); err != nil {
+					projectUrl := getProjectURL(scan.ProjectID, repoOwner, scan.Repository, scan.Branch)
+					if err := ps.notificationService.NotifyScanCompletion(ctx, email, project, scan.Repository, scan.Branch, projectUrl); err != nil {
 						ps.logger.LogError(err, "Failed to notify the user for a completed scan", map[string]interface{}{
 							"scan": scan.ID, "teamID": teamID,
 						})
@@ -369,6 +371,12 @@ func (ps *PollingService) processScan(ctx context.Context, scan repository.ScanR
 	}
 
 	return nil
+}
+
+// getProjectURL: get the project UI based url
+func getProjectURL(projectId, repoOwner, repoName, branch string) string {
+	return fmt.Sprintf("%s/projects/%s/%s/%s?branch=%s",
+		config.GetUIAddress(), projectId, repoOwner, repoName, url.QueryEscape(branch))
 }
 
 // update scan status in database

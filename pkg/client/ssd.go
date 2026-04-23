@@ -329,6 +329,7 @@ func (c *SSDClient) GetProjectStatuses(ctx context.Context, projectIds []string)
 			scans {
             	branch
 				lastScannedTime
+				organization
         	}
 		}
 	}`, strings.Join(quotedIDs, ","))

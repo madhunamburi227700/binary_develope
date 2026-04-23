@@ -160,9 +160,9 @@ type GetIntegratorConfigResponse struct {
 }
 
 type Project struct {
-	ID                string           `json:"id"`
-	Name              string           `json:"name"`
-	Platform          string           `json:"platform"`
+	ID                string             `json:"id"`
+	Name              string             `json:"name"`
+	Platform          string             `json:"platform"`
 	IntegratorConfigs []IntegratorConfig `json:"integratorConfigs"`
 }
 
@@ -230,6 +230,7 @@ type ProjectDetailsResponse struct {
 type Scans struct {
 	Branch          string     `json:"branch"`
 	LastScannedTime *time.Time `json:"lastScannedTime"`
+	Organization    string     `json:"organization"`
 }
 
 type TeamDetails struct {

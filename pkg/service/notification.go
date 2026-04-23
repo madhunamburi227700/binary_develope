@@ -25,7 +25,7 @@ func NewNotificationService(notifier Notifier) *NotificationService {
 }
 
 // NotifyScanCompletion sends a plain-text email notification detailing the completed scan.
-func (s *NotificationService) NotifyScanCompletion(ctx context.Context, notifyTo, project, repository, branch, commitSHA string) error {
+func (s *NotificationService) NotifyScanCompletion(ctx context.Context, notifyTo, project, repository, branch, projectUrl string) error {
 	_, recipients := config.GetNotificationConfig()
 
 	if notifyTo == "" {
@@ -38,22 +38,22 @@ func (s *NotificationService) NotifyScanCompletion(ctx context.Context, notifyTo
 		Project    string
 		Repository string
 		Branch     string
-		CommitSHA  string
+		ProjectURL string
 	}{
 		Project:    project,
 		Repository: repository,
 		Branch:     branch,
-		CommitSHA:  commitSHA,
+		ProjectURL: projectUrl,
 	}
 
 	emailTemplate := `
 The security scan has been completed for the following:
 
 Details:
-Project:    {{.Project}}
-Repository: {{.Repository}}
-Branch:     {{.Branch}}
-CommitSHA:  {{.CommitSHA}}
+Project:      {{.Project}}
+Repository:   {{.Repository}}
+Branch:       {{.Branch}}
+View results: {{.ProjectURL}}
 
 Please check the latest results in the AI Guardian dashboard.
 
