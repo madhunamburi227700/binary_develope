@@ -69,20 +69,6 @@ type FinalOutput struct {
 	LibraryComponents []Categorized `json:"library_components"`
 }
 
-// -------- LANGUAGE --------
-
-func extractLanguage(purl string) string {
-	if !strings.HasPrefix(purl, "pkg:") {
-		return ""
-	}
-	trimmed := strings.TrimPrefix(purl, "pkg:")
-	parts := strings.SplitN(trimmed, "/", 2)
-	if len(parts) == 0 {
-		return ""
-	}
-	return strings.ToUpper(parts[0])
-}
-
 // -------- LOAD --------
 
 func loadComponents(data []byte) ([]Component, error) {
@@ -171,7 +157,7 @@ func categorize(components []Component) FinalOutput {
 	}
 }
 
-// -------- MAIN (ONLY FIX HERE) --------
+// -------- MAIN --------
 
 func main() {
 
