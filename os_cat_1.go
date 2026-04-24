@@ -194,12 +194,10 @@ func main() {
 
 	result := categorize(components)
 
-	// 🔥 ONLY FIX IS HERE (IMPORTANT)
-
 	var buf strings.Builder
 	enc := json.NewEncoder(&buf)
 	enc.SetIndent("", "  ")
-	enc.SetEscapeHTML(false) // ⭐ FIX: stops \u0026 escaping
+	enc.SetEscapeHTML(false)
 
 	if err := enc.Encode(result); err != nil {
 		panic(err)

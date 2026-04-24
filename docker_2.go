@@ -1,3 +1,4 @@
+// this file is required for the docker file
 package main
 
 import (
