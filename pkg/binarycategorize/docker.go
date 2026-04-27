@@ -108,10 +108,7 @@ func parseLines(lines []line) []DockerComponent {
 	return out
 }
 
-// -------------------------------------------------------------------
 // CLASSIFICATION
-// -------------------------------------------------------------------
-
 var binaryTools = map[string]bool{
 	"syft": true,
 	"trivy": true,
@@ -257,9 +254,7 @@ func classifyCmd(cmd string, lineNum int) []DockerComponent {
 	return result
 }
 
-// -------------------------------------------------------------------
 // COPY
-// -------------------------------------------------------------------
 
 func classifyCopy(cmd string, lineNum int) []DockerComponent {
 
@@ -297,9 +292,7 @@ func classifyCopy(cmd string, lineNum int) []DockerComponent {
 	}}
 }
 
-// -------------------------------------------------------------------
 // HELPERS
-// -------------------------------------------------------------------
 
 func extractAllURLs(cmd string) []string {
 	re := regexp.MustCompile(`https?://[^\s"'\\)]+`)
@@ -404,9 +397,7 @@ func extractPipPackages(cmd string) []string {
 	return pkgs
 }
 
-// -------------------------------------------------------------------
 // GROUP
-// -------------------------------------------------------------------
 
 func groupComponents(components []DockerComponent) DockerfileInput {
 

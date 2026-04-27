@@ -5,6 +5,7 @@ go 1.24.0
 toolchain go1.24.7
 
 require (
+	github.com/OpsMx/go-app-base v0.0.24
 	github.com/OpsMx/oauth-bridge-client v1.3.0
 	github.com/antonlindstrom/pgstore v0.0.0-20220421113606-e3a6e3fed12a
 	github.com/go-redis/redismock/v9 v9.2.0
@@ -18,6 +19,7 @@ require (
 	github.com/redis/go-redis/v9 v9.17.1
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.11.1
+	github.com/swaggo/http-swagger v1.3.4
 	github.com/swaggo/swag v1.16.6
 	go.yaml.in/yaml/v2 v2.4.3
 	golang.org/x/oauth2 v0.33.0
@@ -48,9 +50,11 @@ require (
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
+	github.com/swaggo/files v0.0.0-20220610200504-28940afbdbfe // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/crypto v0.44.0 // indirect
 	golang.org/x/mod v0.30.0 // indirect
+	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sync v0.18.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
 	golang.org/x/text v0.31.0 // indirect

@@ -2,10 +2,7 @@ package binarycategorize
 
 import "strings"
 
-// ─────────────────────────────────────────────
 // INPUT – SBOM (multiple layouts supported)
-// ─────────────────────────────────────────────
-
 type SBOMInput struct {
 	// CycloneDX / flat
 	Components []RawComponent `json:"components"`
@@ -28,10 +25,7 @@ type SBOMInput struct {
 	Dependencies []Dependency `json:"dependencies"`
 }
 
-// ─────────────────────────────────────────────
 // RAW COMPONENT
-// ─────────────────────────────────────────────
-
 type RawComponent struct {
 	Name       string `json:"name"`
 	CompAlt    string `json:"component"`
@@ -63,10 +57,7 @@ func (c RawComponent) Resolved() (
 	return
 }
 
-// ─────────────────────────────────────────────
 // INPUT – DOCKER PARSER OUTPUT
-// ─────────────────────────────────────────────
-
 type DockerfileInput struct {
 	OS          []DockerComponent `json:"os"`
 	Binary      []DockerComponent `json:"binary"`
@@ -82,19 +73,13 @@ type DockerComponent struct {
 	Raw           string `json:"raw"`
 }
 
-// ─────────────────────────────────────────────
-// INTERMEDIATE – CALL1 OUTPUT
-// ─────────────────────────────────────────────
-
+// INTERMEDIATE
 type CategorizedSBOM struct {
 	OSComponents      []CategorizedComponent `json:"os_components"`
 	LibraryComponents []CategorizedComponent `json:"library_components"`
 }
 
-// ─────────────────────────────────────────────
 // FINAL OUTPUT
-// ─────────────────────────────────────────────
-
 type ComparisonOutput struct {
 	OSComponents      []CategorizedComponent `json:"os_components"`
 	LibraryComponents []CategorizedComponent `json:"library_components"`
@@ -112,7 +97,7 @@ type CategorizedComponent struct {
 
 	LineNumber        int    `json:"line_number,omitempty"`
 	DockerInstruction string `json:"docker_instruction,omitempty"`
-	MatchScore        int    `json:"match_score,omitempty"`
+	MatchScore        int    `json:"-"` // "match_score,omitempty" not exported, used for scoring matches internally but not part of final output
 	MatchedWith       string `json:"matched_with,omitempty"`
 
 	DependsOn         []string `json:"depends_on"`
@@ -121,9 +106,7 @@ type CategorizedComponent struct {
 	Vulnerabilities   []VulnInfo `json:"vulnerabilities,omitempty"`
 }
 
-// ─────────────────────────────────────────────
 // VULNERABILITIES
-// ─────────────────────────────────────────────
 
 type VulnInfo struct {
 	ID   string `json:"id"`
@@ -145,20 +128,13 @@ type Version struct {
 	Status  string `json:"status"`
 }
 
-// ─────────────────────────────────────────────
 // DEPENDENCY GRAPH
-// ─────────────────────────────────────────────
-
 type Dependency struct {
 	Ref       string   `json:"ref"`
 	DependsOn []string `json:"dependsOn"`
 }
 
-// ─────────────────────────────────────────────
 // HELPERS
-// Same as individual script logic
-// ─────────────────────────────────────────────
-
 func firstNonEmpty(vals ...string) string {
 	for _, v := range vals {
 		if strings.TrimSpace(v) != "" {

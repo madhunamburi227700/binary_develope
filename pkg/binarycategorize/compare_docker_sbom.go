@@ -6,9 +6,7 @@ import (
 	"strings"
 )
 
-// -------------------------------------------------------------------
-// ENTRY POINT
-// -------------------------------------------------------------------
+// ENTRYPOINT
 
 func CompareComponents(
 	sbom CategorizedSBOM,
@@ -17,9 +15,7 @@ func CompareComponents(
 
 	var out ComparisonOutput
 
-	//----------------------------------------------------
 	// OS COMPONENTS
-	//----------------------------------------------------
 
 	for _, c := range sbom.OSComponents {
 
@@ -33,7 +29,8 @@ func CompareComponents(
 			entry.DockerInstruction = raw
 			entry.MatchScore = score
 
-			if strings.Contains(raw, "releases/download") {
+			// Check if it's a binary installation
+			if isBinaryInstallation(raw) {
 				entry.Category = "Binary"
 			}
 		}
@@ -44,9 +41,7 @@ func CompareComponents(
 		)
 	}
 
-	//----------------------------------------------------
 	// LIBRARY COMPONENTS
-	//----------------------------------------------------
 
 	for _, c := range sbom.LibraryComponents {
 
@@ -65,8 +60,37 @@ func CompareComponents(
 			entry.DockerInstruction = raw
 			entry.MatchScore = score
 
-			// Promote to binary if installed as downloadable tool
-			if isBinaryInstall(raw) {
+			// IMPROVED: Multi-layer binary detection
+			isBinary := false
+
+			// Check 1: Is it a shell/bash installation pattern?
+			// This catches: curl | sh, wget | bash, /install.sh, etc.
+			if isBinaryInstallation(raw) {
+				isBinary = true
+			}
+
+			// Check 2: Does the component name appear in the installation URL?
+			// This catches cases like "uv" in "https://astral.sh/uv/install.sh"
+			if componentInInstallURL(c.Component, raw) && isBinaryInstallation(raw) {
+				isBinary = true
+			}
+
+			// Check 3: Was it found in docker binary section?
+			if entry.MatchScore > 0 {
+				for _, binComp := range docker.Binary {
+					if binComp.Raw == raw {
+						isBinary = true
+						break
+					}
+				}
+			}
+
+			// Check 4: SBOM category is already Binary
+			if c.Category == "Binary" && isBinaryInstallation(raw) {
+				isBinary = true
+			}
+
+			if isBinary {
 				entry.Category = "Binary"
 
 				out.BinaryComponents = append(
@@ -87,9 +111,7 @@ func CompareComponents(
 	return out
 }
 
-// -------------------------------------------------------------------
 // MATCH OS
-// -------------------------------------------------------------------
 
 func matchOS(
 	sb CategorizedComponent,
@@ -122,9 +144,7 @@ func matchOS(
 	return false, 0, "", 0
 }
 
-// -------------------------------------------------------------------
 // MATCH LIBRARIES
-// -------------------------------------------------------------------
 
 func matchLibrary(
 	sb CategorizedComponent,
@@ -175,9 +195,7 @@ func matchLibrary(
 	return false, 0, "", 0
 }
 
-// -------------------------------------------------------------------
-// STRONG MATCH LOGIC (WITH ALL FIXES FROM INDIVIDUAL SCRIPT)
-// -------------------------------------------------------------------
+// STRONG MATCH LOGIC
 
 func strongMatch(
 	sbomComponent string,
@@ -201,7 +219,15 @@ func strongMatch(
 		return true, maxScore
 	}
 
-	// Strategy 2: Last token match with word boundary check (strong)
+	// NEW: Strategy 2a: Extract from install URL and match
+	// This handles: "uv" from SBOM matching "https://astral.sh/uv/install.sh"
+	urlComponentName := extractFromInstallURL(dockerComponent)
+	if urlComponentName != "" && urlComponentName == normalizedSBOM {
+		score = 88
+		return true, score
+	}
+
+	// Strategy 2b: Last token match with word boundary check (strong)
 	tokenSBOM := lastToken(sbomComponent)
 	tokenDocker := lastToken(dockerComponent)
 
@@ -415,7 +441,65 @@ func extractFromPurl(purl string) string {
 	return normalize(name)
 }
 
-// IMPROVED: Added more generic names to prevent false positives
+// Extract component name from install URLs
+// Extracts "uv" from "https://astral.sh/uv/install.sh"
+func extractFromInstallURL(url string) string {
+	url = strings.ToLower(url)
+
+	// Remove common prefixes
+	url = strings.TrimPrefix(url, "https://")
+	url = strings.TrimPrefix(url, "http://")
+
+	// Split by / and look for install.sh, setup.sh patterns
+	parts := strings.Split(url, "/")
+
+	// Pattern: domain/component/install.sh or domain/component/setup.sh
+	// Look for segments before common installer names
+	for i := 0; i < len(parts); i++ {
+		part := parts[i]
+
+		// Skip domain-like parts (contain dots)
+		if strings.Contains(part, ".") {
+			continue
+		}
+
+		// Check if next part is an installer script
+		if i+1 < len(parts) {
+			nextPart := parts[i+1]
+			if nextPart == "install.sh" ||
+				nextPart == "setup.sh" ||
+				nextPart == "get.sh" ||
+				strings.HasSuffix(nextPart, ".sh") {
+				// Found it!
+				if part != "" && !isGenericName(part) {
+					return normalize(part)
+				}
+			}
+		}
+	}
+
+	return ""
+}
+
+// Check if component name appears in the curl/install command
+// This catches things like "uv" in "https://astral.sh/uv/install.sh"
+func componentInInstallURL(componentName, dockerRaw string) bool {
+	// Normalize component name for matching
+	normalized := normalize(componentName)
+
+	if normalized == "" {
+		return false
+	}
+
+	// Check if it appears in the raw docker instruction
+	// Use word boundaries to avoid partial matches
+	pattern := fmt.Sprintf(`\b%s\b`, regexp.QuoteMeta(normalized))
+	re := regexp.MustCompile(pattern)
+
+	return re.MatchString(strings.ToLower(dockerRaw))
+}
+
+// Added more generic names to prevent false positives
 func isGenericName(s string) bool {
 
 	generic := map[string]bool{
@@ -432,36 +516,93 @@ func isGenericName(s string) bool {
 		"https":  true,
 		"net":    true,
 		"main":   true,
+		"bin":    true,
+		"src":    true,
+		"test":   true,
 	}
 
 	return generic[s]
 }
 
-// -------------------------------------------------------------------
-// BINARY INSTALLATION DETECTION
-// -------------------------------------------------------------------
+// Better binary installation detection - checks entire curl/sh/bash command structure
+func isBinaryInstallation(raw string) bool {
+	raw = strings.ToLower(raw)
 
-func isBinaryInstall(raw string) bool {
+	// Pattern 1: curl + pipe + sh/bash
+	if strings.Contains(raw, "curl") &&
+		(strings.Contains(raw, "| sh") ||
+			strings.Contains(raw, "| bash") ||
+			strings.Contains(raw, "sh -c") ||
+			strings.Contains(raw, "bash -c")) {
+		return true
+	}
 
-	l := strings.ToLower(raw)
+	// Pattern 2: Direct download with releases/download
+	if strings.Contains(raw, "releases/download") {
+		return true
+	}
 
-	return strings.Contains(
-		raw,
-		"releases/download",
-	) ||
-		strings.Contains(
-			raw,
-			"/install.sh",
-		) ||
-		(strings.Contains(l, "curl") &&
-			strings.Contains(l, "| bash")) ||
-		(strings.Contains(l, "curl") &&
-			strings.Contains(l, "| sh"))
+	// Pattern 3: Direct .sh file execution
+	if strings.Contains(raw, "/install.sh") ||
+		strings.Contains(raw, "/setup.sh") ||
+		strings.Contains(raw, ".sh\"") ||
+		strings.Contains(raw, ".sh'") {
+		return true
+	}
+
+	// Pattern 4: wget + pipe + sh/bash
+	if strings.Contains(raw, "wget") &&
+		(strings.Contains(raw, "| sh") || strings.Contains(raw, "| bash")) {
+		return true
+	}
+
+	// Pattern 5: Direct tar/zip extraction with curl/wget
+	if (strings.Contains(raw, "curl") || strings.Contains(raw, "wget")) &&
+		(strings.Contains(raw, "tar") ||
+			strings.Contains(raw, "unzip") ||
+			strings.Contains(raw, "gzip")) {
+		return true
+	}
+
+	// Pattern 6: apt-get/yum/pacman install from external repos
+	if (strings.Contains(raw, "apt-get") ||
+		strings.Contains(raw, "yum install") ||
+		strings.Contains(raw, "pacman")) &&
+		(strings.Contains(raw, "curl") ||
+			strings.Contains(raw, "wget") ||
+			strings.Contains(raw, "python") ||
+			strings.Contains(raw, "npm") ||
+			strings.Contains(raw, "go") ||
+			strings.Contains(raw, "github")) {
+		return true
+	}
+
+	// Pattern 7: pip/npm/go install with specific versions or URLs
+	if (strings.Contains(raw, "pip install") ||
+		strings.Contains(raw, "npm install") ||
+		strings.Contains(raw, "go install")) &&
+		(strings.Contains(raw, "github") ||
+			strings.Contains(raw, "http://") ||
+			strings.Contains(raw, "https://")) {
+		return true
+	}
+
+	// Pattern 8: Direct executable download (e.g., /usr/local/bin)
+	if (strings.Contains(raw, "/usr/local/bin") ||
+		strings.Contains(raw, "/usr/bin")) &&
+		(strings.Contains(raw, "curl") || strings.Contains(raw, "wget")) {
+		return true
+	}
+
+	return false
 }
 
-// -------------------------------------------------------------------
+// LEGACY: Kept for backward compatibility (delegates to improved version)
+func isBinaryInstall(raw string) bool {
+	return isBinaryInstallation(raw)
+}
+
 // HELPER
-// -------------------------------------------------------------------
 
 func makeEntry(
 	c CategorizedComponent,

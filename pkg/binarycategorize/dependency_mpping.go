@@ -28,7 +28,6 @@ func EnrichDependencies(
 		reverseMap,
 	)
 
-	// same as standalone script
 	out.BinaryComponents = enrichComponents(
 		out.BinaryComponents,
 		directMap,
@@ -48,7 +47,6 @@ func buildDirectDependencyMap(
 
 	for _, d := range deps {
 
-		// same as standalone normalize(d.Ref)
 		ref := normalizePurl(
 			d.Ref,
 		)
@@ -195,7 +193,6 @@ func normalizePurl(
 		strings.TrimSpace(p),
 	)
 
-	// standalone logic
 	if idx := strings.Index(
 		p,
 		"?package-id=",
