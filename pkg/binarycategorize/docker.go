@@ -5,9 +5,6 @@ import (
 	"strings"
 )
 
-// -------------------------------------------------------------------
-// PUBLIC ENTRY
-// -------------------------------------------------------------------
 
 func ParseDockerfile(content string) DockerfileInput {
 	rawLines := strings.Split(content, "\n")
@@ -16,9 +13,6 @@ func ParseDockerfile(content string) DockerfileInput {
 	return groupComponents(components)
 }
 
-// -------------------------------------------------------------------
-// NORMALIZE
-// -------------------------------------------------------------------
 
 type line struct {
 	content string
@@ -61,9 +55,6 @@ func normalizeLines(raw []string) []line {
 	return result
 }
 
-// -------------------------------------------------------------------
-// PARSE LAST STAGE ONLY
-// -------------------------------------------------------------------
 
 func parseLines(lines []line) []DockerComponent {
 
